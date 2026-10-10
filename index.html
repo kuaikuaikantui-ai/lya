@@ -893,7 +893,8 @@
         .format-panel-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
         .format-btn-group { display: flex; align-items: center; gap: 6px; }
     </style>
-    <script src="p2p-engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swarmcloud-hls@latest/dist/p2p-engine.min.js"></script>
+    <script>if (!window.P2PEngineHls && !window.P2pEngineHls) document.write('<script src="p2p-engine.min.js"><\/script>');</script>
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
     <script src="video.js"></script>
@@ -1360,6 +1361,11 @@
 </div>
 
 <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+            for (let reg of regs) reg.unregister();
+        }).catch(() => {});
+    }
     // ====================================================================
     // 纯前端 / 边缘引擎双模自适应系统
     // 部署在 GitHub Pages / 本地 HTML 时自动直连；部署在 Worker/Edge 时自动走后端

@@ -698,66 +698,7 @@
                 customType: {
                     customHls: function (video, player) {
                         if (window.Hls && window.Hls.isSupported()) {
-                            let p2pConfig = {};
-                            if (window.P2pEngineHls && window.P2pEngineHls.isSupported()) {
-                                try {
-                                    if (window.currentP2pEngine) {
-                                        try { window.currentP2pEngine.destroy(); } catch(e){}
-                                    }
-                                    const p2pEngine = new window.P2pEngineHls({
-                                        p2pEnabled: window.isP2pEnabled !== false,
-                                        swrOptions: { timeout: 10000 }
-                                    });
-                                    window.currentP2pEngine = p2pEngine;
-                                    p2pConfig = p2pEngine.hlsConfig || {};
-
-                                    p2pEngine.on('stats', function (stats) {
-                                        window.p2pStats = stats;
-                                        const p2pMB = (stats.totalP2pDownloaded / 1024 / 1024).toFixed(1);
-                                        const httpMB = (stats.totalHttpDownloaded / 1024 / 1024).toFixed(1);
-                                        const total = stats.totalP2pDownloaded + stats.totalHttpDownloaded;
-                                        const ratio = total > 0 ? Math.round((stats.totalP2pDownloaded / total) * 100) : 0;
-                                        const peersCount = window.currentPeersCount || 0;
-                                        
-                                        const liveText = document.getElementById('p2pLiveText');
-                                        if (liveText && window.isP2pEnabled !== false) {
-                                            if (peersCount > 0) {
-                                                liveText.innerText = `P2P加速中 (${peersCount}节点 · ${p2pMB}MB · ${ratio}%)`;
-                                            } else {
-                                                liveText.innerText = `P2P就绪 (${p2pMB}MB · ${ratio}%)`;
-                                            }
-                                        }
-                                        const detailsText = document.getElementById('p2pDetailsText');
-                                        if (detailsText) {
-                                            detailsText.innerText = `连接节点: ${peersCount} 个 | P2P下载: ${p2pMB}MB (${ratio}%) | HTTP: ${httpMB}MB`;
-                                        }
-                                    });
-
-                                    p2pEngine.on('peers', function (peers) {
-                                        window.currentPeersCount = peers.length;
-                                        const p2pMB = window.p2pStats ? (window.p2pStats.totalP2pDownloaded / 1024 / 1024).toFixed(1) : '0.0';
-                                        const liveText = document.getElementById('p2pLiveText');
-                                        if (liveText && window.isP2pEnabled !== false) {
-                                            if (peers.length > 0) {
-                                                liveText.innerText = `P2P加速中 (${peers.length}节点 · ${p2pMB}MB)`;
-                                            } else {
-                                                liveText.innerText = 'P2P就绪 (寻找节点中...)';
-                                            }
-                                        }
-                                        const detailsText = document.getElementById('p2pDetailsText');
-                                        if (detailsText && window.p2pStats) {
-                                            const p2pDownloaded = (window.p2pStats.totalP2pDownloaded / 1024 / 1024).toFixed(1);
-                                            const httpMB = (window.p2pStats.totalHttpDownloaded / 1024 / 1024).toFixed(1);
-                                            detailsText.innerText = `连接节点: ${peers.length} 个 | P2P下载: ${p2pDownloaded}MB | HTTP: ${httpMB}MB`;
-                                        }
-                                    });
-                                } catch(e) {
-                                    console.warn('[P2P Engine] 初始化跳过:', e);
-                                }
-                            }
-
                             const hls = new window.Hls({
-                                ...p2pConfig,
                                 enableWorker: true,
                                 lowLatencyMode: true,
                                 startLevel: -1,             // 自动探测并从最高分辨率切入
@@ -767,8 +708,71 @@
                                 backBufferLength: 30
                             });
 
-                            if (window.currentP2pEngine) {
-                                window.currentP2pEngine.bindHls(hls);
+                            // WebRTC P2P 智能加速引擎 (兼容 SwarmCloud / CDNBye HlsjsEngine)
+                            const P2pEngineClass = window.P2PEngineHls || window.P2pEngineHls;
+                            if (P2pEngineClass && typeof P2pEngineClass.isSupported === 'function' && P2pEngineClass.isSupported()) {
+                                try {
+                                    if (window.currentP2pEngine) {
+                                        try { window.currentP2pEngine.destroy(); } catch(e){}
+                                    }
+                                    let p2pEngine = null;
+                                    if (P2pEngineClass.HlsjsEngine) {
+                                        p2pEngine = new P2pEngineClass.HlsjsEngine(hls, {
+                                            p2pEnabled: window.isP2pEnabled !== false
+                                        });
+                                    } else {
+                                        p2pEngine = new P2pEngineClass({
+                                            hlsjsInstance: hls,
+                                            p2pEnabled: window.isP2pEnabled !== false
+                                        });
+                                    }
+                                    window.currentP2pEngine = p2pEngine;
+
+                                    if (p2pEngine && typeof p2pEngine.on === 'function') {
+                                        p2pEngine.on('stats', function (stats) {
+                                            window.p2pStats = stats;
+                                            const p2pMB = (stats.totalP2pDownloaded / 1024 / 1024).toFixed(1);
+                                            const httpMB = (stats.totalHttpDownloaded / 1024 / 1024).toFixed(1);
+                                            const total = stats.totalP2pDownloaded + stats.totalHttpDownloaded;
+                                            const ratio = total > 0 ? Math.round((stats.totalP2pDownloaded / total) * 100) : 0;
+                                            const peersCount = window.currentPeersCount || 0;
+                                            
+                                            const liveText = document.getElementById('p2pLiveText');
+                                            if (liveText && window.isP2pEnabled !== false) {
+                                                if (peersCount > 0) {
+                                                    liveText.innerText = `P2P加速中 (${peersCount}节点 · ${p2pMB}MB · ${ratio}%)`;
+                                                } else {
+                                                    liveText.innerText = `P2P就绪 (${p2pMB}MB · ${ratio}%)`;
+                                                }
+                                            }
+                                            const detailsText = document.getElementById('p2pDetailsText');
+                                            if (detailsText) {
+                                                detailsText.innerText = `连接节点: ${peersCount} 个 | P2P下载: ${p2pMB}MB (${ratio}%) | HTTP: ${httpMB}MB`;
+                                            }
+                                        });
+
+                                        p2pEngine.on('peers', function (peers) {
+                                            window.currentPeersCount = peers.length;
+                                            const p2pMB = window.p2pStats ? (window.p2pStats.totalP2pDownloaded / 1024 / 1024).toFixed(1) : '0.0';
+                                            const liveText = document.getElementById('p2pLiveText');
+                                            if (liveText && window.isP2pEnabled !== false) {
+                                                if (peers.length > 0) {
+                                                    liveText.innerText = `P2P加速中 (${peers.length}节点 · ${p2pMB}MB)`;
+                                                } else {
+                                                    liveText.innerText = 'P2P就绪 (寻找节点中...)';
+                                                }
+                                            }
+                                            const detailsText = document.getElementById('p2pDetailsText');
+                                            if (detailsText && window.p2pStats) {
+                                                const p2pDownloaded = (window.p2pStats.totalP2pDownloaded / 1024 / 1024).toFixed(1);
+                                                const httpMB = (window.p2pStats.totalHttpDownloaded / 1024 / 1024).toFixed(1);
+                                                detailsText.innerText = `连接节点: ${peers.length} 个 | P2P下载: ${p2pDownloaded}MB | HTTP: ${httpMB}MB`;
+                                            }
+                                        });
+                                    }
+                                } catch(e) {
+                                    console.warn('[P2P Engine] 挂载跳过，走原生超清线路:', e);
+                                }
                             }
 
                             hls.loadSource(video.src);
