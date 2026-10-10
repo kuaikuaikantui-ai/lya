@@ -1,10 +1,27 @@
-// --- 影视模块独立纯净脚本 (kanju无广模式) ---
+// --- 影视模块独立纯净脚本 (kanju无广模式 + 多播放源切换) ---
 (function() {
     window.currentVideoList = [];
     window.currentVideo = null;
     window.currentHls = null;
     window.currentEpisodeIdx = 0;
+    window.currentGroupIdx = 0;
     window.currentVideoSource = 'liangzi';
+
+    // 切换顶部线路 (量子 / 非凡 / 暴风)
+    window.switchVideoLine = function(source) {
+        window.currentVideoSource = source;
+        document.querySelectorAll('#videoLineTabs button').forEach(btn => btn.classList.remove('primary'));
+        const activeBtn = document.getElementById('lineBtn_' + source);
+        if (activeBtn) activeBtn.classList.add('primary');
+
+        const input = document.getElementById('videoSearchInput');
+        const wd = input ? input.value.trim() : '';
+        if (wd) {
+            window.doVideoSearch();
+        } else {
+            window.loadVideoFeed(source);
+        }
+    };
 
     window.loadVideoFeed = async function(source = 'liangzi') {
         window.currentVideoSource = source;
@@ -20,8 +37,7 @@
         }
 
         try {
-            const apiBase = (source === 'liangzi') ? 'https://cj.lziapi.com' : ((source === 'feifan') ? 'https://api.ffzyapi.com' : 'https://bfzyapi.com');
-            const res = await fetch(apiBase + '/api.php/provide/vod/?ac=detail&pg=1');
+            const res = await fetch('/api/video/feed?source=' + source + '&pg=1');
             const data = await res.json();
             window.currentVideoList = data.list || [];
             if (countBadge) countBadge.innerText = '共 ' + window.currentVideoList.length + ' 部热片';
@@ -43,13 +59,12 @@
         if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索片源...</div>';
 
         try {
-            const apiBase = (window.currentVideoSource === 'liangzi') ? 'https://cj.lziapi.com' : ((window.currentVideoSource === 'feifan') ? 'https://api.ffzyapi.com' : 'https://bfzyapi.com');
-            const res = await fetch(apiBase + '/api.php/provide/vod/?ac=detail&wd=' + encodeURIComponent(wd));
+            const res = await fetch('/api/video/search?source=' + window.currentVideoSource + '&wd=' + encodeURIComponent(wd));
             const data = await res.json();
             window.currentVideoList = data.list || [];
             if (countBadge) countBadge.innerText = '检索到 ' + window.currentVideoList.length + ' 个结果';
             if (window.currentVideoList.length === 0) {
-                if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">暂未找到匹配影视，可尝试简短关键词或切换线路。</div>';
+                if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">暂未找到匹配影视，可尝试简短关键词或切换上方线路重试。</div>';
                 return;
             }
             window.renderVideoGrid(window.currentVideoList);
@@ -89,48 +104,91 @@
         const item = window.currentVideoList[index];
         if (!item) return;
         window.currentVideo = item;
+        window.currentGroupIdx = 0;
 
-        const groups = (item.vod_play_url || '').split('$$$');
-        let selectedGroup = groups[0] || '';
-        for (const g of groups) {
-            if (g.includes('.m3u8')) {
-                selectedGroup = g;
-                break;
+        // 解析多播放线路组 (支持播放线路选择：如 lzm3u8, ffm3u8, 默认线路等)
+        const playFroms = (item.vod_play_from || '默认线路').split('$$$');
+        const playGroups = (item.vod_play_url || '').split('$$$');
+
+        const parsedGroups = [];
+        playGroups.forEach((groupStr, gIdx) => {
+            const fromName = playFroms[gIdx] || ('线路' + (gIdx + 1));
+            const episodes = groupStr.split('#').filter(Boolean).map(e => {
+                const pair = e.split('$');
+                return {
+                    title: pair[0] || '正片',
+                    url: pair[1] || pair[0]
+                };
+            });
+            if (episodes.length > 0) {
+                parsedGroups.push({
+                    name: fromName,
+                    episodes: episodes
+                });
             }
-        }
-
-        const episodes = selectedGroup.split('#').filter(Boolean).map(e => {
-            const p = e.split('$');
-            return {
-                title: p[0] || '正片',
-                url: p[1] || p[0]
-            };
         });
 
-        window.currentVideo.episodes = episodes;
+        // 优先将含 .m3u8 较多的线路排在首位
+        parsedGroups.sort((a, b) => {
+            const aHas = a.episodes.some(e => e.url.includes('.m3u8')) ? 1 : 0;
+            const bHas = b.episodes.some(e => e.url.includes('.m3u8')) ? 1 : 0;
+            return bHas - aHas;
+        });
+
+        window.currentVideo.groups = parsedGroups;
 
         document.getElementById('videoSection').style.display = 'none';
         document.getElementById('videoPlayerView').style.display = 'block';
 
         document.getElementById('videoPlayerTitle').innerText = item.vod_name;
-        document.getElementById('videoSourceTag').innerText = item.type_name || '高清无广';
-        document.getElementById('videoDetailName').innerText = item.vod_name + ' (' + (item.vod_year || '未知') + ')';
+        document.getElementById('videoSourceTag').innerText = item.type_name || '全网高清';
+        document.getElementById('videoDetailName').innerText = item.vod_name + ' (' + (item.vod_year || '未知年份') + ')';
         document.getElementById('videoDetailMeta').innerText = (item.vod_area || '') + ' · ' + (item.type_name || '') + ' · 演员: ' + (item.vod_actor ? item.vod_actor.slice(0, 36) + '...' : '暂无');
         document.getElementById('videoDetailDesc').innerText = item.vod_content ? item.vod_content.replace(/<[^>]+>/g, '').slice(0, 140) + '...' : (item.vod_remarks || '暂无详细简介');
 
-        window.renderVideoEpisodes(episodes);
+        window.renderVideoSourceTabs(parsedGroups);
+        window.renderVideoEpisodes(0);
         window.playVideoEpisode(0);
     };
 
-    window.renderVideoEpisodes = function(episodes) {
-        const epBox = document.getElementById('videoEpisodesList');
-        if (!epBox) return;
-        if (!episodes || episodes.length === 0) {
-            epBox.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:10px;">暂无可播放剧集</div>';
+    // 渲染播放线路选择 Tabs
+    window.renderVideoSourceTabs = function(groups) {
+        const tabsBox = document.getElementById('videoPlaySourceTabs');
+        if (!tabsBox) return;
+        if (!groups || groups.length === 0) {
+            tabsBox.innerHTML = '';
             return;
         }
 
-        epBox.innerHTML = episodes.map((ep, idx) => `
+        tabsBox.innerHTML = groups.map((g, idx) => `
+            <button class="btn ${idx === window.currentGroupIdx ? 'primary' : ''}" style="padding:3px 9px; font-size:11px;" onclick="window.switchPlayGroup(${idx})">
+                <i class="fas fa-play-circle"></i> ${g.name.toUpperCase()}
+            </button>
+        `).join('');
+    };
+
+    window.switchPlayGroup = function(groupIdx) {
+        window.currentGroupIdx = groupIdx;
+        document.querySelectorAll('#videoPlaySourceTabs button').forEach(b => b.classList.remove('primary'));
+        const tabsBox = document.getElementById('videoPlaySourceTabs');
+        if (tabsBox && tabsBox.children[groupIdx]) {
+            tabsBox.children[groupIdx].classList.add('primary');
+        }
+        window.renderVideoEpisodes(groupIdx);
+        window.playVideoEpisode(0);
+    };
+
+    window.renderVideoEpisodes = function(groupIdx) {
+        const epBox = document.getElementById('videoEpisodesList');
+        if (!epBox || !window.currentVideo || !window.currentVideo.groups) return;
+
+        const group = window.currentVideo.groups[groupIdx] || window.currentVideo.groups[0];
+        if (!group || !group.episodes || group.episodes.length === 0) {
+            epBox.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:10px;">该线路暂无集数</div>';
+            return;
+        }
+
+        epBox.innerHTML = group.episodes.map((ep, idx) => `
             <button class="chap-btn ${idx === window.currentEpisodeIdx ? 'read-active' : ''}" id="epBtn_${idx}" onclick="window.playVideoEpisode(${idx})">
                 ${ep.title}
             </button>
@@ -138,16 +196,19 @@
     };
 
     window.playVideoEpisode = function(idx) {
-        if (!window.currentVideo || !window.currentVideo.episodes || !window.currentVideo.episodes[idx]) return;
+        if (!window.currentVideo || !window.currentVideo.groups) return;
+        const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
+        if (!group || !group.episodes || !group.episodes[idx]) return;
+
         window.currentEpisodeIdx = idx;
-        const ep = window.currentVideo.episodes[idx];
+        const ep = group.episodes[idx];
 
         document.querySelectorAll('#videoEpisodesList .chap-btn').forEach(btn => btn.classList.remove('read-active'));
         const activeBtn = document.getElementById('epBtn_' + idx);
         if (activeBtn) activeBtn.classList.add('read-active');
 
         const badge = document.getElementById('currentEpisodeBadge');
-        if (badge) badge.innerText = ep.title;
+        if (badge) badge.innerText = group.name + ' · ' + ep.title;
 
         const video = document.getElementById('hlsVideoPlayer');
         if (!video) return;

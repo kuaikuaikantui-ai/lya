@@ -655,10 +655,10 @@
                 <button class="btn primary" onclick="window.doVideoSearch()"><i class="fas fa-search"></i> 搜剧</button>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                <div style="display:flex; gap:8px;">
-                    <button class="btn" style="font-size:11px; padding:3px 9px;" onclick="window.loadVideoFeed('liangzi')">量子高清</button>
-                    <button class="btn" style="font-size:11px; padding:3px 9px;" onclick="window.loadVideoFeed('feifan')">非凡影院</button>
-                    <button class="btn" style="font-size:11px; padding:3px 9px;" onclick="window.loadVideoFeed('baofeng')">暴风影院</button>
+                <div style="display:flex; gap:6px;" id="videoLineTabs">
+                    <button class="btn primary" id="lineBtn_liangzi" style="font-size:11px; padding:3px 9px;" onclick="window.switchVideoLine('liangzi')">量子高清</button>
+                    <button class="btn" id="lineBtn_feifan" style="font-size:11px; padding:3px 9px;" onclick="window.switchVideoLine('feifan')">非凡影院</button>
+                    <button class="btn" id="lineBtn_baofeng" style="font-size:11px; padding:3px 9px;" onclick="window.switchVideoLine('baofeng')">暴风影院</button>
                 </div>
                 <span style="font-size:11px; color:var(--text-muted);"><i class="fas fa-shield-alt" style="color:var(--accent);"></i> 纯净无弹窗</span>
             </div>
@@ -684,6 +684,10 @@
         </div>
 
         <div style="margin-top:14px;">
+            <div style="margin-bottom:10px;">
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;"><i class="fas fa-random"></i> 切换播放源线路:</div>
+                <div id="videoPlaySourceTabs" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+            </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <h4 style="font-size:14px; font-weight:600;"><i class="fas fa-list-ol"></i> 剧集选集</h4>
                 <span id="currentEpisodeBadge" style="font-size:11px; color:var(--accent);">第1集</span>

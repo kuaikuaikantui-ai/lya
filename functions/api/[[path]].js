@@ -242,6 +242,35 @@ const workerHandler = {
             }
         }
 
+        
+        // 🎬 影视聚合检索与推荐接口 (由云端Serverless代理，彻底解决浏览器CORS跨域问题)
+        if (url.pathname === '/api/video/feed' || url.pathname === '/api/video/search') {
+            const wd = url.searchParams.get('wd') || '';
+            const pg = url.searchParams.get('pg') || '1';
+            const source = url.searchParams.get('source') || 'liangzi';
+
+            let apiBase = 'https://cj.lziapi.com/api.php/provide/vod/?ac=detail';
+            if (source === 'feifan') apiBase = 'https://api.ffzyapi.com/api.php/provide/vod/?ac=detail';
+            if (source === 'baofeng') apiBase = 'https://bfzyapi.com/api.php/provide/vod/?ac=detail';
+
+            let targetUrl = apiBase + (wd ? ('&wd=' + encodeURIComponent(wd)) : ('&pg=' + pg));
+            try {
+                const r = await fetch(targetUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+                const data = await r.text();
+                return new Response(data, {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            } catch(e) {
+                return new Response(JSON.stringify({ code: -1, msg: e.message, list: [] }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+        }
+
         if (url.pathname === '/api/detail') {
             const book_id = url.searchParams.get('book_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
