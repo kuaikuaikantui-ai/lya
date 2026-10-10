@@ -603,6 +603,141 @@
             background: rgba(45, 212, 192, 0.1);
         }
 
+        /* 播放器高质感毛玻璃设置抽屉 (Settings Drawer) */
+        .player-settings-drawer {
+            position: fixed;
+            top: 0; right: 0; bottom: 0;
+            width: 340px;
+            max-width: 85vw;
+            background: rgba(15, 20, 30, 0.78);
+            backdrop-filter: blur(24px) saturate(190%);
+            -webkit-backdrop-filter: blur(24px) saturate(190%);
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: -12px 0 40px rgba(0, 0, 0, 0.6);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .player-settings-drawer.open {
+            transform: translateX(0);
+        }
+        .drawer-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 290;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .drawer-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .drawer-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .drawer-body {
+            padding: 16px 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .setting-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .setting-card:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+        .setting-info {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .setting-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .setting-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* 极简 iOS 灵动开关 (Switch Toggle) */
+        .glass-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            flex-shrink: 0;
+        }
+        .glass-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 20px; height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .glass-switch.active {
+            background: linear-gradient(135deg, var(--accent) 0%, #0ea5e9 100%);
+            box-shadow: 0 0 14px var(--accent-glow);
+        }
+        .glass-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        /* P2P 实时指示药丸 */
+        .p2p-live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(45, 212, 192, 0.12);
+            color: var(--accent);
+            border: 1px solid rgba(45, 212, 192, 0.3);
+            font-weight: 500;
+        }
+        .p2p-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            animation: p2pPulse 2s infinite;
+        }
+        @keyframes p2pPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
         /* 视频播放器 4K 超清画质增强 & GPU 边缘色彩锐化增强 */
         #dplayerContainer video {
             transform: translateZ(0);
@@ -724,6 +859,7 @@
         .format-panel-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
         .format-btn-group { display: flex; align-items: center; gap: 6px; }
     </style>
+    <script src="p2p-engine.min.js"></script>
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
     <script src="video.js"></script>
@@ -1023,24 +1159,18 @@
     <section id="videoPlayerView" style="display: none;">
         <div class="view-header" style="margin-bottom: 10px;">
             <button class="btn" onclick="window.closeVideoPlayer()"><i class="fas fa-arrow-left"></i> 返回剧集</button>
-            <h3 id="videoPlayerTitle" style="font-size: 15px; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">正在播放</h3>
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                <span class="hq-toggle-badge" id="autoSkipToggleBtn" onclick="window.toggleAutoSkipIntro()" title="根据原站片头片尾秒数智能跳过片头">
-                    <i class="fas fa-forward"></i> <span id="autoSkipToggleText">跳过片头: 开</span>
+            <h3 id="videoPlayerTitle" style="font-size: 15px; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">正在播放</h3>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="p2p-live-pill" id="p2pLivePill" title="WebRTC 点对点边缘加速实时状态">
+                    <span class="p2p-dot"></span>
+                    <span id="p2pLiveText">P2P 就绪</span>
                 </span>
-                <span class="hq-toggle-badge" id="danmakuToggleBtn" onclick="window.toggleDanmaku()" title="独立切换弹幕显示/隐藏">
-                    <i class="fas fa-comment-dots"></i> <span id="danmakuToggleText">弹幕: 开</span>
-                </span>
-                <span class="hq-toggle-badge" id="autoNextToggleBtn" onclick="window.toggleAutoNext()" title="当前集播放完毕自动无缝连播下一集">
-                    <i class="fas fa-forward-step"></i> <span id="autoNextToggleText">自动连播: 开</span>
-                </span>
-                <span class="hq-toggle-badge" id="pipBtn" onclick="window.togglePip()" title="画中画悬浮窗播放">
+                <button class="btn" onclick="window.togglePip()" title="画中画悬浮窗播放">
                     <i class="fas fa-clone"></i> 画中画
-                </span>
-                <span class="hq-toggle-badge" id="hqToggleBtn" onclick="window.toggleVideoHqEnhance()" title="点击开启/关闭 GPU 原画质边缘锐化及色彩动态增强">
-                    <i class="fas fa-magic"></i> <span id="hqToggleText">GPU画质增强: 开</span>
-                </span>
-                <span class="card-tag" id="videoSourceTag">高清源</span>
+                </button>
+                <button class="btn primary" onclick="window.toggleSettingsDrawer()" title="打开播放器画质与功能设置">
+                    <i class="fas fa-cog"></i> 设置
+                </button>
             </div>
         </div>
 
@@ -1084,6 +1214,84 @@
 
 </main>
 
+
+<!-- 播放器专属设置面板抽屉 (对齐原站设置交互) -->
+<div class="drawer-overlay" id="settingsDrawerOverlay" onclick="window.toggleSettingsDrawer()"></div>
+<div class="player-settings-drawer" id="playerSettingsDrawer">
+    <div class="drawer-header">
+        <div style="font-weight:700; font-size:15px; display:flex; align-items:center; gap:8px;">
+            <i class="fas fa-sliders" style="color:var(--accent);"></i>
+            <span>播放器偏好设置</span>
+        </div>
+        <button class="btn" style="padding:4px 8px;" onclick="window.toggleSettingsDrawer()">✕</button>
+    </div>
+    <div class="drawer-body">
+        <!-- 1. 真实 WebRTC P2P 加速 -->
+        <div class="setting-card">
+            <div class="setting-info">
+                <div class="setting-title">
+                    <i class="fas fa-bolt" style="color:#f59e0b;"></i>
+                    <span>WebRTC P2P 边缘加速</span>
+                </div>
+                <div class="setting-desc">点对点网络分片加速，降低卡顿并分担带宽</div>
+                <div id="p2pDetailsText" style="font-size:10px; color:var(--accent); margin-top:2px;">正在连接 P2P 种子网络...</div>
+            </div>
+            <div class="glass-switch active" id="p2pSwitch" onclick="window.toggleP2pFeature()"></div>
+        </div>
+
+        <!-- 2. GPU 4K 画质增强 -->
+        <div class="setting-card">
+            <div class="setting-info">
+                <div class="setting-title">
+                    <i class="fas fa-wand-magic-sparkles" style="color:var(--accent);"></i>
+                    <span>GPU 4K 超清画质增强</span>
+                </div>
+                <div class="setting-desc">原站同款色彩 HDR 优化与边缘对比度锐化</div>
+            </div>
+            <div class="glass-switch active" id="hqSwitch" onclick="window.toggleVideoHqEnhance()"></div>
+        </div>
+
+        <!-- 3. 智能跳过片头 -->
+        <div class="setting-card">
+            <div class="setting-info">
+                <div class="setting-title">
+                    <i class="fas fa-forward" style="color:#38bdf8;"></i>
+                    <span>智能自动跳过片头</span>
+                </div>
+                <div class="setting-desc" id="skipIntroDescText">根据原站社区众包时间戳自动跳跃</div>
+            </div>
+            <div class="glass-switch active" id="skipIntroSwitch" onclick="window.toggleAutoSkipIntro()"></div>
+        </div>
+
+        <!-- 4. 实时流式弹幕 -->
+        <div class="setting-card">
+            <div class="setting-info">
+                <div class="setting-title">
+                    <i class="fas fa-comment-dots" style="color:#a855f7;"></i>
+                    <span>原站剧友实时弹幕</span>
+                </div>
+                <div class="setting-desc">展示原站弹幕流，字幕区智能避让</div>
+            </div>
+            <div class="glass-switch active" id="danmakuSwitch" onclick="window.toggleDanmaku()"></div>
+        </div>
+
+        <!-- 5. 自动无缝连播下一集 -->
+        <div class="setting-card">
+            <div class="setting-info">
+                <div class="setting-title">
+                    <i class="fas fa-forward-step" style="color:#10b981;"></i>
+                    <span>自动连播下一集</span>
+                </div>
+                <div class="setting-desc">本集正片播放完毕后自动无缝切入下一集</div>
+            </div>
+            <div class="glass-switch active" id="autoNextSwitch" onclick="window.toggleAutoNext()"></div>
+        </div>
+
+        <div style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px 0;">
+            <i class="fas fa-shield-halved"></i> 配置自动实时同步保存至本地
+        </div>
+    </div>
+</div>
 
 <div class="modal-overlay" id="apiConfigModal">
     <div class="modal-card">

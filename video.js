@@ -686,7 +686,66 @@
                 customType: {
                     customHls: function (video, player) {
                         if (window.Hls && window.Hls.isSupported()) {
+                            let p2pConfig = {};
+                            if (window.P2pEngineHls && window.P2pEngineHls.isSupported()) {
+                                try {
+                                    if (window.currentP2pEngine) {
+                                        try { window.currentP2pEngine.destroy(); } catch(e){}
+                                    }
+                                    const p2pEngine = new window.P2pEngineHls({
+                                        p2pEnabled: window.isP2pEnabled !== false,
+                                        swrOptions: { timeout: 10000 }
+                                    });
+                                    window.currentP2pEngine = p2pEngine;
+                                    p2pConfig = p2pEngine.hlsConfig || {};
+
+                                    p2pEngine.on('stats', function (stats) {
+                                        window.p2pStats = stats;
+                                        const p2pMB = (stats.totalP2pDownloaded / 1024 / 1024).toFixed(1);
+                                        const httpMB = (stats.totalHttpDownloaded / 1024 / 1024).toFixed(1);
+                                        const total = stats.totalP2pDownloaded + stats.totalHttpDownloaded;
+                                        const ratio = total > 0 ? Math.round((stats.totalP2pDownloaded / total) * 100) : 0;
+                                        const peersCount = window.currentPeersCount || 0;
+                                        
+                                        const liveText = document.getElementById('p2pLiveText');
+                                        if (liveText && window.isP2pEnabled !== false) {
+                                            if (peersCount > 0) {
+                                                liveText.innerText = `P2P加速中 (${peersCount}节点 · ${p2pMB}MB · ${ratio}%)`;
+                                            } else {
+                                                liveText.innerText = `P2P就绪 (${p2pMB}MB · ${ratio}%)`;
+                                            }
+                                        }
+                                        const detailsText = document.getElementById('p2pDetailsText');
+                                        if (detailsText) {
+                                            detailsText.innerText = `连接节点: ${peersCount} 个 | P2P下载: ${p2pMB}MB (${ratio}%) | HTTP: ${httpMB}MB`;
+                                        }
+                                    });
+
+                                    p2pEngine.on('peers', function (peers) {
+                                        window.currentPeersCount = peers.length;
+                                        const p2pMB = window.p2pStats ? (window.p2pStats.totalP2pDownloaded / 1024 / 1024).toFixed(1) : '0.0';
+                                        const liveText = document.getElementById('p2pLiveText');
+                                        if (liveText && window.isP2pEnabled !== false) {
+                                            if (peers.length > 0) {
+                                                liveText.innerText = `P2P加速中 (${peers.length}节点 · ${p2pMB}MB)`;
+                                            } else {
+                                                liveText.innerText = 'P2P就绪 (寻找节点中...)';
+                                            }
+                                        }
+                                        const detailsText = document.getElementById('p2pDetailsText');
+                                        if (detailsText && window.p2pStats) {
+                                            const p2pDownloaded = (window.p2pStats.totalP2pDownloaded / 1024 / 1024).toFixed(1);
+                                            const httpMB = (window.p2pStats.totalHttpDownloaded / 1024 / 1024).toFixed(1);
+                                            detailsText.innerText = `连接节点: ${peers.length} 个 | P2P下载: ${p2pDownloaded}MB | HTTP: ${httpMB}MB`;
+                                        }
+                                    });
+                                } catch(e) {
+                                    console.warn('[P2P Engine] 初始化跳过:', e);
+                                }
+                            }
+
                             const hls = new window.Hls({
+                                ...p2pConfig,
                                 enableWorker: true,
                                 lowLatencyMode: true,
                                 startLevel: -1,             // 自动探测并从最高分辨率切入
@@ -695,6 +754,11 @@
                                 maxMaxBufferLength: 60,
                                 backBufferLength: 30
                             });
+
+                            if (window.currentP2pEngine) {
+                                window.currentP2pEngine.bindHls(hls);
+                            }
+
                             hls.loadSource(video.src);
                             hls.attachMedia(video);
                             hls.on(window.Hls.Events.MANIFEST_PARSED, function (event, data) {
@@ -869,35 +933,71 @@
         }
     };
 
-    // 画质增强开关控制 (原站画质增强技术：GPU边缘对比度锐化 + HDR动态色彩增强)
-    window.isVideoHqEnhanced = true;
-    window.toggleVideoHqEnhance = function() {
-        const container = document.getElementById('dplayerContainer');
-        const badge = document.getElementById('hqToggleBtn');
-        const text = document.getElementById('hqToggleText');
-        if (!container || !badge) return;
-
-        window.isVideoHqEnhanced = !window.isVideoHqEnhanced;
-        if (window.isVideoHqEnhanced) {
-            container.classList.remove('hq-enhanced-off');
-            badge.classList.remove('off');
-            if (text) text.innerText = 'GPU画质增强: 开';
+    // 设置抽屉显隐控制
+    window.toggleSettingsDrawer = function() {
+        const drawer = document.getElementById('playerSettingsDrawer');
+        const overlay = document.getElementById('drawerOverlay');
+        if (!drawer) return;
+        const isOpen = drawer.classList.contains('active');
+        if (isOpen) {
+            drawer.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
         } else {
-            container.classList.add('hq-enhanced-off');
-            badge.classList.add('off');
-            if (text) text.innerText = 'GPU画质增强: 关';
+            drawer.classList.add('active');
+            if (overlay) overlay.classList.add('active');
         }
     };
 
-    // 弹幕独立开关 (从播放器底层设置解耦，随时一键开关)
+    // WebRTC P2P 加速功能开关
+    window.isP2pEnabled = true;
+    window.toggleP2pFeature = function() {
+        window.isP2pEnabled = !window.isP2pEnabled;
+        const sw = document.getElementById('p2pSwitch');
+        const pill = document.getElementById('p2pLiveBadge');
+        const liveText = document.getElementById('p2pLiveText');
+        if (sw) sw.classList.toggle('active', window.isP2pEnabled);
+        if (pill) pill.classList.toggle('off', !window.isP2pEnabled);
+        if (liveText) liveText.innerText = window.isP2pEnabled ? 'P2P 就绪' : 'P2P 已关闭';
+        
+        if (window.currentP2pEngine) {
+            try {
+                if (window.isP2pEnabled) {
+                    window.currentP2pEngine.enableP2P();
+                } else {
+                    window.currentP2pEngine.disableP2P();
+                }
+            } catch(e) {}
+        }
+        if (window.dpInstance && window.dpInstance.notice) {
+            window.dpInstance.notice('WebRTC P2P加速已' + (window.isP2pEnabled ? '开启' : '关闭'), 2000);
+        }
+    };
+
+    // 画质增强开关控制 (原站画质增强技术：GPU边缘对比度锐化 + HDR动态色彩增强)
+    window.isVideoHqEnhanced = true;
+    window.toggleVideoHqEnhance = function() {
+        window.isVideoHqEnhanced = !window.isVideoHqEnhanced;
+        const container = document.getElementById('dplayerContainer');
+        const sw = document.getElementById('hqSwitch');
+        if (container) {
+            if (window.isVideoHqEnhanced) {
+                container.classList.remove('hq-enhanced-off');
+            } else {
+                container.classList.add('hq-enhanced-off');
+            }
+        }
+        if (sw) sw.classList.toggle('active', window.isVideoHqEnhanced);
+        if (window.dpInstance && window.dpInstance.notice) {
+            window.dpInstance.notice('GPU画质增强已' + (window.isVideoHqEnhanced ? '开启' : '关闭'), 2000);
+        }
+    };
+
+    // 弹幕独立开关
     window.isDanmakuEnabled = true;
     window.toggleDanmaku = function() {
         window.isDanmakuEnabled = !window.isDanmakuEnabled;
-        const badge = document.getElementById('danmakuToggleBtn');
-        const text = document.getElementById('danmakuToggleText');
-        if (badge) badge.classList.toggle('off', !window.isDanmakuEnabled);
-        if (text) text.innerText = '弹幕: ' + (window.isDanmakuEnabled ? '开' : '关');
-
+        const sw = document.getElementById('danmakuSwitch');
+        if (sw) sw.classList.toggle('active', window.isDanmakuEnabled);
         if (window.dpInstance && window.dpInstance.danmaku) {
             if (window.isDanmakuEnabled) {
                 window.dpInstance.danmaku.show();
@@ -905,16 +1005,17 @@
                 window.dpInstance.danmaku.hide();
             }
         }
+        if (window.dpInstance && window.dpInstance.notice) {
+            window.dpInstance.notice('全网弹幕已' + (window.isDanmakuEnabled ? '开启' : '关闭'), 2000);
+        }
     };
 
     // 智能跳过片头开关 (原站同款社区众包/AI智能片头预设)
     window.isAutoSkipIntro = true;
     window.toggleAutoSkipIntro = function() {
         window.isAutoSkipIntro = !window.isAutoSkipIntro;
-        const badge = document.getElementById('autoSkipToggleBtn');
-        const text = document.getElementById('autoSkipToggleText');
-        if (badge) badge.classList.toggle('off', !window.isAutoSkipIntro);
-        if (text) text.innerText = '跳过片头: ' + (window.isAutoSkipIntro ? '开' : '关');
+        const sw = document.getElementById('skipIntroSwitch');
+        if (sw) sw.classList.toggle('active', window.isAutoSkipIntro);
         if (window.dpInstance && window.dpInstance.notice) {
             window.dpInstance.notice('自动跳片头已' + (window.isAutoSkipIntro ? '开启' : '关闭'), 2000);
         }
@@ -924,10 +1025,11 @@
     window.isAutoNextEnabled = true;
     window.toggleAutoNext = function() {
         window.isAutoNextEnabled = !window.isAutoNextEnabled;
-        const badge = document.getElementById('autoNextToggleBtn');
-        const text = document.getElementById('autoNextToggleText');
-        if (badge) badge.classList.toggle('off', !window.isAutoNextEnabled);
-        if (text) text.innerText = '自动连播: ' + (window.isAutoNextEnabled ? '开' : '关');
+        const sw = document.getElementById('autoNextSwitch');
+        if (sw) sw.classList.toggle('active', window.isAutoNextEnabled);
+        if (window.dpInstance && window.dpInstance.notice) {
+            window.dpInstance.notice('自动连播下一集已' + (window.isAutoNextEnabled ? '开启' : '关闭'), 2000);
+        }
     };
 
     // 原站高频特性：画中画 (Picture-in-Picture)
@@ -965,6 +1067,16 @@
 
     // 关闭视频播放器，返回影视主视窗
     window.closeVideoPlayer = function() {
+        const drawer = document.getElementById('playerSettingsDrawer');
+        const overlay = document.getElementById('drawerOverlay');
+        if (drawer) drawer.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
+
+        if (window.currentP2pEngine) {
+            try { window.currentP2pEngine.destroy(); } catch(e){}
+            window.currentP2pEngine = null;
+        }
+
         if (window.dpInstance) {
             try {
                 window.dpInstance.pause();
