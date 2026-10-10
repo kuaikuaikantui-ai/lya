@@ -197,53 +197,6 @@
             padding: 16px 14px;
         }
 
-        /* 拟真苹果 VisionOS / iOS 18 液态玻璃分段导航胶囊 */
-        .tab-nav {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 22px;
-            background: rgba(13, 17, 28, 0.65);
-            backdrop-filter: blur(36px) saturate(220%) contrast(104%);
-            -webkit-backdrop-filter: blur(36px) saturate(220%) contrast(104%);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            padding: 6px;
-            border-radius: 22px;
-            box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.5), 0 16px 45px -10px rgba(0, 0, 0, 0.7);
-            position: sticky;
-            top: 60px;
-            z-index: 90;
-        }
-        .tab-nav-btn {
-            flex: 1;
-            background: transparent;
-            border: 1px solid transparent;
-            color: rgba(241, 245, 249, 0.65);
-            font-size: 13.5px;
-            font-weight: 600;
-            padding: 10px 14px;
-            border-radius: 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 7px;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
-        }
-        .tab-nav-btn:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-1px);
-        }
-        .tab-nav-btn.active {
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.08) 100%), rgba(56, 189, 248, 0.22);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.38);
-            box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 20px rgba(56, 189, 248, 0.35);
-            text-shadow: 0 1px 8px rgba(255, 255, 255, 0.45);
-            transform: scale(1.02);
-        }
-
         /* 页面平滑切换动效 (消除生硬感) */
         .liquid-view-enter {
             animation: liquidViewIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -987,30 +940,56 @@
         .format-panel-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
         .format-btn-group { display: flex; align-items: center; gap: 6px; }
     
-        /* Apple VisionOS 纯透明液态玻璃分段导航与滑动指示器 */
+        /* Apple VisionOS 纯透明真液态玻璃 (Liquid Glass) 导航栏与动态折射光随动 */
         .tab-nav-container {
-            margin-bottom: 22px;
+            margin-top: 6px;
+            margin-bottom: 26px;
             position: sticky;
-            top: 60px;
+            top: 72px;
             z-index: 90;
             display: flex;
             justify-content: center;
+            width: 100%;
+            pointer-events: auto;
         }
         .tab-nav {
             display: flex;
             position: relative;
-            background: rgba(255, 255, 255, 0.035) !important;
-            backdrop-filter: blur(40px) saturate(220%) contrast(105%) !important;
-            -webkit-backdrop-filter: blur(40px) saturate(220%) contrast(105%) !important;
-            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            background: rgba(255, 255, 255, 0.03) !important;
+            backdrop-filter: blur(28px) saturate(220%) !important;
+            -webkit-backdrop-filter: blur(28px) saturate(220%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.16) !important;
             box-shadow: 
-                inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
+                inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35),
                 inset 0 -1px 2px 0 rgba(0, 0, 0, 0.4),
-                0 20px 50px -10px rgba(0, 0, 0, 0.65) !important;
+                0 18px 40px -10px rgba(0, 0, 0, 0.6) !important;
             padding: 5px !important;
-            border-radius: 30px !important;
+            border-radius: 40px !important;
             width: 100%;
             max-width: 680px;
+            overflow: hidden;
+            --mouse-x: -200px;
+            --mouse-y: -200px;
+        }
+        /* 鼠标跟随的高级液态光斑 (Liquid Specular Follower) */
+        .tab-nav::before {
+            content: '';
+            position: absolute;
+            left: var(--mouse-x, -200px);
+            top: var(--mouse-y, -200px);
+            width: 180px;
+            height: 180px;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(56, 189, 248, 0.15) 35%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            mix-blend-mode: overlay;
+            z-index: 3;
+        }
+        .tab-nav:hover::before {
+            opacity: 1;
         }
         .tab-nav-btn {
             flex: 1;
@@ -1022,48 +1001,53 @@
             font-size: 13.5px !important;
             font-weight: 500 !important;
             padding: 10px 14px !important;
-            border-radius: 25px !important;
+            border-radius: 35px !important;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 7px;
-            z-index: 2;
+            z-index: 4;
             position: relative;
-            transition: color 0.25s ease, transform 0.2s ease;
+            transition: color 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
             user-select: none;
             transform: none !important;
         }
         .tab-nav-btn:hover {
             color: #ffffff !important;
             background: transparent !important;
+            transform: translateY(-1px) scale(1.02) !important;
         }
         .tab-nav-btn.active {
             color: #ffffff !important;
             font-weight: 600 !important;
-            text-shadow: 0 1px 10px rgba(255, 255, 255, 0.5) !important;
+            text-shadow: 0 0 16px rgba(255, 255, 255, 0.8), 0 0 8px rgba(56, 189, 248, 0.6) !important;
             background: transparent !important;
             box-shadow: none !important;
             border: none !important;
+            transform: scale(1.03) !important;
         }
-        /* 苹果流体滑动透镜指示器 (Sliding Glider Pill) */
+        /* 拟真纯透苹果液态透镜 (True Liquid Glass Glider Lens) */
         .tab-glider {
             position: absolute;
             top: 5px;
             bottom: 5px;
             left: 5px;
             width: calc(25% - 2.5px);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.35);
-            border-radius: 25px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.12) 100%) !important;
+            backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
+            -webkit-backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.42) !important;
+            border-top-color: rgba(255, 255, 255, 0.75) !important;
+            border-radius: 35px !important;
             box-shadow: 
-                inset 0 1px 2px 0 rgba(255, 255, 255, 0.6),
-                inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25),
-                0 8px 24px rgba(0, 0, 0, 0.4),
-                0 0 20px rgba(56, 189, 248, 0.3);
-            z-index: 1;
+                inset 0 1.5px 3px 0 rgba(255, 255, 255, 0.8),
+                inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
+                0 6px 20px rgba(0, 0, 0, 0.35),
+                0 0 25px rgba(56, 189, 248, 0.35) !important;
+            z-index: 2;
             pointer-events: none;
-            transition: transform 0.38s cubic-bezier(0.34, 1.35, 0.64, 1);
+            transition: transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1);
         }
 
         /* 日间模式 (Apple Light Daylight Mode) */
@@ -1849,15 +1833,52 @@
 
     // 拟真苹果流体骨架光渲染器
     
-    // 苹果滑动透镜指示器动态位移
+    // 苹果纯透液态玻璃滑块物理跟随与定位
     function updateTabGlider(nav) {
         const glider = document.getElementById('tabGlider');
-        if (!glider) return;
+        const container = document.getElementById('mainTabNav');
+        if (!glider || !container) return;
         const tabs = ['history', 'novel', 'manga', 'video'];
+        const targetBtn = document.querySelector(`#nav${nav.charAt(0).toUpperCase() + nav.slice(1)}Btn`);
         const idx = tabs.indexOf(nav);
         if (idx !== -1) {
-            glider.style.transform = 'translateX(' + (idx * 100) + '%)';
+            if (targetBtn) {
+                const navRect = container.getBoundingClientRect();
+                const btnRect = targetBtn.getBoundingClientRect();
+                const leftOffset = btnRect.left - navRect.left;
+                glider.style.left = leftOffset + 'px';
+                glider.style.width = btnRect.width + 'px';
+                glider.style.transform = 'none';
+            } else {
+                glider.style.left = '5px';
+                glider.style.width = 'calc(25% - 2.5px)';
+                glider.style.transform = 'translateX(' + (idx * 100) + '%)';
+            }
         }
+    }
+
+    // 鼠标在液态玻璃导航栏上的物理折射光斑随动 (Liquid Glass Specular Follower)
+    function initLiquidGlassMouseFollower() {
+        const tabNav = document.getElementById('mainTabNav');
+        if (!tabNav) return;
+        tabNav.addEventListener('mousemove', (e) => {
+            const rect = tabNav.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            tabNav.style.setProperty('--mouse-x', x + 'px');
+            tabNav.style.setProperty('--mouse-y', y + 'px');
+        });
+        tabNav.addEventListener('mouseleave', () => {
+            tabNav.style.setProperty('--mouse-x', '-200px');
+            tabNav.style.setProperty('--mouse-y', '-200px');
+        });
+        window.addEventListener('resize', () => {
+            const currentTab = ['history', 'novel', 'manga', 'video'].find(t => {
+                const b = document.getElementById(`nav${t.charAt(0).toUpperCase() + t.slice(1)}Btn`);
+                return b && b.classList.contains('active');
+            }) || 'history';
+            updateTabGlider(currentTab);
+        });
     }
 
     // 日间 / 夜间模式全局控制
@@ -3034,7 +3055,8 @@
     async function init() {
         initTheme();
         setNovelTheme(currentNovelTheme);
-        updateTabGlider('history');
+        initLiquidGlassMouseFollower();
+        setTimeout(() => updateTabGlider('history'), 50);
         try {
             const res = await fetch('/api/info');
             appConfig = await res.json();
