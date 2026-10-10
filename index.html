@@ -986,6 +986,289 @@
         .format-panel.show { display: flex; }
         .format-panel-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
         .format-btn-group { display: flex; align-items: center; gap: 6px; }
+    
+        /* Apple VisionOS 纯透明液态玻璃分段导航与滑动指示器 */
+        .tab-nav-container {
+            margin-bottom: 22px;
+            position: sticky;
+            top: 60px;
+            z-index: 90;
+            display: flex;
+            justify-content: center;
+        }
+        .tab-nav {
+            display: flex;
+            position: relative;
+            background: rgba(255, 255, 255, 0.035) !important;
+            backdrop-filter: blur(40px) saturate(220%) contrast(105%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(220%) contrast(105%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
+                inset 0 -1px 2px 0 rgba(0, 0, 0, 0.4),
+                0 20px 50px -10px rgba(0, 0, 0, 0.65) !important;
+            padding: 5px !important;
+            border-radius: 30px !important;
+            width: 100%;
+            max-width: 680px;
+        }
+        .tab-nav-btn {
+            flex: 1;
+            background: transparent !important;
+            border: none !important;
+            outline: none;
+            box-shadow: none !important;
+            color: rgba(241, 245, 249, 0.6) !important;
+            font-size: 13.5px !important;
+            font-weight: 500 !important;
+            padding: 10px 14px !important;
+            border-radius: 25px !important;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            z-index: 2;
+            position: relative;
+            transition: color 0.25s ease, transform 0.2s ease;
+            user-select: none;
+            transform: none !important;
+        }
+        .tab-nav-btn:hover {
+            color: #ffffff !important;
+            background: transparent !important;
+        }
+        .tab-nav-btn.active {
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            text-shadow: 0 1px 10px rgba(255, 255, 255, 0.5) !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+        }
+        /* 苹果流体滑动透镜指示器 (Sliding Glider Pill) */
+        .tab-glider {
+            position: absolute;
+            top: 5px;
+            bottom: 5px;
+            left: 5px;
+            width: calc(25% - 2.5px);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 25px;
+            box-shadow: 
+                inset 0 1px 2px 0 rgba(255, 255, 255, 0.6),
+                inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25),
+                0 8px 24px rgba(0, 0, 0, 0.4),
+                0 0 20px rgba(56, 189, 248, 0.3);
+            z-index: 1;
+            pointer-events: none;
+            transition: transform 0.38s cubic-bezier(0.34, 1.35, 0.64, 1);
+        }
+
+        /* 日间模式 (Apple Light Daylight Mode) */
+        body.light-mode {
+            --bg-base: #f5f7fb;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-card: rgba(255, 255, 255, 0.65);
+            --glass-card-hover: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --glass-border-light: rgba(0, 0, 0, 0.16);
+            --glass-highlight: inset 0 1px 1px rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(0, 0, 0, 0.05);
+            --glass-shadow: 0 14px 40px rgba(0, 0, 0, 0.08);
+            --accent: #2563eb;
+            --accent-glow: rgba(37, 99, 235, 0.2);
+            background-color: #f5f7fb !important;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(224, 231, 255, 0.6) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(241, 245, 249, 0.6) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(224, 242, 254, 0.5) 0px, transparent 50%) !important;
+            color: #0f172a !important;
+        }
+        body.light-mode::before { opacity: 0.3; }
+        body.light-mode header {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+        body.light-mode .tab-nav {
+            background: rgba(255, 255, 255, 0.7) !important;
+            border-color: rgba(0, 0, 0, 0.08) !important;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 12px 30px rgba(0, 0, 0, 0.06) !important;
+        }
+        body.light-mode .tab-nav-btn {
+            color: #64748b !important;
+        }
+        body.light-mode .tab-nav-btn.active {
+            color: #0f172a !important;
+            text-shadow: none !important;
+        }
+        body.light-mode .tab-glider {
+            background: #ffffff !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+        }
+        body.light-mode .search-input {
+            background: rgba(255, 255, 255, 0.8) !important;
+            border-color: rgba(0, 0, 0, 0.1) !important;
+            color: #0f172a !important;
+        }
+        body.light-mode button.btn {
+            background: rgba(255, 255, 255, 0.8) !important;
+            border-color: rgba(0, 0, 0, 0.1) !important;
+            color: #0f172a !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+        }
+        body.light-mode .badge {
+            background: rgba(0, 0, 0, 0.06) !important;
+            color: #0f172a !important;
+            border-color: rgba(0, 0, 0, 0.12) !important;
+        }
+
+        /* 原站同款：内嵌在播放器内部的浮岛按钮与设置抽屉 */
+        .player-invideo-topright {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 25;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .video-container:hover .player-invideo-topright,
+        .video-container.show-controls .player-invideo-topright {
+            opacity: 1;
+        }
+        .player-invideo-btn {
+            background: rgba(14, 18, 28, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .player-invideo-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+            transform: scale(1.1);
+        }
+        .player-settings-drawer {
+            position: absolute !important;
+            top: 0 !important; right: 0 !important; bottom: 0 !important;
+            width: 330px !important;
+            max-width: 85% !important;
+            background: rgba(12, 16, 26, 0.88) !important;
+            backdrop-filter: blur(40px) saturate(220%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(220%) !important;
+            border-left: 1px solid rgba(255, 255, 255, 0.15) !important;
+            box-shadow: inset 1px 0 1px 0 rgba(255, 255, 255, 0.2), -15px 0 45px rgba(0, 0, 0, 0.8) !important;
+            z-index: 45 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            transform: translateX(100%) !important;
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        .player-settings-drawer.open,
+        .player-settings-drawer.active {
+            transform: translateX(0) !important;
+        }
+        .drawer-overlay {
+            position: absolute !important; inset: 0 !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+            backdrop-filter: blur(4px) !important;
+            z-index: 40 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transition: opacity 0.3s ease !important;
+        }
+        .drawer-overlay.open,
+        .drawer-overlay.active {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+
+        /* 小说阅读背景专属主题切换 (羊皮纸/极夜黑/护眼绿/晨曦白/雅致灰) */
+        .reader-wrapper.theme-parchment {
+            background: #f4ece1 !important;
+            color: #2d261e !important;
+            border: 1px solid rgba(180, 160, 140, 0.35) !important;
+            box-shadow: 0 12px 36px rgba(120, 90, 50, 0.15) !important;
+        }
+        .reader-wrapper.theme-parchment .text-stream {
+            color: #2d261e !important;
+        }
+        .reader-wrapper.theme-night {
+            background: #0d0f14 !important;
+            color: #cbd5e1 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6) !important;
+        }
+        .reader-wrapper.theme-night .text-stream {
+            color: #cbd5e1 !important;
+        }
+        .reader-wrapper.theme-mint {
+            background: #e8f5e9 !important;
+            color: #1b3b22 !important;
+            border: 1px solid rgba(76, 175, 80, 0.25) !important;
+            box-shadow: 0 12px 36px rgba(46, 125, 50, 0.12) !important;
+        }
+        .reader-wrapper.theme-mint .text-stream {
+            color: #1b3b22 !important;
+        }
+        .reader-wrapper.theme-daylight {
+            background: #ffffff !important;
+            color: #1e293b !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08) !important;
+        }
+        .reader-wrapper.theme-daylight .text-stream {
+            color: #1e293b !important;
+        }
+        .reader-wrapper.theme-slate {
+            background: #1e2330 !important;
+            color: #e2e8f0 !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important;
+        }
+        .reader-wrapper.theme-slate .text-stream {
+            color: #e2e8f0 !important;
+        }
+
+        .theme-palette-group {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .palette-btn {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            outline: none;
+        }
+        .palette-btn:hover, .palette-btn.active {
+            transform: scale(1.25);
+            border-color: #38bdf8;
+            box-shadow: 0 0 10px #38bdf8;
+        }
+        .palette-btn.parchment { background: #f4ece1; }
+        .palette-btn.night { background: #0d0f14; }
+        .palette-btn.mint { background: #e8f5e9; }
+        .palette-btn.daylight { background: #ffffff; }
+        .palette-btn.slate { background: #1e2330; }
+
     </style>
     <script src="https://cdn.jsdelivr.net/npm/swarmcloud-hls@latest/dist/p2p-engine.min.js"></script>
     <script>if (!window.P2PEngineHls && !window.P2pEngineHls) document.write('<script src="p2p-engine.min.js"><\/script>');</script>
@@ -1002,26 +1285,29 @@
         <span class="badge" id="sourceVerTag">昂哥构建</span>
     </div>
     <div class="header-actions">
-        <button class="btn" title="护眼羊皮纸主题" onclick="toggleTheme('warm')"><i class="fas fa-sun"></i> 护眼</button>
+        <button class="btn theme-toggle-btn" id="themeToggleBtn" onclick="toggleDarkLightMode()" title="切换日间/夜间模式"><i class="fas fa-sun" id="themeIcon"></i> <span id="themeLabel">日间</span></button>
         
     </div>
 </header>
 
 <main>
-    <!-- 顶部极简毛玻璃药丸导航栏：1.最近观看 2.小说 3.漫画 4.影视 -->
-    <div class="tab-nav">
-        <button class="tab-nav-btn active" id="navHistoryBtn" onclick="switchNav('history')">
-            <i class="fas fa-clock-rotate-left"></i> 最近观看
-        </button>
-        <button class="tab-nav-btn" id="navNovelBtn" onclick="switchNav('novel')">
-            <i class="fas fa-book-open"></i> 小说专区
-        </button>
-        <button class="tab-nav-btn" id="navMangaBtn" onclick="switchNav('manga')">
-            <i class="fas fa-images"></i> 漫画专区
-        </button>
-        <button class="tab-nav-btn" id="navVideoBtn" onclick="switchNav('video')">
-            <i class="fas fa-clapperboard"></i> 影视专区
-        </button>
+    <!-- 顶部 VisionOS 纯透明液态玻璃分段导航 (滑动透镜指示器) -->
+    <div class="tab-nav-container">
+        <div class="tab-nav" id="mainTabNav">
+            <div class="tab-glider" id="tabGlider"></div>
+            <button class="tab-nav-btn active" id="navHistoryBtn" onclick="switchNav('history')">
+                <i class="fas fa-clock-rotate-left"></i> <span>最近观看</span>
+            </button>
+            <button class="tab-nav-btn" id="navNovelBtn" onclick="switchNav('novel')">
+                <i class="fas fa-book-open"></i> <span>小说专区</span>
+            </button>
+            <button class="tab-nav-btn" id="navMangaBtn" onclick="switchNav('manga')">
+                <i class="fas fa-images"></i> <span>漫画专区</span>
+            </button>
+            <button class="tab-nav-btn" id="navVideoBtn" onclick="switchNav('video')">
+                <i class="fas fa-clapperboard"></i> <span>影视专区</span>
+            </button>
+        </div>
     </div>
 
     <!-- 第1页：最近观看（分设：影视 / 小说 / 漫画 三大标签） -->
@@ -1247,12 +1533,29 @@
                     <button class="btn" style="padding:3px 9px; font-size:11px;" onclick="nextChapter()">下一章 <i class="fas fa-chevron-right"></i></button>
                 </div>
 
+                <!-- 快捷背景色切换 -->
+                <div class="theme-palette-group" style="margin-right:4px;">
+                    <button class="palette-btn parchment" onclick="setNovelTheme('parchment')" title="羊皮纸"></button>
+                    <button class="palette-btn night" onclick="setNovelTheme('night')" title="极夜黑"></button>
+                    <button class="palette-btn mint" onclick="setNovelTheme('mint')" title="护眼绿"></button>
+                </div>
+
                 <!-- 排版设置下拉菜单 -->
                 <div class="format-dropdown">
                     <button class="btn" id="formatToggleBtn" style="padding:3px 8px; font-size:11px;" onclick="toggleFormatMenu(event)">
                         <i class="fas fa-font"></i> 排版 <i class="fas fa-caret-down" style="font-size:9px;"></i>
                     </button>
                     <div class="format-panel" id="formatPanel" onclick="event.stopPropagation()">
+                        <div class="format-panel-row">
+                            <span style="color:var(--text-muted);"><i class="fas fa-palette"></i> 阅读背景</span>
+                            <div class="theme-palette-group">
+                                <button class="palette-btn parchment" onclick="setNovelTheme('parchment')" title="羊皮纸"></button>
+                                <button class="palette-btn night" onclick="setNovelTheme('night')" title="极夜黑"></button>
+                                <button class="palette-btn mint" onclick="setNovelTheme('mint')" title="护眼绿"></button>
+                                <button class="palette-btn daylight" onclick="setNovelTheme('daylight')" title="晨曦白"></button>
+                                <button class="palette-btn slate" onclick="setNovelTheme('slate')" title="雅致灰"></button>
+                            </div>
+                        </div>
                         <div class="format-panel-row">
                             <span style="color:var(--text-muted);"><i class="fas fa-text-height"></i> 字号</span>
                             <div class="format-btn-group">
@@ -1284,30 +1587,113 @@
         </div>
     </section>
 
-    <!-- 纯净视频播放视窗 -->
+    <!-- 原站同款纯净视频播放视窗 (功能与设置全部集成进播放器内部) -->
     <section id="videoPlayerView" style="display: none;">
-        <div class="view-header" style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-            <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
-                <button class="btn" onclick="window.closeVideoPlayer()"><i class="fas fa-arrow-left"></i> 返回剧集</button>
-                <h3 id="videoPlayerTitle" style="font-size: 15px; font-weight:600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px;">正在播放</h3>
-                <span id="videoSourceTag" class="badge" style="background:rgba(56,189,248,0.15); color:#38bdf8; border-color:rgba(56,189,248,0.35);">全网超清</span>
+        <div class="view-header" style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                <button class="btn" onclick="window.closeVideoPlayer()"><i class="fas fa-arrow-left"></i> 返回</button>
+                <h3 id="videoPlayerTitle" style="font-size: 15px; font-weight:600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;">正在播放</h3>
+                <span id="videoSourceTag" class="badge" style="background:rgba(56,189,248,0.15); color:var(--accent); border-color:rgba(56,189,248,0.35);">全网超清</span>
             </div>
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div id="videoHeaderRightInfo" style="font-size: 11px; color: var(--text-muted);">
+                <span id="currentEpisodeBadge">超清主线</span>
+            </div>
+        </div>
+
+        <div class="video-container" id="videoContainerWrapper" style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:18px; overflow:hidden; box-shadow:0 14px 45px rgba(0,0,0,0.75);">
+            <div id="dplayerContainer" style="width:100%; height:100%;"></div>
+
+            <!-- 原站同款：内嵌在播放器右上角的悬浮微光状态栏 -->
+            <div class="player-invideo-topright" id="playerInVideoTopRight">
                 <span class="p2p-live-pill" id="p2pLivePill" title="WebRTC 点对点边缘加速实时状态">
                     <span class="p2p-dot"></span>
                     <span id="p2pLiveText">P2P 就绪</span>
                 </span>
-                <button class="btn" onclick="window.togglePip()" title="画中画悬浮窗播放">
-                    <i class="fas fa-clone"></i> 画中画
+                <button class="player-invideo-btn" onclick="window.togglePip()" title="画中画播放">
+                    <i class="fas fa-clone"></i>
                 </button>
-                <button class="btn primary" onclick="window.toggleSettingsDrawer()" title="打开播放器画质与功能设置">
-                    <i class="fas fa-cog"></i> 设置
+                <button class="player-invideo-btn" onclick="window.toggleSettingsDrawer()" title="画质与偏好设置">
+                    <i class="fas fa-cog"></i>
                 </button>
             </div>
-        </div>
 
-        <div class="video-container" style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,0.6);">
-            <div id="dplayerContainer" style="width:100%; height:100%;"></div>
+            <!-- 原站同款：直接内嵌在播放器右侧的液态玻璃偏好设置抽屉 -->
+            <div class="player-settings-drawer" id="playerSettingsDrawer">
+                <div class="drawer-header">
+                    <div style="font-weight:700; font-size:15px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-sliders" style="color:var(--accent);"></i>
+                        <span>播放器偏好设置</span>
+                    </div>
+                    <button class="btn" style="padding:4px 8px;" onclick="window.toggleSettingsDrawer()">✕</button>
+                </div>
+                <div class="drawer-body">
+                    <!-- 1. 真实 WebRTC P2P 加速 -->
+                    <div class="setting-card">
+                        <div class="setting-info">
+                            <div class="setting-title">
+                                <i class="fas fa-bolt" style="color:#f59e0b;"></i>
+                                <span>WebRTC P2P 边缘加速</span>
+                            </div>
+                            <div class="setting-desc">点对点网络分片加速，降低卡顿并分担带宽</div>
+                            <div id="p2pDetailsText" style="font-size:10px; color:var(--accent); margin-top:2px;">正在连接 P2P 种子网络...</div>
+                        </div>
+                        <div class="glass-switch active" id="p2pSwitch" onclick="window.toggleP2pFeature()"></div>
+                    </div>
+
+                    <!-- 2. GPU 4K 画质增强 -->
+                    <div class="setting-card">
+                        <div class="setting-info">
+                            <div class="setting-title">
+                                <i class="fas fa-wand-magic-sparkles" style="color:var(--accent);"></i>
+                                <span>GPU 4K 超清画质增强</span>
+                            </div>
+                            <div class="setting-desc">原站同款色彩 HDR 优化与边缘对比度锐化</div>
+                        </div>
+                        <div class="glass-switch active" id="hqSwitch" onclick="window.toggleVideoHqEnhance()"></div>
+                    </div>
+
+                    <!-- 3. 智能跳过片头 -->
+                    <div class="setting-card">
+                        <div class="setting-info">
+                            <div class="setting-title">
+                                <i class="fas fa-forward" style="color:#38bdf8;"></i>
+                                <span>智能自动跳过片头</span>
+                            </div>
+                            <div class="setting-desc" id="skipIntroDescText">根据原站社区众包时间戳自动跳跃约90秒</div>
+                        </div>
+                        <div class="glass-switch active" id="skipIntroSwitch" onclick="window.toggleAutoSkipIntro()"></div>
+                    </div>
+
+                    <!-- 4. 实时流式弹幕 -->
+                    <div class="setting-card">
+                        <div class="setting-info">
+                            <div class="setting-title">
+                                <i class="fas fa-comment-dots" style="color:#a855f7;"></i>
+                                <span>原站剧友实时弹幕</span>
+                            </div>
+                            <div class="setting-desc">展示原站弹幕流，字幕区智能避让</div>
+                        </div>
+                        <div class="glass-switch active" id="danmakuSwitch" onclick="window.toggleDanmaku()"></div>
+                    </div>
+
+                    <!-- 5. 自动无缝连播下一集 -->
+                    <div class="setting-card">
+                        <div class="setting-info">
+                            <div class="setting-title">
+                                <i class="fas fa-forward-step" style="color:#10b981;"></i>
+                                <span>自动连播下一集</span>
+                            </div>
+                            <div class="setting-desc">本集正片播放完毕后自动无缝切入下一集</div>
+                        </div>
+                        <div class="glass-switch active" id="autoNextSwitch" onclick="window.toggleAutoNext()"></div>
+                    </div>
+
+                    <div style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px 0;">
+                        OpenHappy · 纯净播放系统
+                    </div>
+                </div>
+            </div>
+            <div class="drawer-overlay" id="settingsDrawerOverlay" onclick="window.toggleSettingsDrawer()"></div>
         </div>
 
         <div style="margin-top:14px;">
@@ -1462,6 +1848,54 @@
     }
 
     // 拟真苹果流体骨架光渲染器
+    
+    // 苹果滑动透镜指示器动态位移
+    function updateTabGlider(nav) {
+        const glider = document.getElementById('tabGlider');
+        if (!glider) return;
+        const tabs = ['history', 'novel', 'manga', 'video'];
+        const idx = tabs.indexOf(nav);
+        if (idx !== -1) {
+            glider.style.transform = 'translateX(' + (idx * 100) + '%)';
+        }
+    }
+
+    // 日间 / 夜间模式全局控制
+    function initTheme() {
+        const saved = localStorage.getItem('openhappy_theme');
+        const isLight = saved === 'light';
+        document.body.classList.toggle('light-mode', isLight);
+        updateThemeBtn(isLight);
+    }
+
+    function toggleDarkLightMode() {
+        const isLight = document.body.classList.toggle('light-mode');
+        localStorage.setItem('openhappy_theme', isLight ? 'light' : 'dark');
+        updateThemeBtn(isLight);
+    }
+
+    function updateThemeBtn(isLight) {
+        const icon = document.getElementById('themeIcon');
+        const label = document.getElementById('themeLabel');
+        if (icon) icon.className = isLight ? 'fas fa-moon' : 'fas fa-sun';
+        if (label) label.innerText = isLight ? '夜间' : '日间';
+    }
+
+    // 小说阅读专属背景主题切换 (羊皮纸/极夜黑/护眼绿/晨曦白/雅致灰)
+    let currentNovelTheme = localStorage.getItem('novel_reading_theme') || 'parchment';
+    function setNovelTheme(themeName) {
+        currentNovelTheme = themeName;
+        localStorage.setItem('novel_reading_theme', themeName);
+        const container = document.getElementById('readerContainer');
+        if (container) {
+            container.classList.remove('theme-parchment', 'theme-night', 'theme-mint', 'theme-daylight', 'theme-slate');
+            container.classList.add('theme-' + themeName);
+        }
+        document.querySelectorAll('.palette-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.classList.contains(themeName));
+        });
+    }
+
     window.renderSkeletonGrid = function(container, count = 8, isPoster = false) {
         if (!container) return;
         let html = '';
@@ -2108,6 +2542,7 @@
         }
 
         previousView = nav;
+        updateTabGlider(nav);
         if (isHistory) renderHistoryModule();
         if (isNovel && (!document.getElementById('novelResultsGrid').innerHTML || document.getElementById('novelResultsGrid').children.length === 0)) {
             doNovelSearch();
@@ -2597,6 +3032,9 @@
     });
 
     async function init() {
+        initTheme();
+        setNovelTheme(currentNovelTheme);
+        updateTabGlider('history');
         try {
             const res = await fetch('/api/info');
             appConfig = await res.json();
