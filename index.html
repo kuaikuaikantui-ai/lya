@@ -211,8 +211,36 @@
         }
 
         body.reading-mode main {
-            padding: 0 12px;
+            padding: 0;
             max-width: 900px;
+            width: 100%;
+        }
+
+        body.reading-mode .reader-wrapper {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 8px 16px;
+            box-shadow: none;
+        }
+
+        @media (max-width: 768px) {
+            body.reading-mode main {
+                padding: 0;
+            }
+            body.reading-mode .reader-floating-header {
+                margin: 0 0 8px 0;
+                border-radius: 0 0 12px 12px;
+            }
+            body.reading-mode .reader-wrapper {
+                padding: 6px 14px 40px 14px;
+            }
+            .text-stream {
+                padding: 0 !important;
+            }
+            .pager {
+                padding: 0 14px 20px 14px;
+            }
         }
 
         body.reading-mode #readerView {
@@ -228,7 +256,7 @@
             padding: 10px 14px;
             border-radius: 0 0 12px 12px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-            margin: -6px -12px 12px -12px;
+            margin: 0 0 12px 0;
             transition: transform 0.25s ease, opacity 0.25s ease;
         }
 
