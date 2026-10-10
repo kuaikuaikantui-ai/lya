@@ -195,6 +195,8 @@
         `).join('');
     };
 
+    window.dpInstance = null;
+
     window.playVideoEpisode = function(idx) {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
@@ -210,47 +212,67 @@
         const badge = document.getElementById('currentEpisodeBadge');
         if (badge) badge.innerText = group.name + ' · ' + ep.title;
 
-        const video = document.getElementById('hlsVideoPlayer');
-        if (!video) return;
+        const container = document.getElementById('dplayerContainer');
+        if (!container) return;
 
-        if (window.currentHls) {
-            window.currentHls.destroy();
-            window.currentHls = null;
+        if (window.dpInstance) {
+            try { window.dpInstance.destroy(); } catch(e){}
+            window.dpInstance = null;
         }
 
         const videoUrl = ep.url;
-        if (videoUrl.includes('.m3u8')) {
-            if (window.Hls && window.Hls.isSupported()) {
-                window.currentHls = new window.Hls({
-                    enableWorker: true,
-                    lowLatencyMode: true
-                });
-                window.currentHls.loadSource(videoUrl);
-                window.currentHls.attachMedia(video);
-                window.currentHls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-                    video.play().catch(() => {});
-                });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = videoUrl;
-                video.addEventListener('loadedmetadata', () => {
-                    video.play().catch(() => {});
-                });
+        const isHls = videoUrl.includes('.m3u8');
+
+        // 生成专属弹幕频道ID (根据视频ID与集数隔离)
+        const danmakuId = 'vod_' + (window.currentVideo.vod_id || window.currentVideo.id || 'common') + '_ep_' + idx;
+
+        // 初始化全功能专业级 DPlayer (支持网页全屏、设备全屏、弹幕发射与接收、倍速播放、快捷键)
+        window.dpInstance = new DPlayer({
+            container: container,
+            autoplay: true,
+            theme: '#2dd4c0',
+            loop: false,
+            lang: 'zh-cn',
+            screenshot: true,
+            hotkey: true,
+            preload: 'auto',
+            volume: 0.8,
+            playbackSpeed: [0.5, 0.75, 1, 1.25, 1.5, 2],
+            video: {
+                url: videoUrl,
+                type: isHls ? 'customHls' : 'auto',
+                customType: {
+                    customHls: function (video, player) {
+                        if (window.Hls && window.Hls.isSupported()) {
+                            const hls = new window.Hls({
+                                enableWorker: true,
+                                lowLatencyMode: true
+                            });
+                            hls.loadSource(video.src);
+                            hls.attachMedia(video);
+                        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                            video.src = videoUrl;
+                        }
+                    }
+                }
+            },
+            danmaku: {
+                id: danmakuId,
+                api: 'https://dplayer.bilibili.com/v3/bili/', // 开源公共弹幕库支持
+                user: 'OpenReader_Guest',
+                bottom: '15%',
+                unlimited: true
             }
-        } else {
-            video.src = videoUrl;
-            video.play().catch(() => {});
-        }
+        });
     };
 
     window.closeVideoPlayer = function() {
-        const video = document.getElementById('hlsVideoPlayer');
-        if (video) {
-            video.pause();
-            video.src = '';
-        }
-        if (window.currentHls) {
-            window.currentHls.destroy();
-            window.currentHls = null;
+        if (window.dpInstance) {
+            try {
+                window.dpInstance.pause();
+                window.dpInstance.destroy();
+            } catch(e){}
+            window.dpInstance = null;
         }
         document.getElementById('videoPlayerView').style.display = 'none';
         document.getElementById('videoSection').style.display = 'block';
