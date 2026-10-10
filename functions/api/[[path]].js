@@ -493,6 +493,48 @@ const workerHandler = {
             });
         }
 
+        // ⏩ 影视元数据接口 (含 kanju3 官方社群众包片头/片尾跳过预设秒数)
+        if (url.pathname === '/api/video/meta') {
+            const cardId = url.searchParams.get('id') || '';
+            const title = url.searchParams.get('title') || '';
+            let targetCardId = cardId;
+
+            if ((!targetCardId || !targetCardId.startsWith('av_')) && title) {
+                try {
+                    const cleanTitle = title.replace(/\s+第.*季/g, '').replace(/第.*季/g, '').trim();
+                    const sg = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(cleanTitle || title) + '&limit=3&mode=home&scope=public');
+                    if (sg && sg.suggestions && sg.suggestions[0] && sg.suggestions[0].target) {
+                        targetCardId = sg.suggestions[0].target.variant_id;
+                    }
+                } catch(e) {}
+            }
+
+            if (targetCardId && targetCardId.startsWith('av_')) {
+                try {
+                    const catalog = await fetchKanjuSigned('/v1/catalog/' + targetCardId);
+                    if (catalog) {
+                        const skipPreset = catalog.playback_skip_settings_preset || null;
+                        return new Response(JSON.stringify({
+                            code: 0,
+                            id: targetCardId,
+                            title: catalog.title,
+                            skip_preset: skipPreset ? {
+                                intro_end: skipPreset.intro_end_seconds || 0,
+                                outro_start: skipPreset.outro_from_end_seconds || 0,
+                                source: skipPreset.source || 'community_median'
+                            } : null
+                        }), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            return new Response(JSON.stringify({ code: 0, skip_preset: null }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        }
+
         // 🎬 影视聚合检索接口 (量子/暴风/非凡 三线路自动容灾)
         if (url.pathname === '/api/video/search') {
             const wd = url.searchParams.get('wd') || '';

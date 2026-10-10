@@ -763,9 +763,46 @@
             }
         });
 
-        // 绑定自动连播下一集及弹幕状态同步
-        setTimeout(() => {
+        // 绑定自动跳片头、自动连播下一集及弹幕状态同步
+        setTimeout(async () => {
             if (window.dpInstance) {
+                // 1. 尝试获取原站真实跳过片头片尾预设
+                let introSeconds = 0;
+                try {
+                    let metaUrl = '/api/video/meta?title=' + encodeURIComponent(videoTitle);
+                    if (kanjuCardId) metaUrl += '&id=' + encodeURIComponent(kanjuCardId);
+                    const metaRes = await fetch(metaUrl);
+                    if (metaRes.ok) {
+                        const metaJson = await metaRes.json();
+                        if (metaJson.skip_preset && metaJson.skip_preset.intro_end > 0) {
+                            introSeconds = metaJson.skip_preset.intro_end;
+                            window.currentIntroSeconds = introSeconds;
+                            console.log('[OpenHappy Video] 获取到原站片头跳过点: ' + introSeconds + '秒');
+                        }
+                    }
+                } catch(e) {}
+
+                // 如果原站无预设，但开启了跳过片头，动漫/电视剧通用片头通常为 90 秒
+                if (!introSeconds) {
+                    const isAnimeOrDrama = (window.currentVideo.type_name || '').includes('动漫') || (window.currentVideo.type_name || '').includes('剧');
+                    introSeconds = isAnimeOrDrama ? 90 : 0;
+                }
+
+                // 监听开始播放触发跳片头
+                let hasSkippedIntro = false;
+                window.dpInstance.on('timeupdate', function() {
+                    if (window.isAutoSkipIntro && !hasSkippedIntro && introSeconds > 10) {
+                        const cur = window.dpInstance.video.currentTime;
+                        if (cur >= 0 && cur < introSeconds - 1) {
+                            hasSkippedIntro = true;
+                            window.dpInstance.seek(introSeconds);
+                            if (window.dpInstance.notice) {
+                                window.dpInstance.notice('已为你自动跳过片头 (' + introSeconds + '秒)', 3000);
+                            }
+                        }
+                    }
+                });
+
                 window.dpInstance.on('ended', function() {
                     if (window.isAutoNextEnabled) {
                         console.log('[OpenHappy Video] 本集播放完毕，自动连播下一集...');
@@ -867,6 +904,19 @@
             } else {
                 window.dpInstance.danmaku.hide();
             }
+        }
+    };
+
+    // 智能跳过片头开关 (原站同款社区众包/AI智能片头预设)
+    window.isAutoSkipIntro = true;
+    window.toggleAutoSkipIntro = function() {
+        window.isAutoSkipIntro = !window.isAutoSkipIntro;
+        const badge = document.getElementById('autoSkipToggleBtn');
+        const text = document.getElementById('autoSkipToggleText');
+        if (badge) badge.classList.toggle('off', !window.isAutoSkipIntro);
+        if (text) text.innerText = '跳过片头: ' + (window.isAutoSkipIntro ? '开' : '关');
+        if (window.dpInstance && window.dpInstance.notice) {
+            window.dpInstance.notice('自动跳片头已' + (window.isAutoSkipIntro ? '开启' : '关闭'), 2000);
         }
     };
 

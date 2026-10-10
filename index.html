@@ -1025,6 +1025,9 @@
             <button class="btn" onclick="window.closeVideoPlayer()"><i class="fas fa-arrow-left"></i> 返回剧集</button>
             <h3 id="videoPlayerTitle" style="font-size: 15px; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">正在播放</h3>
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span class="hq-toggle-badge" id="autoSkipToggleBtn" onclick="window.toggleAutoSkipIntro()" title="根据原站片头片尾秒数智能跳过片头">
+                    <i class="fas fa-forward"></i> <span id="autoSkipToggleText">跳过片头: 开</span>
+                </span>
                 <span class="hq-toggle-badge" id="danmakuToggleBtn" onclick="window.toggleDanmaku()" title="独立切换弹幕显示/隐藏">
                     <i class="fas fa-comment-dots"></i> <span id="danmakuToggleText">弹幕: 开</span>
                 </span>
