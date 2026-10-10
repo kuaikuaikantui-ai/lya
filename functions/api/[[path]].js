@@ -381,24 +381,36 @@ const workerHandler = {
             }
 
             // GET 查询弹幕: 支持通过 ep_id 或 title+ep 智能获取原站真弹幕
-            const epId = url.searchParams.get('ep_id') || '';
+            const epId = url.searchParams.get('ep_id') || url.searchParams.get('id') || '';
             const title = url.searchParams.get('title') || '';
             const epIdx = parseInt(url.searchParams.get('ep') || '0', 10);
             let realDanmakus = [];
 
             let targetEpisodeId = epId;
 
-            // 如果没有直接 epId，尝试通过 title 快速定位原站真 episodeId
+            // 1. 如果传入的是 catalog_id (卡片ID)，直接拉取 catalog 获取对应集数的真实 episodeId
+            if (targetEpisodeId && targetEpisodeId.startsWith('av_')) {
+                try {
+                    const catalog = await fetchKanjuSigned('/v1/catalog/' + targetEpisodeId);
+                    if (catalog && catalog.episodes && catalog.episodes.length > 0) {
+                        const ep = catalog.episodes[epIdx] || catalog.episodes[0];
+                        if (ep && ep.id) targetEpisodeId = ep.id;
+                    }
+                } catch(e) {}
+            }
+
+            // 2. 如果没有定位到 episodeId，尝试通过 title 快速定位原站真 episodeId
             if ((!targetEpisodeId || !targetEpisodeId.startsWith('av_')) && title) {
                 try {
-                    const sg = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(title) + '&limit=3&mode=home&scope=public');
+                    const cleanTitle = title.replace(/\s+第.*季/g, '').replace(/第.*季/g, '').trim();
+                    const sg = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(cleanTitle || title) + '&limit=3&mode=home&scope=public');
                     if (sg && sg.suggestions && sg.suggestions[0] && sg.suggestions[0].target) {
                         const variantId = sg.suggestions[0].target.variant_id;
                         if (variantId) {
                             const catalog = await fetchKanjuSigned('/v1/catalog/' + variantId);
                             if (catalog && catalog.episodes && catalog.episodes.length > 0) {
                                 const matchedEp = catalog.episodes[epIdx] || catalog.episodes[0];
-                                if (matchedEp) targetEpisodeId = matchedEp.id;
+                                if (matchedEp && matchedEp.id) targetEpisodeId = matchedEp.id;
                             }
                         }
                     }
@@ -419,13 +431,13 @@ const workerHandler = {
                                 const sJson = await sRes.json();
                                 if (sJson.items && Array.isArray(sJson.items)) {
                                     for (const it of sJson.items) {
-                                        realDanmakus.push([
-                                            Number((it[0] / 1000).toFixed(1)),
-                                            it[1] === 1 ? 0 : it[1],
-                                            it[2] || 16777215,
-                                            '原站网友',
-                                            it[4]
-                                        ]);
+                                        realDanmakus.push({
+                                            time: Number((it[0] / 1000).toFixed(1)),
+                                            type: it[1] === 1 ? 0 : it[1],
+                                            color: it[2] || 16777215,
+                                            author: '原站网友',
+                                            text: it[4]
+                                        });
                                     }
                                 }
                             }

@@ -701,7 +701,6 @@
             apiBackend: {
                 read: async function(endpoint) {
                     try {
-                        // 1. 发起请求调取原站真实弹幕库
                         let danmakuUrl = '/api/video/danmaku?ep=' + idx;
                         if (kanjuCardId) danmakuUrl += '&ep_id=' + encodeURIComponent(kanjuCardId);
                         if (videoTitle) danmakuUrl += '&title=' + encodeURIComponent(videoTitle);
@@ -710,12 +709,30 @@
                         if (res.ok) {
                             const json = await res.json();
                             if (json && Array.isArray(json.data) && json.data.length > 0) {
-                                endpoint.success(json.data);
+                                // 兼容数组格式与对象格式，确保 DPlayer 弹幕轨道完美渲染
+                                const formatted = json.data.map(item => {
+                                    if (Array.isArray(item)) {
+                                        return {
+                                            time: Number(item[0]) || 0,
+                                            type: item[1] === 1 ? 0 : (item[1] || 0),
+                                            color: item[2] || 16777215,
+                                            author: item[3] || '原站网友',
+                                            text: String(item[4] || '')
+                                        };
+                                    }
+                                    return {
+                                        time: Number(item.time) || 0,
+                                        type: item.type === 1 ? 0 : (item.type || 0),
+                                        color: item.color || 16777215,
+                                        author: item.author || '原站网友',
+                                        text: String(item.text || '')
+                                    };
+                                });
+                                endpoint.success(formatted);
                                 return;
                             }
                         }
                     } catch(e) {}
-                    // 若原站该片该集暂无弹幕，优雅返回空列表
                     endpoint.success([]);
                 },
                 send: function(endpoint) {
