@@ -197,18 +197,18 @@
             padding: 16px 14px;
         }
 
-        /* 顶部四大独立模块导航药丸 (整合1~4大页面) */
+        /* 拟真苹果 VisionOS / iOS 18 液态玻璃分段导航胶囊 */
         .tab-nav {
             display: flex;
             gap: 6px;
-            margin-bottom: 20px;
-            background: rgba(16, 20, 32, 0.65);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--glass-border);
+            margin-bottom: 22px;
+            background: rgba(13, 17, 28, 0.65);
+            backdrop-filter: blur(36px) saturate(220%) contrast(104%);
+            -webkit-backdrop-filter: blur(36px) saturate(220%) contrast(104%);
+            border: 1px solid rgba(255, 255, 255, 0.14);
             padding: 6px;
-            border-radius: 18px;
-            box-shadow: var(--glass-highlight), var(--glass-shadow);
+            border-radius: 22px;
+            box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.5), 0 16px 45px -10px rgba(0, 0, 0, 0.7);
             position: sticky;
             top: 60px;
             z-index: 90;
@@ -217,28 +217,48 @@
             flex: 1;
             background: transparent;
             border: 1px solid transparent;
-            color: var(--text-muted);
-            font-size: 13px;
+            color: rgba(241, 245, 249, 0.65);
+            font-size: 13.5px;
             font-weight: 600;
             padding: 10px 14px;
-            border-radius: 13px;
+            border-radius: 16px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            gap: 7px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
         }
         .tab-nav-btn:hover {
-            color: var(--text-main);
-            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
         }
         .tab-nav-btn.active {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(30, 41, 59, 0.7);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.08) 100%), rgba(56, 189, 248, 0.22);
             color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.38);
+            box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 20px rgba(56, 189, 248, 0.35);
+            text-shadow: 0 1px 8px rgba(255, 255, 255, 0.45);
+            transform: scale(1.02);
+        }
+
+        /* 页面平滑切换动效 (消除生硬感) */
+        .liquid-view-enter {
+            animation: liquidViewIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes liquidViewIn {
+            0% {
+                opacity: 0;
+                transform: translateY(12px) scale(0.985);
+                filter: blur(6px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
         }
 
         /* 玻璃拟态搜索框卡片 */
@@ -327,34 +347,37 @@
             gap: 14px;
         }
 
-        /* 液态拟态卡片 */
+        /* 拟真苹果液态玻璃卡片 (双层光学反光) */
         .card {
-            background: var(--glass-card);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--glass-border);
-            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.05) 100%), rgba(16, 22, 36, 0.55);
+            backdrop-filter: blur(32px) saturate(210%) contrast(104%);
+            -webkit-backdrop-filter: blur(32px) saturate(210%) contrast(104%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 18px;
             padding: 16px;
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.32s cubic-bezier(0.16, 1, 0.3, 1);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.5), 0 14px 40px -10px rgba(0, 0, 0, 0.65);
             position: relative;
             overflow: hidden;
         }
         .card::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+            top: 0; left: 0; right: 0;
+            height: 45%;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 60%, transparent 100%);
+            pointer-events: none;
+            border-radius: 18px 18px 0 0;
         }
         .card:hover {
-            border-color: var(--accent);
-            transform: translateY(-3px);
-            box-shadow: 0 8px 24px rgba(45, 212, 192, 0.15);
-            background: var(--glass-card-hover);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.08) 100%), rgba(22, 28, 44, 0.72);
+            border-color: rgba(255, 255, 255, 0.35);
+            transform: translateY(-5px) scale(1.015);
+            box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.6), 0 22px 55px -10px rgba(0, 0, 0, 0.75), 0 0 24px rgba(56, 189, 248, 0.2);
         }
         .card:active { transform: scale(0.98); }
 
@@ -513,22 +536,93 @@
         }
 
         .kanju-poster-card {
-            background: var(--glass-card);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.05) 100%), rgba(16, 22, 36, 0.55);
+            backdrop-filter: blur(32px) saturate(210%) contrast(104%);
+            -webkit-backdrop-filter: blur(32px) saturate(210%) contrast(104%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            transition: all 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.5), 0 12px 35px -8px rgba(0, 0, 0, 0.65);
+            position: relative;
         }
         .kanju-poster-card:hover {
-            border-color: var(--accent);
-            transform: translateY(-3px);
-            box-shadow: 0 8px 24px rgba(45, 212, 192, 0.2);
+            border-color: rgba(255, 255, 255, 0.35);
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.6), 0 20px 50px -10px rgba(0, 0, 0, 0.75), 0 0 22px rgba(56, 189, 248, 0.25);
         }
+
+        /* 拟真苹果流体骨架光 (Apple Liquid Skeleton Shimmer) */
+        .skeleton-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 600px) {
+            .skeleton-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 8px !important;
+            }
+        }
+        .skeleton-list-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 14px;
+            width: 100%;
+        }
+        .skeleton-card {
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 16px;
+            padding: 10px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+        }
+        .skeleton-shimmer {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.03) 25%,
+                rgba(255, 255, 255, 0.16) 50%,
+                rgba(255, 255, 255, 0.03) 75%,
+                transparent 100%
+            );
+            transform: translateX(-100%);
+            animation: liquidShimmerSweep 1.6s infinite cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+        @keyframes liquidShimmerSweep {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .skeleton-poster-box {
+            width: 100%;
+            aspect-ratio: 3 / 4.2;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .skeleton-line {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+        .skeleton-line.mid { width: 75%; }
+        .skeleton-line.short { width: 45%; margin-bottom: 0; }
         .kanju-poster-wrap {
             position: relative;
             width: 100%;
@@ -1366,6 +1460,32 @@
             for (let reg of regs) reg.unregister();
         }).catch(() => {});
     }
+
+    // 拟真苹果流体骨架光渲染器
+    window.renderSkeletonGrid = function(container, count = 8, isPoster = false) {
+        if (!container) return;
+        let html = '';
+        for (let i = 0; i < count; i++) {
+            if (isPoster) {
+                html += `
+                    <div class="skeleton-card">
+                        <div class="skeleton-poster-box"><div class="skeleton-shimmer"></div></div>
+                        <div class="skeleton-line mid"><div class="skeleton-shimmer"></div></div>
+                        <div class="skeleton-line short"><div class="skeleton-shimmer"></div></div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="skeleton-card" style="padding:16px;">
+                        <div class="skeleton-line mid" style="margin-bottom:10px;"><div class="skeleton-shimmer"></div></div>
+                        <div class="skeleton-line" style="width:90%; margin-bottom:10px;"><div class="skeleton-shimmer"></div></div>
+                        <div class="skeleton-line short"><div class="skeleton-shimmer"></div></div>
+                    </div>
+                `;
+            }
+        }
+        container.innerHTML = html;
+    };
     // ====================================================================
     // 纯前端 / 边缘引擎双模自适应系统
     // 部署在 GitHub Pages / 本地 HTML 时自动直连；部署在 Worker/Edge 时自动走后端
@@ -1817,7 +1937,7 @@
         grid.innerHTML = list.map((item, idx) => {
             const raw = item.raw_video || { vod_name: item.vod_name, vod_pic: item.vod_pic, vod_play_url: '', type_name: item.type_name };
             return `
-                <div class="kanju-poster-card" onclick='window.resumeWatchVideo(${JSON.stringify(raw).replace(/'/g, "&#39;")}, ${item.ep_idx || 0})'>
+                <div class="kanju-poster-card" onclick="window.resumeWatchVideo(${idx}, ${item.ep_idx || 0})" title="点击续播《${item.vod_name}》">
                     <div class="kanju-poster-wrap">
                         <img src="${item.vod_pic || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&auto=format&fit=crop&q=60'}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&auto=format&fit=crop&q=60'" />
                         <span class="kanju-poster-badge">${item.ep_title || '观看中'}</span>
@@ -1957,10 +2077,25 @@
         document.getElementById('navMangaBtn').classList.toggle('active', isManga);
         document.getElementById('navVideoBtn').classList.toggle('active', isVideo);
 
-        document.getElementById('historySection').style.display = isHistory ? 'block' : 'none';
-        document.getElementById('novelSection').style.display = isNovel ? 'block' : 'none';
-        document.getElementById('mangaSection').style.display = isManga ? 'block' : 'none';
-        document.getElementById('videoSection').style.display = isVideo ? 'block' : 'none';
+        const sections = [
+            { el: document.getElementById('historySection'), active: isHistory },
+            { el: document.getElementById('novelSection'), active: isNovel },
+            { el: document.getElementById('mangaSection'), active: isManga },
+            { el: document.getElementById('videoSection'), active: isVideo }
+        ];
+
+        sections.forEach(s => {
+            if (!s.el) return;
+            if (s.active) {
+                s.el.style.display = 'block';
+                s.el.classList.remove('liquid-view-enter');
+                void s.el.offsetWidth;
+                s.el.classList.add('liquid-view-enter');
+            } else {
+                s.el.style.display = 'none';
+                s.el.classList.remove('liquid-view-enter');
+            }
+        });
 
         document.getElementById('detailView').style.display = 'none';
         document.getElementById('readerView').style.display = 'none';
@@ -2006,7 +2141,7 @@
         if (!title || !grid) return;
 
         const isAll = (source === 'ALL');
-        grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索小说《${title}》...</div>`;
+        if (typeof window.renderSkeletonGrid === 'function') { window.renderSkeletonGrid(grid, 6, false); } else { grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索小说《${title}》...</div>`; }
 
         try {
             const res = await fetch(`/api/search?title=${encodeURIComponent(title)}&tab=${encodeURIComponent('小说')}&source=${encodeURIComponent(source)}`);
@@ -2088,7 +2223,7 @@
         if (!title || !grid) return;
 
         const isAll = (source === 'ALL');
-        grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在检索漫画《${title}》原画资源...</div>`;
+        if (typeof window.renderSkeletonGrid === 'function') { window.renderSkeletonGrid(grid, 8, true); } else { grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在检索漫画《${title}》原画资源...</div>`; }
 
         try {
             const res = await fetch(`/api/search?title=${encodeURIComponent(title)}&tab=${encodeURIComponent('漫画')}&source=${encodeURIComponent(source)}`);

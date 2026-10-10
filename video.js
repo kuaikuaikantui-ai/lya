@@ -303,15 +303,42 @@
         return Math.floor(diff / 86400) + '天前';
     }
 
-    // 续播历史影视
-    window.resumeWatchVideo = function(historyIdx) {
-        const history = window.getVideoHistory();
-        const record = history[historyIdx];
-        if (!record || !record.raw_video) return;
+    // 续播历史影视 (支持从首页历史第一页和影视页历史横条点击)
+    window.resumeWatchVideo = function(itemOrIdx, epIdx = 0) {
+        // 1. 如果当前不在影视主模块，平滑切至影视模块
+        if (typeof window.switchNav === 'function') {
+            window.switchNav('video');
+        }
 
-        // 打开该影片详情并直奔上次看到的集数
-        window.currentVideoList = [record.raw_video, ...window.KANJU_HOT_LIST];
-        window.openVideoDetail(0, record.ep_idx || 0);
+        let videoItem = null;
+        let targetEp = 0;
+
+        if (typeof itemOrIdx === 'number') {
+            const history = window.getVideoHistory();
+            const record = history[itemOrIdx];
+            if (record) {
+                videoItem = record.raw_video || {
+                    vod_name: record.vod_name,
+                    vod_pic: record.vod_pic,
+                    vod_id: record.vod_id,
+                    type_name: record.type_name,
+                    vod_play_url: record.vod_play_url
+                };
+                targetEp = typeof record.ep_idx === 'number' ? record.ep_idx : (typeof epIdx === 'number' ? epIdx : 0);
+            }
+        } else if (itemOrIdx && typeof itemOrIdx === 'object') {
+            videoItem = itemOrIdx.raw_video || itemOrIdx;
+            targetEp = typeof epIdx === 'number' ? epIdx : (itemOrIdx.ep_idx || 0);
+        }
+
+        if (!videoItem) {
+            console.warn('[OpenHappy Video] 续播记录无效:', itemOrIdx);
+            return;
+        }
+
+        // 挂载到播放列表最前列并立即起播对应集数
+        window.currentVideoList = [videoItem, ...(window.KANJU_HOT_LIST || [])];
+        window.openVideoDetail(0, targetEp);
     };
 
     // kanju3 热门快搜标签点击
@@ -410,7 +437,11 @@
         const countBadge = document.getElementById('videoCountBadge');
         const titleBadge = document.getElementById('videoFeedTitle');
         if (titleBadge) titleBadge.innerHTML = '<i class="fas fa-search" style="color:var(--accent);"></i> 搜索《' + wd + '》结果';
-        if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索片源...</div>';
+        if (grid && typeof window.renderSkeletonGrid === 'function') {
+            window.renderSkeletonGrid(grid, 8, true);
+        } else if (grid) {
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索片源...</div>';
+        }
 
         // 先匹配当前列表作为高优先级结果
         const localMatches = (window.currentVideoList || []).filter(item => 
