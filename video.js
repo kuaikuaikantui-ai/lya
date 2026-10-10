@@ -487,37 +487,49 @@
     };
 
     // 打开视频详情与播放器 (兼具即时秒播与动态实时解析)
+    // 打开视频详情与播放器 (兼具即时秒播与精准全网多线路智能聚合)
     window.openVideoDetail = async function(index, targetEpIdx = 0) {
         let item = window.currentVideoList[index];
         if (!item) return;
 
-        // 如果卡片尚未挂载播放源 (属于动态推荐流在线卡片)，立刻发起秒级全网解析
+        // 如果卡片尚未挂载播放源 (属于动态推荐流在线卡片)，立刻发起秒级全网精准聚合检索
         if (!item.vod_play_url) {
             document.getElementById('videoSection').style.display = 'none';
             document.getElementById('videoPlayerView').style.display = 'block';
-            document.getElementById('videoPlayerTitle').innerText = '正在解析: ' + item.vod_name;
+            document.getElementById('videoPlayerTitle').innerText = '正在载入: ' + item.vod_name;
             document.getElementById('videoDetailName').innerText = item.vod_name;
             document.getElementById('videoEpisodesList').innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;"><i class="fas fa-spinner fa-spin"></i> 正在全网秒级调取超清播放线路...</div>';
 
             try {
-                // 搜索片源
-                let res = await fetch('/api/video/search?wd=' + encodeURIComponent(item.vod_name));
-                let searchData = await res.json();
-                let matched = searchData.list && searchData.list[0];
+                // 构造多级精准搜索关键词：完整标题、去除季数副标题的名、纯剧名
+                const rawName = item.vod_name;
+                const cleanName1 = rawName.replace(/\s+第.*季/g, '').replace(/第.*季/g, '').trim();
+                const cleanName2 = rawName.split(' ')[0].trim();
+                const candidateQueries = [...new Set([rawName, cleanName1, cleanName2])].filter(Boolean);
 
-                if (!matched && item.vod_name.includes(' ')) {
-                    // 尝试简化片名检索
-                    const shortName = item.vod_name.split(' ')[0];
-                    res = await fetch('/api/video/search?wd=' + encodeURIComponent(shortName));
-                    searchData = await res.json();
-                    matched = searchData.list && searchData.list[0];
+                let matched = null;
+                for (const q of candidateQueries) {
+                    const res = await fetch('/api/video/search?wd=' + encodeURIComponent(q));
+                    if (res.ok) {
+                        const searchData = await res.json();
+                        if (searchData.list && searchData.list.length > 0) {
+                            // 精确度过滤：优先匹配包含标题名称的项
+                            matched = searchData.list.find(it => 
+                                it.vod_name === rawName || 
+                                it.vod_name === cleanName1 || 
+                                it.vod_name.startsWith(cleanName1) || 
+                                it.vod_name.includes(cleanName1)
+                            ) || searchData.list[0];
+                            if (matched && matched.vod_play_url) break;
+                        }
+                    }
                 }
 
                 if (matched && matched.vod_play_url) {
-                    item = { ...item, ...matched };
+                    item = { ...item, ...matched, kanju_id: item.vod_id, kanju_title: item.vod_name };
                     window.currentVideoList[index] = item;
                 } else {
-                    document.getElementById('videoEpisodesList').innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;">全网暂未聚合到该推荐片的免VIP源，请尝试上方其他大片。</div>';
+                    document.getElementById('videoEpisodesList').innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;">全网暂未聚合到该推荐片的免VIP源，请尝试其他大片。</div>';
                     return;
                 }
             } catch(e) {
@@ -571,6 +583,7 @@
         window.renderVideoSourceTabs(parsedGroups);
         window.renderVideoEpisodes(0);
         window.playVideoEpisode(targetEpIdx);
+        window.loadVideoComments(item);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -624,7 +637,7 @@
         `).join('');
     };
 
-    // 播放指定集数
+    // 播放指定集数 (连接原站真实海量弹幕源)
     window.playVideoEpisode = function(idx) {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
@@ -653,7 +666,8 @@
 
         const videoUrl = ep.url;
         const isHls = videoUrl.includes('.m3u8');
-        const danmakuId = 'vod_' + (window.currentVideo.vod_id || window.currentVideo.id || 'common') + '_ep_' + idx;
+        const videoTitle = window.currentVideo.vod_name || '';
+        const kanjuCardId = window.currentVideo.kanju_id || (String(window.currentVideo.vod_id).startsWith('av_') ? window.currentVideo.vod_id : '');
 
         window.dpInstance = new DPlayer({
             container: container,
@@ -685,44 +699,90 @@
                 }
             },
             apiBackend: {
-                read: function(endpoint) {
+                read: async function(endpoint) {
                     try {
-                        const localData = JSON.parse(localStorage.getItem('openreader_danmaku_' + danmakuId) || '[]');
-                        const defaultDan = [
-                            { time: 1.5, type: 0, color: 16777215, author: '系统', text: '4K超清纯净免流就绪' },
-                            { time: 3.2, type: 0, color: 2981056, author: '剧友', text: '已去片头，纯净秒播' },
-                            { time: 6.0, type: 0, color: 16777215, author: '剧友', text: '前排打卡！太清晰了' }
-                        ];
-                        endpoint.success([...defaultDan, ...localData]);
-                    } catch(e) {
-                        endpoint.success([]);
-                    }
+                        // 1. 发起请求调取原站真实弹幕库
+                        let danmakuUrl = '/api/video/danmaku?ep=' + idx;
+                        if (kanjuCardId) danmakuUrl += '&ep_id=' + encodeURIComponent(kanjuCardId);
+                        if (videoTitle) danmakuUrl += '&title=' + encodeURIComponent(videoTitle);
+
+                        const res = await fetch(danmakuUrl);
+                        if (res.ok) {
+                            const json = await res.json();
+                            if (json && Array.isArray(json.data) && json.data.length > 0) {
+                                endpoint.success(json.data);
+                                return;
+                            }
+                        }
+                    } catch(e) {}
+                    // 若原站该片该集暂无弹幕，优雅返回空列表
+                    endpoint.success([]);
                 },
                 send: function(endpoint) {
-                    try {
-                        const localData = JSON.parse(localStorage.getItem('openreader_danmaku_' + danmakuId) || '[]');
-                        localData.push({
-                            time: endpoint.data.time,
-                            type: endpoint.data.type,
-                            color: endpoint.data.color,
-                            author: endpoint.data.author || '我',
-                            text: endpoint.data.text
-                        });
-                        localStorage.setItem('openreader_danmaku_' + danmakuId, JSON.stringify(localData.slice(-500)));
-                        endpoint.success();
-                    } catch(e) {
-                        endpoint.success();
-                    }
+                    endpoint.success();
                 }
             },
             danmaku: {
-                id: danmakuId,
+                id: 'dmu_' + (kanjuCardId || videoTitle) + '_ep_' + idx,
                 api: window.location.origin + '/api/video/danmaku/',
-                user: '我',
+                user: '剧友',
                 bottom: '15%',
                 unlimited: true
             }
         });
+    };
+
+    // 实时拉取并呈现 kanju3 原站真实讨论数据
+    window.loadVideoComments = async function(item) {
+        const container = document.getElementById('videoCommentsContainer');
+        const badge = document.getElementById('videoCommentsCountBadge');
+        const icon = document.getElementById('commentsLoadingIcon');
+        if (!container) return;
+
+        if (icon) icon.classList.add('fa-spin');
+        container.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px; text-align:center;"><i class="fas fa-spinner fa-spin"></i> 正在拉取原站全网真实剧友讨论...</div>';
+
+        try {
+            const cardId = item.kanju_id || (String(item.vod_id).startsWith('av_') ? item.vod_id : '');
+            let commentsUrl = '/api/video/comments?title=' + encodeURIComponent(item.vod_name);
+            if (cardId) commentsUrl += '&id=' + encodeURIComponent(cardId);
+
+            const res = await fetch(commentsUrl);
+            if (res.ok) {
+                const data = await res.json();
+                const list = data.results || [];
+                if (badge) badge.innerText = list.length > 0 ? (list.length + '条真实讨论') : '原站讨论区';
+
+                if (list.length === 0) {
+                    container.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:20px; text-align:center;">原站暂无该影片讨论记录，快来抢先观看！</div>';
+                    return;
+                }
+
+                container.innerHTML = list.map(c => `
+                    <div style="background:rgba(0,0,0,0.25); border:1px solid var(--border); border-radius:8px; padding:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <div style="font-weight:600; font-size:12px; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                                <i class="fas fa-user-circle" style="color:var(--accent);"></i>
+                                <span>${c.user}</span>
+                                ${c.episode ? `<span style="font-size:10px; color:var(--text-muted); background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:4px;">${c.episode}</span>` : ''}
+                            </div>
+                            <div style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:8px;">
+                                <span>${c.time}</span>
+                                ${c.up > 0 ? `<span><i class="far fa-thumbs-up" style="color:#f59e0b;"></i> ${c.up}</span>` : ''}
+                            </div>
+                        </div>
+                        <div style="font-size:12px; color:#d1d5db; line-height:1.6; word-break:break-word;">
+                            ${c.content}
+                        </div>
+                    </div>
+                `).join('');
+                return;
+            }
+        } catch(e) {
+            container.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px; text-align:center;">暂未获取到原站讨论数据</div>';
+        } finally {
+            if (icon) icon.classList.remove('fa-spin');
+        }
     };
 
     // 关闭视频播放器，返回影视主视窗

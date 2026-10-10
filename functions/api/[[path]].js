@@ -372,37 +372,111 @@ const workerHandler = {
             });
         }
 
-        // 💬 弹幕服务接口 (完美适配 DPlayer v3 弹幕引擎，支持 GET 拉取与 POST 发送)
+        // 💬 弹幕服务接口 (深度接入原站 kanju3.com 真实弹幕源，完美支持 DPlayer v3 弹幕引擎)
         if (url.pathname.startsWith('/api/video/danmaku')) {
             if (request.method === 'POST') {
-                try {
-                    const body = await request.json();
-                    return new Response(JSON.stringify({ code: 0, data: body }), {
-                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                    });
-                } catch(e) {
-                    return new Response(JSON.stringify({ code: 0, data: {} }), {
-                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                    });
-                }
+                return new Response(JSON.stringify({ code: 0, data: {} }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
             }
 
-            // GET 查询弹幕
-            const danmakuId = url.searchParams.get('id') || 'common';
-            const defaultDanmakus = [
-                [1.5, 0, 16777215, '系统', '🎬 4K极速画质秒播加载完成，请尽情欣赏'],
-                [3.0, 0, 2981056, '追剧喵', '前排打卡！这个播放器好丝滑啊'],
-                [5.5, 0, 16777215, '路人甲', '画质真的顶，而且完全无广告！'],
-                [8.2, 0, 16776960, '电影发烧友', '音画同步，神剧打卡～'],
-                [12.0, 0, 16777215, '剧迷小张', '剧情太精彩了，一口气追完全集'],
-                [18.5, 0, 2981056, '摸鱼大师', '上班摸鱼偷偷看，爽歪歪'],
-                [25.0, 0, 16777215, '追剧达人', '画质太绝了，必须点赞收藏！']
-            ];
+            // GET 查询弹幕: 支持通过 ep_id 或 title+ep 智能获取原站真弹幕
+            const epId = url.searchParams.get('ep_id') || '';
+            const title = url.searchParams.get('title') || '';
+            const epIdx = parseInt(url.searchParams.get('ep') || '0', 10);
+            let realDanmakus = [];
+
+            let targetEpisodeId = epId;
+
+            // 如果没有直接 epId，尝试通过 title 快速定位原站真 episodeId
+            if ((!targetEpisodeId || !targetEpisodeId.startsWith('av_')) && title) {
+                try {
+                    const sg = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(title) + '&limit=3&mode=home&scope=public');
+                    if (sg && sg.suggestions && sg.suggestions[0] && sg.suggestions[0].target) {
+                        const variantId = sg.suggestions[0].target.variant_id;
+                        if (variantId) {
+                            const catalog = await fetchKanjuSigned('/v1/catalog/' + variantId);
+                            if (catalog && catalog.episodes && catalog.episodes.length > 0) {
+                                const matchedEp = catalog.episodes[epIdx] || catalog.episodes[0];
+                                if (matchedEp) targetEpisodeId = matchedEp.id;
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            if (targetEpisodeId && targetEpisodeId.startsWith('av_')) {
+                try {
+                    const sourceData = await fetchKanjuSigned('/v1/danmuku/episodes/' + encodeURIComponent(targetEpisodeId) + '/source');
+                    if (sourceData && sourceData.status === 'ready' && sourceData.manifestUrl) {
+                        const mRes = await fetch(sourceData.manifestUrl);
+                        const mJson = await mRes.json();
+                        if (mJson.segments && mJson.segments.length > 0) {
+                            // 拉取前2个分片(覆盖前600秒海量原站真弹幕)
+                            for (const seg of mJson.segments.slice(0, 2)) {
+                                const segUrl = new URL(seg.url, sourceData.manifestUrl).href;
+                                const sRes = await fetch(segUrl);
+                                const sJson = await sRes.json();
+                                if (sJson.items && Array.isArray(sJson.items)) {
+                                    for (const it of sJson.items) {
+                                        realDanmakus.push([
+                                            Number((it[0] / 1000).toFixed(1)),
+                                            it[1] === 1 ? 0 : it[1],
+                                            it[2] || 16777215,
+                                            '原站网友',
+                                            it[4]
+                                        ]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }
 
             return new Response(JSON.stringify({
                 code: 0,
-                data: defaultDanmakus
+                data: realDanmakus
             }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        }
+
+        // 💬 原站真实讨论/评论接口 (直连 kanju3.com /v1/comments 实时获取)
+        if (url.pathname === '/api/video/comments') {
+            const cardId = url.searchParams.get('id') || '';
+            const title = url.searchParams.get('title') || '';
+            let targetCardId = cardId;
+
+            // 如果没有直接卡片ID，根据剧名快速检索
+            if ((!targetCardId || !targetCardId.startsWith('av_')) && title) {
+                try {
+                    const sg = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(title) + '&limit=3&mode=home&scope=public');
+                    if (sg && sg.suggestions && sg.suggestions[0] && sg.suggestions[0].target) {
+                        targetCardId = sg.suggestions[0].target.variant_id;
+                    }
+                } catch(e) {}
+            }
+
+            if (targetCardId) {
+                try {
+                    const commentsData = await fetchKanjuSigned('/v1/comments', '?target_id=' + targetCardId + '&variant_id=' + targetCardId);
+                    const results = (commentsData.results || []).map(c => ({
+                        id: c.id,
+                        user: c.author?.nickname || '剧友',
+                        time: c.created_at ? new Date(c.created_at).toLocaleDateString() : '近期',
+                        up: c.up_count || 0,
+                        content: c.content,
+                        episode: c.metadata?.playback_context?.episode_label || ''
+                    }));
+
+                    return new Response(JSON.stringify({ code: 0, results }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                    });
+                } catch(e) {}
+            }
+
+            return new Response(JSON.stringify({ code: 0, results: [] }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
             });
         }
