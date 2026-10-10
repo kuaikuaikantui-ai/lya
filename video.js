@@ -473,10 +473,41 @@
                     }
                 }
             },
+            apiBackend: {
+                read: function(endpoint) {
+                    try {
+                        const localData = JSON.parse(localStorage.getItem('openreader_danmaku_' + danmakuId) || '[]');
+                        const defaultDan = [
+                            { time: 1.5, type: 0, color: 16777215, author: '系统', text: '4K超清纯净免流就绪' },
+                            { time: 3.2, type: 0, color: 2981056, author: '剧友', text: '已去片头，纯净秒播' },
+                            { time: 6.0, type: 0, color: 16777215, author: '剧友', text: '前排打卡！太清晰了' }
+                        ];
+                        endpoint.success([...defaultDan, ...localData]);
+                    } catch(e) {
+                        endpoint.success([]);
+                    }
+                },
+                send: function(endpoint) {
+                    try {
+                        const localData = JSON.parse(localStorage.getItem('openreader_danmaku_' + danmakuId) || '[]');
+                        localData.push({
+                            time: endpoint.data.time,
+                            type: endpoint.data.type,
+                            color: endpoint.data.color,
+                            author: endpoint.data.author || '我',
+                            text: endpoint.data.text
+                        });
+                        localStorage.setItem('openreader_danmaku_' + danmakuId, JSON.stringify(localData.slice(-500)));
+                        endpoint.success();
+                    } catch(e) {
+                        endpoint.success();
+                    }
+                }
+            },
             danmaku: {
                 id: danmakuId,
-                api: 'https://dplayer.bilibili.com/v3/bili/',
-                user: 'OpenReader_Guest',
+                api: 'local://danmaku/',
+                user: '我',
                 bottom: '15%',
                 unlimited: true
             }
