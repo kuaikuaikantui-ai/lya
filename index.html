@@ -836,7 +836,7 @@
         <div class="kanju-suggestions-box">
             <div class="kanju-suggestion-row">
                 <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热门影片:</span>
-                <div class="kanju-suggestion-chips">
+                <div class="kanju-suggestion-chips" id="kanjuHotChips">
                     <button class="kanju-chip" onclick="window.quickSearchVideo('庆余年')">庆余年2</button>
                     <button class="kanju-chip" onclick="window.quickSearchVideo('繁花')">繁花</button>
                     <button class="kanju-chip" onclick="window.quickSearchVideo('狂飙')">狂飙</button>
@@ -876,8 +876,11 @@
 
         <!-- 列表头 -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin: 12px 0 10px 0;">
-            <h4 id="videoFeedTitle" style="font-size:14px; font-weight:600;"><i class="fas fa-fire" style="color:#f59e0b;"></i> 今日热门推荐</h4>
-            <span id="videoCountBadge" style="font-size:11px; color:var(--accent); background:rgba(45,212,192,0.1); padding:2px 8px; border-radius:12px; border:1px solid rgba(45,212,192,0.2);">精选 13 部大片</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <h4 id="videoFeedTitle" style="font-size:14px; font-weight:600;"><i class="fas fa-fire" style="color:#f59e0b;"></i> 今日热门推荐</h4>
+                <button class="btn" style="font-size:11px; padding:3px 9px; border-radius:14px;" onclick="window.refreshVideoFeed()" title="点击换一批推荐片单"><i class="fas fa-sync-alt" id="refreshFeedIcon"></i> 换一批</button>
+            </div>
+            <span id="videoCountBadge" style="font-size:11px; color:var(--accent); background:rgba(45,212,192,0.1); padding:2px 8px; border-radius:12px; border:1px solid rgba(45,212,192,0.2);">实时更新</span>
         </div>
 
         <div id="videoGrid" class="video-grid"></div>

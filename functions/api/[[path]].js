@@ -157,6 +157,41 @@ async function fetchDirectFromOrigin(decodedItem) {
     };
 }
 
+
+const KANJU_SECRET = '557d0e4ae929f438da6bd84412374e6086b8af09b3fed54bf22601d5bf8c54a0';
+
+async function fetchKanjuSigned(pathname, search = '') {
+    const timestamp = String(Date.now());
+    const nonceArr = new Uint8Array(16);
+    crypto.getRandomValues(nonceArr);
+    const nonce = Array.from(nonceArr, b => b.toString(16).padStart(2, '0')).join('');
+
+    const payload = `GET\n${pathname}${search}\n${timestamp}\n${nonce}`;
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+        "raw",
+        encoder.encode(KANJU_SECRET),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+    );
+    const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
+    const signature = Array.from(new Uint8Array(sig), b => b.toString(16).padStart(2, '0')).join('');
+
+    const res = await fetch('https://kanju3.com' + pathname + search, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Referer': 'https://kanju3.com/',
+            'x-ai-movie-timestamp': timestamp,
+            'x-ai-movie-nonce': nonce,
+            'x-ai-movie-signature': signature
+        }
+    });
+    if (!res.ok) throw new Error('Kanju HTTP ' + res.status);
+    return await res.json();
+}
+
 const workerHandler = {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
@@ -243,29 +278,121 @@ const workerHandler = {
         }
 
         
-        // 🎬 影视聚合检索与推荐接口 (高可用多线路自动容灾Failover)
-        if (url.pathname === '/api/video/feed' || url.pathname === '/api/video/search') {
-            const wd = url.searchParams.get('wd') || '';
-            const pg = url.searchParams.get('pg') || '1';
-            const t = url.searchParams.get('t') || '';
+        // 🎬 影视动态推荐芯片接口 (实时对接 kanju3 AI 建议)
+        if (url.pathname === '/api/video/suggest') {
+            try {
+                const data = await fetchKanjuSigned('/v1/suggest', '?q=&limit=16&mode=home&scope=public');
+                const suggestions = (data.suggestions || []).map(s => ({
+                    label: s.label || s.prompt,
+                    prompt: s.prompt || s.label,
+                    type: s.subtitle || s.type
+                }));
+                return new Response(JSON.stringify({ code: 0, suggestions }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            } catch(e) {
+                return new Response(JSON.stringify({
+                    code: 0,
+                    suggestions: [
+                        { label: '庆余年2', prompt: '庆余年' },
+                        { label: '繁花', prompt: '繁花' },
+                        { label: '狂飙', prompt: '狂飙' },
+                        { label: '抓娃娃', prompt: '抓娃娃' },
+                        { label: '周处除三害', prompt: '周处除三害' },
+                        { label: '边水往事', prompt: '边水往事' },
+                        { label: '玫瑰的故事', prompt: '玫瑰的故事' },
+                        { label: '墨雨云间', prompt: '墨雨云间' },
+                        { label: '凡人修仙传', prompt: '凡人修仙传' },
+                        { label: '飞驰人生2', prompt: '飞驰人生2' }
+                    ]
+                }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+        }
 
-            // 优先选择最稳定的高带宽非凡节点，量子节点作为灾备
+        // 🎬 影视动态多板块热播流 (实时在线刷新 + 8大板块换一批)
+        if (url.pathname === '/api/video/feed') {
+            const secIdx = parseInt(url.searchParams.get('section') || '0', 10);
+            const pg = url.searchParams.get('pg') || '1';
+
+            // 1. 尝试拉取 kanju3 官方 2026 实时 AI 推荐流 (大家都在看、院线热映、国产新剧等8大板块)
+            try {
+                const kanjuFeed = await fetchKanjuSigned('/v1/feed/home');
+                if (kanjuFeed && kanjuFeed.sections && kanjuFeed.sections.length > 0) {
+                    const sections = kanjuFeed.sections;
+                    const curSec = sections[secIdx % sections.length];
+                    const cards = (curSec.cards || []).map((c, idx) => ({
+                        vod_id: c.id,
+                        vod_name: c.title,
+                        vod_pic: c.poster_url || c.backdrop_url || '',
+                        vod_remarks: c.remarks || (c.year ? c.year + '年' : '全网热播'),
+                        type_name: (c.genres && c.genres[0]) || (c.content_kind === 'movie' ? '电影' : '热播剧'),
+                        vod_year: String(c.year || '2026'),
+                        vod_actor: (c.actors || []).slice(0, 4).join(', '),
+                        vod_score: (9.0 + (idx % 5) * 0.1).toFixed(1),
+                        is_dynamic: true
+                    }));
+
+                    return new Response(JSON.stringify({
+                        code: 0,
+                        section_title: curSec.title || '今日热门推荐',
+                        section_subtitle: curSec.subtitle || '',
+                        section_index: secIdx % sections.length,
+                        total_sections: sections.length,
+                        list: cards
+                    }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                    });
+                }
+            } catch(e) {}
+
+            // 2. 灾备回退：调用极速量子节点拉取最新入库实况
+            try {
+                const r = await fetch('https://cj.lziapi.com/api.php/provide/vod/?ac=detail&pg=' + pg, {
+                    headers: { 'User-Agent': 'Mozilla/5.0' }
+                });
+                if (r.ok) {
+                    const json = await r.json();
+                    if (json && json.list) {
+                        return new Response(JSON.stringify({
+                            code: 0,
+                            section_title: '最新实况热播',
+                            section_subtitle: '实时同步更新',
+                            list: json.list
+                        }), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                        });
+                    }
+                }
+            } catch(e) {}
+
+            return new Response(JSON.stringify({ code: -1, msg: '推荐流暂不可用', list: [] }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
+
+        // 🎬 影视聚合检索接口 (量子/暴风/非凡 三线路自动容灾)
+        if (url.pathname === '/api/video/search') {
+            const wd = url.searchParams.get('wd') || '';
+            if (!wd) {
+                return new Response(JSON.stringify({ code: 0, list: [] }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+
             const apis = [
-                'https://api.ffzyapi.com/api.php/provide/vod/?ac=detail',
                 'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',
-                'https://bfzyapi.com/api.php/provide/vod/?ac=detail'
+                'https://bfzyapi.com/api.php/provide/vod/?ac=detail',
+                'https://api.ffzyapi.com/api.php/provide/vod/?ac=detail'
             ];
 
-            let lastErr = '全部影视线路请求超时';
+            let lastErr = '检索超时';
             for (const base of apis) {
                 try {
-                    let targetUrl = base + (wd ? ('&wd=' + encodeURIComponent(wd)) : ('&pg=' + pg));
-                    if (t) targetUrl += '&t=' + t;
-
+                    const targetUrl = base + '&wd=' + encodeURIComponent(wd);
                     const r = await fetch(targetUrl, {
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                        }
+                        headers: { 'User-Agent': 'Mozilla/5.0' }
                     });
                     if (r.ok) {
                         const json = await r.json();
