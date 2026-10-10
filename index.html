@@ -110,7 +110,6 @@
         }
         button.btn:active { transform: scale(0.96); }
         button.btn.primary { background: var(--accent); color: #000; font-weight: 600; border: none; }
-        button.btn.secondary { background: rgba(255, 255, 255, 0.08); border-color: var(--border); }
 
         main {
             flex: 1;
@@ -158,7 +157,7 @@
 
         .search-input {
             flex: 1;
-            background: rgba(0,0,0,0.15);
+            background: rgba(0,0,0,0.25);
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 10px 14px;
@@ -205,10 +204,44 @@
         }
         .card:hover { border-color: var(--accent); }
         .card:active { transform: scale(0.98); }
+        /* 沉浸式全屏阅读：手机与电脑端均彻底隐藏全局主站 Header 和 Tab 导航 */
+        body.reading-mode header,
+        body.reading-mode .tab-nav {
+            display: none !important;
+        }
 
-        .card-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+        body.reading-mode main {
+            padding: 0 12px;
+            max-width: 900px;
+        }
+
+        body.reading-mode #readerView {
+            padding-top: calc(6px + env(safe-area-inset-top));
+        }
+
+        .reader-floating-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+            margin: -6px -12px 12px -12px;
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+
+        .reader-floating-header.nav-hidden {
+            transform: translateY(-100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+
+        .card-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
         .card-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5; }
-        .card-tag { font-size: 11px; color: var(--accent); }
+        .card-tag { font-size: 11px; color: var(--accent); font-weight: 500; }
 
         #detailView, #readerView { display: none; }
 
@@ -245,31 +278,26 @@
             text-overflow: ellipsis;
         }
         .chap-btn:active { background: var(--accent-glow); }
-        .chap-btn.read-active { border-color: var(--accent); background: var(--accent-glow); font-weight: 600; }
-
-        .reader-wrapper {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px 14px;
-            min-height: 60vh;
-        }
+        .chap-btn.read-active { border-color: var(--accent); background: var(--accent-glow); }
 
         .reader-toolbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 8px 12px;
-            background: rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.2);
             border-radius: 8px;
             margin-bottom: 12px;
             font-size: 12px;
         }
+        .font-adjust { display: flex; gap: 6px; align-items: center; }
 
-        .font-adjust {
-            display: flex;
-            gap: 6px;
-            align-items: center;
+        .reader-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 10px;
+            min-height: 60vh;
         }
 
         .img-stream {
@@ -291,9 +319,8 @@
             font-size: var(--reader-font-size);
             line-height: var(--reader-line-height);
             white-space: pre-wrap;
-            padding: 12px 8px;
-            word-break: break-word;
-            text-align: justify;
+            padding: 10px 14px;
+            letter-spacing: 0.5px;
         }
 
         .pager {
@@ -317,7 +344,7 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             width: 90%;
-            max-width: 500px;
+            max-width: 450px;
             max-height: 80vh;
             border-radius: 14px;
             display: flex;
@@ -339,7 +366,7 @@
             gap: 8px;
         }
         .switch-item {
-            background: rgba(0,0,0,0.15);
+            background: rgba(0,0,0,0.2);
             border: 1px solid var(--border);
             padding: 12px;
             border-radius: 8px;
@@ -347,10 +374,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: all 0.15s;
         }
-        .switch-item:hover { border-color: var(--accent); background: var(--accent-glow); }
-        .switch-item.recommended { border-color: var(--accent); }
+        .switch-item:active { background: var(--accent-glow); border-color: var(--accent); }
     </style>
 </head>
 <body>
@@ -359,43 +384,54 @@
     <div class="brand" onclick="switchNav('shelf')">
         <i class="fas fa-book-open"></i>
         <span>OpenReader Pro</span>
-        <span class="badge" id="sourceVerTag">全网开源多源版</span>
+        <span class="badge" id="sourceVerTag">原版清爽聚合</span>
     </div>
     <div class="header-actions">
-        <button class="btn" title="切换护眼模式" onclick="toggleTheme('warm')"><i class="fas fa-sun"></i> 羊皮纸</button>
-        <button class="btn" title="一键开启摸鱼隐蔽代码伪装 (快捷键: ESC)" onclick="toggleStealth()"><i class="fas fa-mask"></i> 摸鱼模式</button>
+        <button class="btn" title="护眼羊皮纸主题" onclick="toggleTheme('warm')"><i class="fas fa-sun"></i> 护眼</button>
+        <button class="btn" title="代码伪装模式 (快捷键: ESC)" onclick="toggleStealth()"><i class="fas fa-mask"></i> 摸鱼模式</button>
     </div>
 </header>
 
 <main>
     <div class="tab-nav">
         <button class="tab-nav-btn active" id="navShelfBtn" onclick="switchNav('shelf')"><i class="fas fa-bookmark"></i> 我的书架</button>
+        <button class="tab-nav-btn" id="navHistoryBtn" onclick="switchNav('history')"><i class="fas fa-history"></i> 最近阅读</button>
         <button class="tab-nav-btn" id="navSearchBtn" onclick="switchNav('search')"><i class="fas fa-compass"></i> 全网搜索</button>
     </div>
 
     <section id="shelfSection">
         <div id="shelfGrid" class="grid-list"></div>
         <div id="shelfEmpty" style="text-align: center; color: var(--text-muted); padding: 50px 0; display: none;">
-            书架暂无书籍，点击上方【全网搜索】发现海量小说与漫画！
+            书架暂无书籍，点击上方【全网搜索】发现精彩内容！
+        </div>
+    </section>
+
+    <section id="historySection" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;" id="historyHeaderBar">
+            <span style="font-size: 13px; color: var(--text-muted);"><i class="fas fa-clock" style="color:var(--accent);"></i> 自动记录阅读足迹</span>
+            <button class="btn" style="font-size: 11px; padding: 4px 8px;" onclick="clearRecentHistory()"><i class="fas fa-trash-alt"></i> 清空记录</button>
+        </div>
+        <div id="historyGrid" class="grid-list"></div>
+        <div id="historyEmpty" style="text-align: center; color: var(--text-muted); padding: 50px 0; display: none;">
+            暂无最近阅读记录，阅读过的作品会自动记录在这里！
         </div>
     </section>
 
     <section id="searchSection" style="display: none;">
         <div class="search-box">
             <div class="search-row">
-                <input type="text" id="searchInput" class="search-input" placeholder="输入作品名或作者搜索..." value="剑来" onkeydown="if(event.key==='Enter')doSearch()" />
+                <input type="text" id="searchInput" class="search-input" placeholder="输入作品名搜索..." value="秘密教学" onkeydown="if(event.key==='Enter')doSearch()" />
                 <button class="btn primary" onclick="doSearch()"><i class="fas fa-search"></i> 搜索</button>
             </div>
             <div class="filter-row">
                 <label style="font-size: 12px; color: var(--text-muted);">分类：</label>
                 <select id="tabSelect" class="select-filter" onchange="onTabChanged()">
-                    <option value="小说" selected>小说</option>
-                    <option value="漫画">漫画</option>
+                    <option value="漫画" selected>漫画</option>
+                    <option value="小说">小说</option>
                 </select>
 
-                <label style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">检索书源：</label>
+                <label style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">书源：</label>
                 <select id="sourceSelect" class="select-filter"></select>
-                <span style="font-size: 11px; color: var(--text-muted); margin-left: 6px;">(选【⚡ 全网优质源聚合并发】可一键比对全网)</span>
             </div>
         </div>
 
@@ -422,30 +458,32 @@
     </section>
 
     <section id="readerView">
-        <div class="view-header">
-            <button class="btn" onclick="showView('detail')"><i class="fas fa-arrow-left"></i> 目录</button>
-            <h3 id="readerChapTitle" style="font-size: 14px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">章节标题</h3>
-            <div style="display:flex; gap:6px;">
-                <button class="btn" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 换源</button>
-                <button class="btn" onclick="toggleStealth()"><i class="fas fa-mask"></i> 摸鱼</button>
+        <div class="reader-floating-header" id="readerFloatingHeader">
+            <div class="view-header" style="margin-bottom: 8px;">
+                <button class="btn" onclick="showView('detail')"><i class="fas fa-arrow-left"></i> 目录</button>
+                <h3 id="readerChapTitle" style="font-size: 14px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">章节标题</h3>
+                <div style="display:flex; gap:6px;">
+                    <button class="btn" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 换源</button>
+                    <button class="btn" onclick="toggleStealth()"><i class="fas fa-eye-slash"></i> 摸鱼</button>
+                </div>
+            </div>
+
+            <div class="reader-toolbar" id="readerToolbar" style="margin-bottom: 0;">
+                <span id="readProgressText" style="color:var(--text-muted);">进度更新中...</span>
+                <div class="font-adjust">
+                    <button class="btn" style="padding:2px 7px; font-size:11px;" onclick="adjustFontSize(-1)">A-</button>
+                    <button class="btn" style="padding:2px 7px; font-size:11px;" onclick="adjustFontSize(1)">A+</button>
+                </div>
             </div>
         </div>
 
-        <div class="reader-toolbar" id="readerToolbar">
-            <span id="readProgressText" style="color:var(--text-muted);">进度更新中...</span>
-            <div class="font-adjust">
-                <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="adjustFontSize(-1)">A -</button>
-                <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="adjustFontSize(1)">A +</button>
-            </div>
-        </div>
-
-        <div class="reader-wrapper" id="readerContainer">
+        <div class="reader-wrapper" id="readerContainer" onclick="toggleReaderControls(event)" title="点击屏幕任意处可切换顶部工具栏显隐">
             <div style="text-align: center; color: var(--text-muted); padding: 40px;">正在加载正文...</div>
         </div>
 
         <div class="pager">
-            <button class="btn" id="prevBtn" onclick="prevChapter()">上一章 (←)</button>
-            <button class="btn primary" id="nextBtn" onclick="nextChapter()">下一章 (→)</button>
+            <button class="btn" id="prevBtn" onclick="prevChapter()">上一章</button>
+            <button class="btn primary" id="nextBtn" onclick="nextChapter()">下一章</button>
         </div>
     </section>
 </main>
@@ -453,32 +491,25 @@
 <div class="modal-overlay" id="sourceModal">
     <div class="modal-card">
         <div class="modal-head">
-            <span style="font-weight: 600;"><i class="fas fa-bolt" style="color:var(--accent);"></i> 智能无缝换源比对</span>
+            <span style="font-weight: 600;">智能换源比对</span>
             <button class="btn" onclick="closeSourceModal()">✕</button>
-        </div>
-        <div style="padding: 10px 14px; background: rgba(0,0,0,0.15); font-size: 12px; color: var(--text-muted);">
-            点击任意书源，将<strong>自动定位并无缝同步当前章节进度</strong>：
         </div>
         <div class="source-switch-list" id="sourceSwitchList"></div>
     </div>
 </div>
 
 <script>
-
     // ====================================================================
-    // OpenReader Standalone Core Engine (完全免配置 · 点开即用 · 纯前端自驱动)
+    // 纯前端 / 边缘引擎双模自适应系统
+    // 部署在 GitHub Pages / 本地 HTML 时自动直连；部署在 Worker/Edge 时自动走后端
     // ====================================================================
 
     const DIRECT_HOST_POOL = [
+        'https://v1.qingtian618.com',
         'https://v5.qingtian618.com',
         'https://v2.qingtian618.com',
         'https://v3.qingtian618.com',
-        'https://cdn.qingtian618.com',
-        'https://v1.qingtian618.com'
-    ];
-
-    const STANDALONE_RECOMMENDED_NOVELS = [
-        '七猫', '百度', '淘小说', '番茄', '江湖', '熊猫', '笔趣阁78', '伪69', '得间'
+        'https://cdn.qingtian618.com'
     ];
 
     async function directFetchWithFailover(apiPath) {
@@ -486,33 +517,39 @@
         for (const host of DIRECT_HOST_POOL) {
             try {
                 const target = host + apiPath;
-                const r = await window.__rawFetch(target, { signal: AbortSignal.timeout(2200) });
+                const r = await window.__rawFetch(target, { signal: AbortSignal.timeout(3000) });
                 if (!r.ok) continue;
                 const d = await r.json();
-
-                if (d.code === 0 && (d.content || d.data)) return d;
+                if (d.code === 0 && (d.content || d.data || d.images)) return d;
                 if (Array.isArray(d.data) && d.data.length > 0) return d;
                 if (d.content && typeof d.content === 'string' && d.content.length > 50 && !d.content.includes('免登录访问次数已达上限')) {
                     return d;
                 }
-                if (d.msg && (d.msg.includes('专享') || d.msg.includes('打赏') || d.msg.includes('SVIP'))) {
-                    return d;
-                }
-                lastErr = d.msg || '节点无数据';
+                if (d.images && d.images.length > 0) return d;
+                lastErr = d.msg || '节点数据空';
             } catch(e) {
                 lastErr = e.message;
             }
         }
-        throw new Error(lastErr || '所有节点暂时不可用');
+        throw new Error(lastErr || '书源节点暂时不可用');
     }
 
-    // 保存原生 fetch
     window.__rawFetch = window.fetch;
 
-    // 智能拦截所有 /api/ 请求，纯前端就地处理，无需任何服务端和手动设置
+    // 智能拦截所有 /api/ 请求：在纯静态环境（GitHub Pages / 本地文件）就地自驱动处理
     window.fetch = async function(input, initOptions) {
         if (typeof input !== 'string' || !input.startsWith('/api/')) {
             return window.__rawFetch(input, initOptions);
+        }
+
+        // 如果当前网站本身就是 Worker/后端环境（如非 GitHub Pages 且非 本地），优先尝试原生请求
+        const isStaticHost = (location.hostname.includes('github.io') || location.protocol === 'file:' || location.hostname.includes('edgeone.dev'));
+
+        if (!isStaticHost) {
+            try {
+                const backendRes = await window.__rawFetch(input, initOptions);
+                if (backendRes.ok) return backendRes;
+            } catch(e) {}
         }
 
         const url = new URL(input, 'https://local.open-reader');
@@ -522,12 +559,11 @@
         if (pathname === '/api/info') {
             const infoData = {
                 port: 443,
-                localIp: 'Local iOS',
-                networkUrl: (typeof window !== 'undefined' && window.location ? window.location.href : ''),
-                version: '独立免配版',
+                localIp: 'Pure Client Edge',
+                version: '原版清爽聚合版',
                 categories: {
-                    "小说": STANDALONE_RECOMMENDED_NOVELS,
-                    "漫画": ["新新漫画", "全面漫画", "G社漫画", "番茄"]
+                    "漫画": ["新新漫画", "全面漫画", "G社漫画", "番茄"],
+                    "小说": ["七猫", "百度", "淘小说", "番茄", "笔趣阁78", "全本小说"]
                 }
             };
             return new Response(JSON.stringify(infoData), {
@@ -535,14 +571,14 @@
             });
         }
 
-        // 2. 搜索
+        // 2. 搜索作品
         if (pathname === '/api/search') {
             const title = url.searchParams.get('title') || '';
-            const tab = url.searchParams.get('tab') || '小说';
-            const source = url.searchParams.get('source') || 'ALL';
+            const tab = url.searchParams.get('tab') || '漫画';
+            const source = url.searchParams.get('source') || (tab === '漫画' ? '新新漫画' : '七猫');
             const page = url.searchParams.get('page') || '1';
 
-            if (source === 'ALL' || !source) {
+            if (source === 'ALL') {
                 const candidates = (tab === '漫画') 
                     ? ['新新漫画', '全面漫画', 'G社漫画', '番茄']
                     : ['七猫', '百度', '淘小说', '番茄', '笔趣阁78'];
@@ -564,14 +600,7 @@
                     if (r.status === 'fulfilled' && Array.isArray(r.value)) aggregated.push(...r.value);
                 });
 
-                const exact = [];
-                const fuzzy = [];
-                aggregated.forEach(b => {
-                    if (b.book_name === title) exact.push(b);
-                    else fuzzy.push(b);
-                });
-
-                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: [...exact, ...fuzzy] }), {
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: aggregated }), {
                     headers: { 'Content-Type': 'application/json; charset=utf-8' }
                 });
             }
@@ -592,8 +621,8 @@
         // 3. 详情
         if (pathname === '/api/detail') {
             const book_id = url.searchParams.get('book_id') || '';
-            const source = url.searchParams.get('source') || '七猫';
-            const tab = url.searchParams.get('tab') || '小说';
+            const source = url.searchParams.get('source') || '新新漫画';
+            const tab = url.searchParams.get('tab') || '漫画';
             try {
                 const q = '/detail?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await directFetchWithFailover(q);
@@ -610,8 +639,8 @@
         // 4. 目录
         if (pathname === '/api/catalog') {
             const book_id = url.searchParams.get('book_id') || '';
-            const source = url.searchParams.get('source') || '七猫';
-            const tab = url.searchParams.get('tab') || '小说';
+            const source = url.searchParams.get('source') || '新新漫画';
+            const tab = url.searchParams.get('tab') || '漫画';
             try {
                 const q = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await directFetchWithFailover(q);
@@ -625,20 +654,27 @@
             }
         }
 
-        // 5. 正文
+        // 5. 正文与画卷
         if (pathname === '/api/content') {
             const item_id = url.searchParams.get('item_id') || '';
-            const source = url.searchParams.get('source') || '七猫';
-            const tab = url.searchParams.get('tab') || '小说';
+            const source = url.searchParams.get('source') || '新新漫画';
+            const tab = url.searchParams.get('tab') || '漫画';
             const bookTitle = url.searchParams.get('title') || '';
             const chapTitle = url.searchParams.get('chap_title') || '';
             const chapIdx = parseInt(url.searchParams.get('chap_idx') || '0', 10);
 
             try {
-                const q = '/content?item_id=' + encodeURIComponent(item_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&version=5';
+                const q = '/content?item_id=' + encodeURIComponent(item_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&version=4.6.29';
                 const data = await directFetchWithFailover(q);
-                const txt = data.content || '';
 
+                // 漫画图片直接返回
+                if (data.images && data.images.length > 0) {
+                    return new Response(JSON.stringify(data), {
+                        headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                    });
+                }
+
+                const txt = data.content || '';
                 if (txt && txt.length > 50 && !isPaywallOrAdText(txt)) {
                     data.content = cleanAdContent(txt);
                     return new Response(JSON.stringify(data), {
@@ -646,8 +682,8 @@
                     });
                 }
 
-                // 尝试秒级自动跨源救援
-                if (bookTitle) {
+                // 小说跨源免费救援
+                if (tab === '小说' && bookTitle) {
                     const rescued = await standaloneAutoRescue(bookTitle, chapTitle, chapIdx);
                     if (rescued) {
                         return new Response(JSON.stringify(rescued), {
@@ -656,15 +692,11 @@
                     }
                 }
 
-                return new Response(JSON.stringify({
-                    code: -1,
-                    msg: '当前书源受限或无正文',
-                    content: txt
-                }), {
+                return new Response(JSON.stringify(data), {
                     headers: { 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
-                if (bookTitle) {
+                if (tab === '小说' && bookTitle) {
                     const rescued = await standaloneAutoRescue(bookTitle, chapTitle, chapIdx);
                     if (rescued) {
                         return new Response(JSON.stringify(rescued), {
@@ -727,6 +759,9 @@
         return null;
     }
 
+    // ====================================================================
+    // 前端业务交互主逻辑 (还原原版极简高颜值体验)
+    // ====================================================================
 
     let appConfig = null;
     let currentCatalog = [];
@@ -735,7 +770,32 @@
     let previousView = 'shelf';
     let currentFontSize = 17;
 
-    // 清洗原站广告与零宽字符，并精准识别是否为收费打赏拦截文本（正文极短且含拦截词才视为拦截）
+    // 清洗正文中的催费垃圾与隐藏字符
+    function cleanAdContent(text) {
+        if (!text || typeof text !== 'string') return '';
+        let clean = text.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '');
+        const adMarkers = [
+            '您当前未登录',
+            '您今日免登录访问次数',
+            '📣晴天提醒您',
+            '官方售后方式',
+            '已转为内部会员',
+            '一定一定要更新书源',
+            '账号信息异常',
+            '不再为免费用户提供服务',
+            '为专享内容，如需观看',
+            '为SVIP专享内容',
+            '打赏赞助'
+        ];
+        for (const marker of adMarkers) {
+            const idx = clean.indexOf(marker);
+            if (idx !== -1) {
+                clean = clean.substring(0, idx);
+            }
+        }
+        return clean.trim();
+    }
+
     function isPaywallOrAdText(text) {
         if (!text || typeof text !== 'string') return true;
         const cleaned = cleanAdContent(text);
@@ -747,30 +807,6 @@
             return paywallMarkers.some(m => text.includes(m)) || cleaned.length < 30;
         }
         return false;
-    }
-
-    function cleanAdContent(text) {
-        if (!text || typeof text !== 'string') return '';
-        let clean = text.replace(/[\\u200B-\\u200F\\uFEFF\\u202A-\\u202E]/g, '');
-        const adMarkers = [
-            '您当前未登录',
-            '您今日免登录访问次数',
-            '📣晴天提醒您',
-            '官方售后方式',
-            '已转为内部会员',
-            '一定一定要更新书源',
-            '账号信息异常',
-            '不再为免费用户提供服务',
-            '为专享内容，如需观看',
-            '为SVIP专享内容'
-        ];
-        for (const marker of adMarkers) {
-            const idx = clean.indexOf(marker);
-            if (idx !== -1) {
-                clean = clean.substring(0, idx);
-            }
-        }
-        return clean.trim();
     }
 
     function getLocalShelf() {
@@ -798,14 +834,11 @@
         grid.innerHTML = shelf.map((b, idx) => `
             <div class="card" onclick="openBookFromShelf(${idx})">
                 <div>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="card-title">${b.book_name}</span>
-                        <span class="badge" style="font-size:10px;">${b.tab || '小说'}</span>
-                    </div>
+                    <div class="card-title">${b.book_name}</div>
                     <div class="card-sub">读至: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '序章'}</span></div>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                    <span class="card-tag">${b.source || '优质源'}</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                    <span class="card-tag">${b.source}</span>
                     <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="removeFromShelf(event, ${idx})">移出</button>
                 </div>
             </div>
@@ -815,7 +848,7 @@
     function toggleBookShelf() {
         if (!currentBookInfo) return;
         let shelf = getLocalShelf();
-        const existingIdx = shelf.findIndex(b => b.book_name === currentBookInfo.book_name);
+        const existingIdx = shelf.findIndex(b => b.book_name === currentBookInfo.book_name && b.source === currentBookInfo.source);
         const btn = document.getElementById('shelfToggleBtn');
 
         if (existingIdx !== -1) {
@@ -824,7 +857,6 @@
         } else {
             shelf.unshift({
                 ...currentBookInfo,
-                tab: currentBookInfo.tab || document.getElementById('tabSelect').value || '小说',
                 lastReadTitle: currentCatalog[currentChapterIndex]?.title || '未开始',
                 lastReadIndex: currentChapterIndex
             });
@@ -832,6 +864,7 @@
         }
         saveLocalShelf(shelf);
         renderShelf();
+        initReaderScrollListener();
     }
 
     function updateShelfProgress(chapTitle, chapIdx) {
@@ -856,6 +889,94 @@
         renderShelf();
     }
 
+    function getRecentHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('open_reader_history') || '[]');
+        } catch(e) { return []; }
+    }
+
+    function saveRecentHistory(list) {
+        localStorage.setItem('open_reader_history', JSON.stringify(list));
+    }
+
+    function formatTimeAgo(timestamp) {
+        if (!timestamp) return '刚刚';
+        const diff = Math.floor((Date.now() - timestamp) / 1000);
+        if (diff < 60) return '刚刚';
+        if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+        if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+        if (diff < 2592000) return Math.floor(diff / 86400) + '天前';
+        return new Date(timestamp).toLocaleDateString();
+    }
+
+    function updateRecentHistory(book, chapTitle, chapIdx) {
+        if (!book || !book.book_name) return;
+        let history = getRecentHistory();
+        history = history.filter(b => b.book_name !== book.book_name);
+        history.unshift({
+            ...book,
+            lastReadTitle: chapTitle || '第一章',
+            lastReadIndex: chapIdx || 0,
+            readTime: Date.now()
+        });
+        if (history.length > 60) history.pop();
+        saveRecentHistory(history);
+    }
+
+    function renderHistory() {
+        const history = getRecentHistory();
+        const grid = document.getElementById('historyGrid');
+        const empty = document.getElementById('historyEmpty');
+        const headerBar = document.getElementById('historyHeaderBar');
+
+        if (history.length === 0) {
+            grid.innerHTML = '';
+            empty.style.display = 'block';
+            if (headerBar) headerBar.style.display = 'none';
+            return;
+        }
+
+        empty.style.display = 'none';
+        if (headerBar) headerBar.style.display = 'flex';
+
+        grid.innerHTML = history.map((b, idx) => `
+            <div class="card" onclick="openBookFromHistory(${idx})">
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="card-title">${b.book_name}</span>
+                        <span class="card-tag" style="font-size:10px;">${formatTimeAgo(b.readTime)}</span>
+                    </div>
+                    <div class="card-sub">读至: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '序章'}</span></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                    <span class="card-sub">${b.source || '优质源'}</span>
+                    <button class="btn" style="padding:3px 7px; font-size:11px;" onclick="removeFromHistory(event, ${idx})">移出</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function openBookFromHistory(idx) {
+        const history = getRecentHistory();
+        const book = history[idx];
+        loadBookDetail(encodeURIComponent(JSON.stringify(book)), book.lastReadIndex || 0);
+    }
+
+    function removeFromHistory(e, idx) {
+        e.stopPropagation();
+        let history = getRecentHistory();
+        history.splice(idx, 1);
+        saveRecentHistory(history);
+        renderHistory();
+    }
+
+    function clearRecentHistory() {
+        if (!confirm('确定要清空所有最近阅读记录吗？')) return;
+        localStorage.removeItem('open_reader_history');
+        renderHistory();
+    }
+
+
     function openBookFromShelf(idx) {
         const shelf = getLocalShelf();
         const book = shelf[idx];
@@ -869,46 +990,78 @@
             if (appConfig.version) {
                 document.getElementById('sourceVerTag').innerText = appConfig.version;
             }
-            updateSources();
         } catch(e) {}
+
+        const savedTab = localStorage.getItem('open_reader_last_tab') || '漫画';
+        document.getElementById('tabSelect').value = savedTab;
+        const searchInput = document.getElementById('searchInput');
+        if (savedTab === '漫画') {
+            searchInput.value = '秘密教学';
+            searchInput.placeholder = '输入漫画名，如：秘密教学...';
+        } else {
+            searchInput.value = '剑来';
+            searchInput.placeholder = '输入小说名，如：剑来...';
+        }
+
+        updateSources();
         renderShelf();
     }
 
     function onTabChanged() {
         const tab = document.getElementById('tabSelect').value;
+        localStorage.setItem('open_reader_last_tab', tab);
         const searchInput = document.getElementById('searchInput');
+
         if (tab === '漫画') {
-            if (searchInput.value === '剑来') searchInput.value = '秘密教学';
+            if (searchInput.value === '剑来' || !searchInput.value) searchInput.value = '秘密教学';
+            searchInput.placeholder = '输入漫画名，如：秘密教学...';
         } else {
-            if (searchInput.value === '秘密教学') searchInput.value = '剑来';
+            if (searchInput.value === '秘密教学' || !searchInput.value) searchInput.value = '剑来';
+            searchInput.placeholder = '输入小说名，如：剑来...';
         }
+
         updateSources();
     }
 
     function updateSources() {
         const tab = document.getElementById('tabSelect').value;
         const sourceSelect = document.getElementById('sourceSelect');
-        const list = appConfig?.categories[tab] || (tab === '小说' ? ['⚡ 全网聚合并发', '七猫', '百度', '淘小说', '番茄', '江湖', '熊猫', '伪69', '笔趣阁78', '得间'] : ['⚡ 全网聚合并发', '新新漫画', '全面漫画', 'G社漫画', '番茄']);
         
-        let options = ['<option value="ALL">⚡ 全网优质源聚合并发</option>'];
-        list.forEach(s => {
-            if (s !== 'ALL' && !s.includes('聚合')) {
-                options.push(`<option value="${s}">${s}</option>`);
-            }
-        });
-        sourceSelect.innerHTML = options.join('');
+        let sources = [];
+        if (tab === '漫画') {
+            sources = ['新新漫画', '全面漫画', 'G社漫画', '番茄', '⚡ 全网漫画并发'];
+        } else {
+            sources = ['七猫', '百度', '淘小说', '番茄', '笔趣阁78', '全本小说', '⚡ 全网优质源聚合并发'];
+        }
+
+        sourceSelect.innerHTML = sources.map(s => {
+            const val = s.startsWith('⚡') ? 'ALL' : s;
+            return `<option value="${val}">${s}</option>`;
+        }).join('');
+
+        // 默认第一项：漫画直接默认【新新漫画】，小说默认【七猫】，绝不强制无脑全网ALL！
+        sourceSelect.value = (tab === '漫画') ? '新新漫画' : '七猫';
     }
 
     function switchNav(nav) {
+        document.body.classList.remove('reading-mode');
         const isShelf = (nav === 'shelf');
+        const isHistory = (nav === 'history');
+        const isSearch = (nav === 'search');
+
         document.getElementById('navShelfBtn').classList.toggle('active', isShelf);
-        document.getElementById('navSearchBtn').classList.toggle('active', !isShelf);
+        document.getElementById('navHistoryBtn').classList.toggle('active', isHistory);
+        document.getElementById('navSearchBtn').classList.toggle('active', isSearch);
+
         document.getElementById('shelfSection').style.display = isShelf ? 'block' : 'none';
-        document.getElementById('searchSection').style.display = isShelf ? 'none' : 'block';
+        document.getElementById('historySection').style.display = isHistory ? 'block' : 'none';
+        document.getElementById('searchSection').style.display = isSearch ? 'none' : 'block';
         document.getElementById('detailView').style.display = 'none';
         document.getElementById('readerView').style.display = 'none';
+
         previousView = nav;
         if (isShelf) renderShelf();
+        if (isHistory) renderHistory();
     }
 
     async function doSearch() {
@@ -919,40 +1072,70 @@
 
         if (!title) return;
         const isAll = (source === 'ALL');
-        grid.innerHTML = `<div style="color:var(--text-muted); padding:20px;"><i class="fas fa-spinner fa-spin"></i> 正在${isAll ? '并发检索全网 8+ 优质开源书源' : '检索【' + source + '】数据'}...</div>`;
+        grid.innerHTML = `<div style="color:var(--text-muted); padding:20px;"><i class="fas fa-spinner fa-spin"></i> 正在检索${isAll ? '全网优质书源' : '【' + source + '】'}...</div>`;
 
         try {
             const res = await fetch(`/api/search?title=${encodeURIComponent(title)}&tab=${encodeURIComponent(tab)}&source=${encodeURIComponent(source)}`);
             const data = await res.json();
-            const list = data.data || [];
+            let rawList = data.data || [];
 
-            if (list.length === 0) {
+            // 1. 彻底过滤打赏/VIP/引流伪书
+            const spamKeywords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助', '专属'];
+            let list = rawList.filter(item => {
+                if (!item || !item.book_name) return false;
+                const name = item.book_name;
+                return !spamKeywords.some(k => name.includes(k)) && item.book_id !== 'vip' && item.book_id !== 'svip';
+            });
+
+            // 2. 严格按相关度精准排序，彻底告别“乱搜”
+            const exactMatches = [];
+            const prefixMatches = [];
+            const containsMatches = [];
+            const seen = new Set();
+
+            list.forEach(item => {
+                const name = (item.book_name || '').trim();
+                const dedupeKey = name + '_' + (item.author || '');
+                if (seen.has(dedupeKey)) return;
+                seen.add(dedupeKey);
+
+                if (name === title) {
+                    exactMatches.push(item);
+                } else if (name.startsWith(title)) {
+                    prefixMatches.push(item);
+                } else if (name.includes(title)) {
+                    containsMatches.push(item);
+                }
+            });
+
+            // 如果有包含搜索词的精准结果，彻底剔除上游返回的猫猫狗狗等风马牛不相及的模糊条目
+            let finalList = [...exactMatches, ...prefixMatches, ...containsMatches];
+            if (finalList.length === 0) {
+                finalList = list;
+            }
+
+            if (finalList.length === 0) {
                 grid.innerHTML = `
                     <div style="color:var(--text-muted); padding:30px; text-align:center;">
-                        未检索到《${title}》，建议尝试更换关键词搜索！
+                        未检索到与《${title}》匹配的内容，请尝试更换书源或关键词。
                     </div>
                 `;
                 return;
             }
 
-            grid.innerHTML = list.map((rawItem, idx) => {
-                const item = { ...rawItem, tab: rawItem.tab || tab, source: rawItem.source || source };
-                return `
-                    <div class="card" onclick="loadBookDetail('${encodeURIComponent(JSON.stringify(item))}')">
-                        <div>
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span class="card-title">${item.book_name}</span>
-                                <span class="badge" style="font-size:10px; color:var(--accent);">${item.source || '优质源'}</span>
-                            </div>
-                            <div class="card-sub">${item.abstract ? cleanAdContent(item.abstract).slice(0, 65) + '...' : '暂无详细简介'}</div>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                            <span class="card-sub">${item.author || '网络作家'}</span>
-                            <span class="card-tag">${item.tab || tab} · 点击阅读</span>
-                        </div>
+            // 3. 彻底还原原版极简纯净的卡片风格（无多余杂乱元素）
+            grid.innerHTML = finalList.map(item => `
+                <div class="card" onclick="loadBookDetail('${encodeURIComponent(JSON.stringify(item))}')">
+                    <div>
+                        <div class="card-title">${item.book_name}</div>
+                        <div class="card-sub">${item.abstract ? cleanAdContent(item.abstract).slice(0, 65) + '...' : '暂无详细简介'}</div>
                     </div>
-                `;
-            }).join('');
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                        <span class="card-sub">${item.author || '网络源'}</span>
+                        <span class="card-tag">${item.source || source}</span>
+                    </div>
+                </div>
+            `).join('');
         } catch(e) {
             grid.innerHTML = `<div style="color:red; padding:20px;">搜索失败: ${e.message}</div>`;
         }
@@ -960,20 +1143,20 @@
 
     async function loadBookDetail(encodedItem, autoReadIndex = null) {
         const book = JSON.parse(decodeURIComponent(encodedItem));
-        const activeTab = book.tab || document.getElementById('tabSelect').value || '小说';
+        const activeTab = book.tab || document.getElementById('tabSelect').value || '漫画';
         currentBookInfo = { ...book, tab: activeTab };
 
         document.getElementById('detailBookTitle').innerText = book.book_name;
-        document.getElementById('detailSourceTag').innerText = (book.source || '优质源') + ' · ' + activeTab;
+        document.getElementById('detailSourceTag').innerText = book.source || '优质源';
         document.getElementById('detailAuthorTag').innerText = book.author ? '作者: ' + book.author : '';
-        document.getElementById('detailIntro').innerText = cleanAdContent(book.abstract) || '暂无详细简介';
+        document.getElementById('detailIntro').innerText = cleanAdContent(book.abstract) || '无详细简介';
 
         const shelf = getLocalShelf();
         const isIn = shelf.some(b => b.book_name === book.book_name);
         document.getElementById('shelfToggleBtn').innerHTML = isIn ? '<i class="fas fa-check"></i> 已在书架' : '<i class="fas fa-plus"></i> 加书架';
 
         const catalogList = document.getElementById('catalogList');
-        catalogList.innerHTML = '<div style="color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> 正在加载章节目录...</div>';
+        catalogList.innerHTML = '<div style="color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> 正在加载目录...</div>';
         showView('detail');
 
         try {
@@ -982,12 +1165,7 @@
             currentCatalog = data.data || [];
 
             if (currentCatalog.length === 0) {
-                catalogList.innerHTML = `
-                    <div style="color:var(--text-muted); padding:20px; grid-column:1/-1; text-align:center;">
-                        当前书源暂无章节目录，建议一键换源阅读<br><br>
-                        <button class="btn primary" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 一键换源比对</button>
-                    </div>
-                `;
+                catalogList.innerHTML = '<div style="color:var(--text-muted); padding:20px;">暂无目录数据，可点击上方【换源】</div>';
                 return;
             }
 
@@ -1001,7 +1179,7 @@
                 readChapter(autoReadIndex);
             }
         } catch(e) {
-            catalogList.innerHTML = `<div style="color:red; grid-column:1/-1;">获取目录异常: ${e.message}</div>`;
+            catalogList.innerHTML = `<div style="color:red;">获取目录异常: ${e.message}</div>`;
         }
     }
 
@@ -1012,39 +1190,35 @@
 
         document.getElementById('readerChapTitle').innerText = chap.title;
         const container = document.getElementById('readerContainer');
-        container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:40px;"><i class="fas fa-spinner fa-spin"></i> 正在加载正文内容...</div>';
+        container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:40px;"><i class="fas fa-spinner fa-spin"></i> 正在加载正文...</div>';
 
         document.getElementById('prevBtn').disabled = (idx === 0);
         document.getElementById('nextBtn').disabled = (idx >= currentCatalog.length - 1);
 
-        const tab = currentBookInfo.tab || '小说';
+        const tab = currentBookInfo.tab || '漫画';
         updateShelfProgress(chap.title, idx);
+        updateRecentHistory(currentBookInfo, chap.title, idx);
 
         try {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 6500);
-            const res = await fetch(`/api/content?item_id=${encodeURIComponent(chap.item_id)}&source=${encodeURIComponent(currentBookInfo.source)}&tab=${encodeURIComponent(tab)}&book_id=${encodeURIComponent(currentBookInfo.book_id)}&title=${encodeURIComponent(currentBookInfo.book_name)}&chap_title=${encodeURIComponent(chap.title)}&chap_idx=${idx}`, {
-                signal: controller.signal
-            });
-            clearTimeout(timer);
+            const res = await fetch(`/api/content?item_id=${encodeURIComponent(chap.item_id)}&source=${encodeURIComponent(currentBookInfo.source)}&tab=${encodeURIComponent(tab)}&book_id=${encodeURIComponent(currentBookInfo.book_id)}&title=${encodeURIComponent(currentBookInfo.book_name)}&chap_title=${encodeURIComponent(chap.title)}&chap_idx=${idx}`);
             const data = await res.json();
 
-            // 1. 如果是漫画画卷
+            // 1. 如果有漫画图片
             if (data.images && data.images.length > 0) {
                 const isStealth = document.body.getAttribute('data-theme') === 'stealth';
                 if (isStealth) {
                     container.innerHTML = `
                         <div class="text-stream">
-                            // [摸鱼阅读已开启 - 代码伪装模式]<br>
+                            // [摸鱼模式已生效 - 原画已被转化为轻量代码节点]<br>
                             // 章节: ${chap.title}<br>
-                            // 图像资源: ${data.images.length} 帧原画流<br>
+                            // 源站图片资源总数: ${data.images.length} 帧原画流<br>
                             // 按 ESC 或右上角摸鱼按钮即可恢复原画预览
                         </div>
                     `;
                 } else {
                     container.innerHTML = `
                         <div class="img-stream">
-                            ${data.images.map(img => `<img src="${img}" loading="lazy" />`).join('')}
+                            ${data.images.map(img => `<img src="${img}" loading="lazy" referrerpolicy="no-referrer" />`).join('')}
                         </div>
                     `;
                 }
@@ -1052,68 +1226,25 @@
                 return;
             }
 
-            // 2. 如果是小说纯文本
-            const rawContent = data.content || (data.data && typeof data.data === 'string' ? data.data : '');
-            const isPay = isPaywallOrAdText(rawContent);
-
-            if (!isPay && rawContent && rawContent.length > 50) {
-                // 如果后端自动救援切换了更优源，同步展示
-                if (data.autoSwitched && data.newSource) {
-                    currentBookInfo.source = data.newSource;
-                    document.getElementById('detailSourceTag').innerText = data.newSource + ' · ' + tab;
-                }
-
-                const cleanedText = cleanAdContent(rawContent);
-                const isStealth = document.body.getAttribute('data-theme') === 'stealth';
-                if (isStealth) {
-                    const formatted = cleanedText.split('\\n').map(line => `// ${line}`).join('\\n');
-                    container.innerHTML = `<div class="text-stream">${formatted}</div>`;
-                } else {
-                    container.innerHTML = `<div class="text-stream">${cleanedText}</div>`;
-                }
+            // 2. 如果是小说纯文本，清洗掉催费垃圾广告后展示
+            const cleanedText = cleanAdContent(data.content);
+            if (cleanedText && cleanedText.length > 0 && !isPaywallOrAdText(cleanedText)) {
+                container.innerHTML = `<div class="text-stream">${cleanedText}</div>`;
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 return;
             }
 
-            // 3. 遇到打赏拦截或受限，提供原地无缝换源
-            const tipMsg = data.msg || (isPay ? '当前书源【' + currentBookInfo.source + '】要求打赏或SVIP专享' : '当前书源暂无完整正文');
+            // 3. 章节受限，提供换源
             container.innerHTML = `
-                <div style="background:rgba(235,94,40,0.12); border:1px solid rgba(235,94,40,0.35); border-radius:10px; padding:24px 16px; text-align:center; margin:14px 0;">
-                    <div style="font-size:16px; font-weight:600; margin-bottom:8px; color:var(--text-main);">⚠️ ${tipMsg}</div>
-                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px; line-height:1.6;">
-                        已为您识别到《${currentBookInfo.book_name}》在【七猫 / 百度 / 番茄 / 淘小说】均有免费完整正文。<br>点击下方按钮即可一键原地无缝同步章节！
-                    </div>
-                    <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
-                        <button class="btn primary" onclick="autoSwitchToFreeSource()"><i class="fas fa-bolt"></i> 一键秒切免费源</button>
-                        <button class="btn" onclick="openSwitchSourceModal()"><i class="fas fa-list"></i> 选择更多备用源</button>
-                    </div>
+                <div style="color:var(--text-muted); padding:30px; text-align:center;">
+                    该章节在当前书源暂无正文内容或受限<br><br>
+                    <button class="btn primary" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 一键切换其他书源</button>
                 </div>
             `;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch(e) {
-            const isTimeout = (e.name === 'AbortError' || (e.message && e.message.includes('abort')) || (e.message && e.message.includes('timeout')));
-            const errorMsg = isTimeout ? '正文加载超时，源站当前响应较慢' : ('加载章节异常: ' + e.message);
-            container.innerHTML = `
-                <div style="background:rgba(235,94,40,0.12); border:1px solid rgba(235,94,40,0.35); border-radius:10px; padding:24px 16px; text-align:center; margin:14px 0;">
-                    <div style="font-size:16px; font-weight:600; margin-bottom:8px; color:var(--text-main);">⚠️ ${errorMsg}</div>
-                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px; line-height:1.6;">
-                        建议一键秒切至稳定的全免书源【七猫 / 百度 / 番茄】继续畅读！
-                    </div>
-                    <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
-                        <button class="btn primary" onclick="autoSwitchToFreeSource()"><i class="fas fa-bolt"></i> 一键秒切免费源</button>
-                        <button class="btn" onclick="readChapter(${idx})"><i class="fas fa-redo"></i> 重试本章</button>
-                        <button class="btn" onclick="openSwitchSourceModal()"><i class="fas fa-list"></i> 选择更多备用源</button>
-                    </div>
-                </div>
-            `;
+            container.innerHTML = `<div style="color:red; padding:30px; text-align:center;">加载章节失败: ${e.message}</div>`;
         }
-    }
-
-    async function autoSwitchToFreeSource() {
-        if (!currentBookInfo) return;
-        const freeList = ['七猫', '百度', '淘小说', '番茄', '江湖', '熊猫', '笔趣阁78', '伪69'];
-        const target = freeList.find(s => s !== currentBookInfo.source) || '七猫';
-        seamlessSwitchSource(target);
     }
 
     function prevChapter() {
@@ -1124,19 +1255,63 @@
         if (currentChapterIndex < currentCatalog.length - 1) readChapter(currentChapterIndex + 1);
     }
 
-    function adjustFontSize(delta) {
-        currentFontSize = Math.max(13, Math.min(26, currentFontSize + delta));
-        document.documentElement.style.setProperty('--reader-font-size', currentFontSize + 'px');
+    let lastScrollTop = 0;
+    let isReaderNavVisible = true;
+
+    function initReaderScrollListener() {
+        window.addEventListener('scroll', () => {
+            if (!document.body.classList.contains('reading-mode')) return;
+            const st = window.pageYOffset || document.documentElement.scrollTop;
+            const floating = document.getElementById('readerFloatingHeader');
+            if (!floating) return;
+
+            // 向下滚动超过 50px 时，自动隐藏顶部状态栏，享受纯净全屏阅读
+            if (st > lastScrollTop && st > 80) {
+                if (isReaderNavVisible) {
+                    floating.classList.add('nav-hidden');
+                    isReaderNavVisible = false;
+                }
+            } else if (st < lastScrollTop - 12) {
+                // 向上滚动时，自动呼出顶部栏方便目录换源
+                if (!isReaderNavVisible) {
+                    floating.classList.remove('nav-hidden');
+                    isReaderNavVisible = true;
+                }
+            }
+            lastScrollTop = Math.max(0, st);
+        }, { passive: true });
+    }
+
+    function toggleReaderControls(e) {
+        if (e && e.target && (e.target.closest('button') || e.target.closest('.modal-card') || e.target.closest('.pager') || e.target.closest('.reader-toolbar'))) {
+            return;
+        }
+        const floating = document.getElementById('readerFloatingHeader');
+        if (!floating) return;
+        isReaderNavVisible = !isReaderNavVisible;
+        floating.classList.toggle('nav-hidden', !isReaderNavVisible);
     }
 
     function showView(name) {
+        const isReader = (name === 'reader');
+        document.body.classList.toggle('reading-mode', isReader);
+
         document.getElementById('shelfSection').style.display = 'none';
         document.getElementById('searchSection').style.display = 'none';
         document.getElementById('detailView').style.display = (name === 'detail') ? 'block' : 'none';
-        document.getElementById('readerView').style.display = (name === 'reader') ? 'block' : 'none';
+        document.getElementById('readerView').style.display = isReader ? 'block' : 'none';
+
+        if (isReader) {
+            const floating = document.getElementById('readerFloatingHeader');
+            if (floating) {
+                floating.classList.remove('nav-hidden');
+                isReaderNavVisible = true;
+            }
+        }
     }
 
     function goBackFromDetail() {
+        document.body.classList.remove('reading-mode');
         switchNav(previousView);
     }
 
@@ -1146,23 +1321,22 @@
         const list = document.getElementById('sourceSwitchList');
         modal.classList.add('open');
 
-        const tab = currentBookInfo.tab || '小说';
-        const freeRecommended = ['七猫', '百度', '淘小说', '番茄', '江湖', '熊猫', '笔趣阁78', '伪69', '得间'];
-        const otherSources = (appConfig?.categories[tab] || freeRecommended).filter(s => s !== currentBookInfo.source);
+        const tab = currentBookInfo.tab || '漫画';
+        const candidateSources = (tab === '漫画') 
+            ? ['新新漫画', '全面漫画', 'G社漫画', '番茄'] 
+            : ['七猫', '百度', '淘小说', '番茄', '笔趣阁78', '全本小说'];
+
+        const otherSources = candidateSources.filter(s => s !== currentBookInfo.source);
 
         let html = '';
         for (const s of otherSources) {
-            const isRec = freeRecommended.includes(s);
             html += `
-                <div class="switch-item ${isRec ? 'recommended' : ''}" onclick="seamlessSwitchSource('${s}')">
+                <div class="switch-item" onclick="switchToSource('${s}')">
                     <div>
-                        <div style="font-weight:600; font-size:14px; display:flex; align-items:center; gap:6px;">
-                            ${s}
-                            ${isRec ? '<span class="badge" style="color:var(--accent); border-color:var(--accent);">免费推荐</span>' : ''}
-                        </div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">原地无缝切换，章节智能同步</div>
+                        <div style="font-weight:600; font-size:14px;">${s}</div>
+                        <div style="font-size:11px; color:var(--text-muted);">一键切源搜索《${currentBookInfo.book_name}》</div>
                     </div>
-                    <span class="card-tag"><i class="fas fa-sync-alt"></i> 无缝切换</span>
+                    <span class="card-tag">一键切换</span>
                 </div>
             `;
         }
@@ -1173,67 +1347,13 @@
         document.getElementById('sourceModal').classList.remove('open');
     }
 
-    // 真正的原地无缝切源（保留当前章节进度与书架同步）
-    async function seamlessSwitchSource(targetSource) {
+    function switchToSource(targetSource) {
         closeSourceModal();
-        const curChap = currentCatalog[currentChapterIndex];
-        const curChapTitle = curChap?.title || '';
-        const curIdx = currentChapterIndex;
-        const isReading = (document.getElementById('readerView').style.display === 'block');
-
-        if (isReading) {
-            document.getElementById('readerContainer').innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> 正在原地无缝同步至【${targetSource}】...</div>`;
-        }
-
-        try {
-            // 1. 在目标书源检索同名作品
-            const sRes = await fetch(`/api/search?title=${encodeURIComponent(currentBookInfo.book_name)}&tab=${encodeURIComponent(currentBookInfo.tab || '小说')}&source=${encodeURIComponent(targetSource)}`);
-            const sData = await sRes.json();
-            const list = sData.data || [];
-            const match = list.find(b => b.book_name === currentBookInfo.book_name) || list[0];
-
-            if (!match) {
-                alert(`书源【${targetSource}】未检索到《${currentBookInfo.book_name}》，请尝试其他源。`);
-                if (isReading) readChapter(curIdx);
-                return;
-            }
-
-            // 2. 更新书籍信息并拉取新目录
-            currentBookInfo = { ...match, source: targetSource, tab: currentBookInfo.tab || '小说' };
-            document.getElementById('detailBookTitle').innerText = match.book_name;
-            document.getElementById('detailSourceTag').innerText = targetSource + ' · ' + currentBookInfo.tab;
-
-            const catRes = await fetch(`/api/catalog?book_id=${encodeURIComponent(match.book_id)}&source=${encodeURIComponent(targetSource)}&tab=${encodeURIComponent(currentBookInfo.tab)}`);
-            const catData = await catRes.json();
-            currentCatalog = catData.data || [];
-
-            // 3. 智能对齐章节
-            let targetIdx = curIdx;
-            if (curChapTitle && currentCatalog.length > 0) {
-                const cleanCur = curChapTitle.replace(/[第章\\s]/g, '');
-                const foundIdx = currentCatalog.findIndex(c => {
-                    const cleanT = c.title.replace(/[第章\\s]/g, '');
-                    return cleanT.includes(cleanCur) || cleanCur.includes(cleanT);
-                });
-                if (foundIdx !== -1) targetIdx = foundIdx;
-            }
-
-            // 更新详情页目录渲染
-            const catalogList = document.getElementById('catalogList');
-            catalogList.innerHTML = currentCatalog.map((chap, idx) => `
-                <div class="chap-btn ${targetIdx === idx ? 'read-active' : ''}" title="${chap.title}" onclick="readChapter(${idx})">
-                    ${chap.title}
-                </div>
-            `).join('');
-
-            // 如果当前在阅读器，直接加载对齐后的章节
-            if (isReading) {
-                readChapter(targetIdx);
-            }
-        } catch(e) {
-            alert(`切源异常: ${e.message}`);
-            if (isReading) readChapter(curIdx);
-        }
+        document.getElementById('tabSelect').value = currentBookInfo.tab || '漫画';
+        document.getElementById('sourceSelect').value = targetSource;
+        document.getElementById('searchInput').value = currentBookInfo.book_name;
+        switchNav('search');
+        doSearch();
     }
 
     function toggleTheme(themeName) {
@@ -1247,18 +1367,21 @@
 
     function toggleStealth() {
         const cur = document.body.getAttribute('data-theme');
-        document.body.setAttribute('data-theme', cur === 'stealth' ? 'dark' : 'stealth');
+        document.body.setAttribute('data-theme', cur === 'stealth' ? '' : 'stealth');
         if (document.getElementById('readerView').style.display === 'block') {
             readChapter(currentChapterIndex);
         }
     }
 
+    function adjustFontSize(delta) {
+        currentFontSize = Math.min(26, Math.max(13, currentFontSize + delta));
+        document.documentElement.style.setProperty('--reader-font-size', currentFontSize + 'px');
+    }
+
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') toggleStealth();
-        if (document.getElementById('readerView').style.display === 'block') {
-            if (e.key === 'ArrowLeft') prevChapter();
-            if (e.key === 'ArrowRight') nextChapter();
-        }
+        if (e.key === 'ArrowLeft') prevChapter();
+        if (e.key === 'ArrowRight') nextChapter();
     });
 
     init();
