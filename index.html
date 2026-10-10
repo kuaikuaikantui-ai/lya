@@ -1366,10 +1366,13 @@
         const isShelf = (nav === 'shelf');
         const isHistory = (nav === 'history');
         const isSearch = (nav === 'search');
+        const isVideo = (nav === 'video');
 
         document.getElementById('navShelfBtn').classList.toggle('active', isShelf);
         document.getElementById('navHistoryBtn').classList.toggle('active', isHistory);
         document.getElementById('navSearchBtn').classList.toggle('active', isSearch);
+        const navVideoBtn = document.getElementById('navVideoBtn');
+        if (navVideoBtn) navVideoBtn.classList.toggle('active', isVideo);
 
         document.getElementById('shelfSection').style.display = isShelf ? 'block' : 'none';
         document.getElementById('historySection').style.display = isHistory ? 'block' : 'none';
@@ -1377,9 +1380,19 @@
         document.getElementById('detailView').style.display = 'none';
         document.getElementById('readerView').style.display = 'none';
 
+        const videoSec = document.getElementById('videoSection');
+        if (videoSec) videoSec.style.display = isVideo ? 'block' : 'none';
+        const videoPlayer = document.getElementById('videoPlayerView');
+        if (videoPlayer) videoPlayer.style.display = 'none';
+
         previousView = nav;
         if (isShelf) renderShelf();
         if (isHistory) renderHistory();
+        if (isVideo) {
+            if (!window.currentVideoList || window.currentVideoList.length === 0) {
+                if (typeof window.loadVideoFeed === 'function') window.loadVideoFeed('liangzi');
+            }
+        }
     }
 
     async function doSearch() {
