@@ -494,11 +494,16 @@
 
         // 如果卡片尚未挂载播放源 (属于动态推荐流在线卡片)，立刻发起秒级全网精准聚合检索
         if (!item.vod_play_url) {
-            document.getElementById('videoSection').style.display = 'none';
-            document.getElementById('videoPlayerView').style.display = 'block';
-            document.getElementById('videoPlayerTitle').innerText = '正在载入: ' + item.vod_name;
-            document.getElementById('videoDetailName').innerText = item.vod_name;
-            document.getElementById('videoEpisodesList').innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;"><i class="fas fa-spinner fa-spin"></i> 正在全网秒级调取超清播放线路...</div>';
+            const vSection = document.getElementById('videoSection');
+            if (vSection) vSection.style.display = 'none';
+            const vPlayerView = document.getElementById('videoPlayerView');
+            if (vPlayerView) vPlayerView.style.display = 'block';
+            const vPlayerTitle = document.getElementById('videoPlayerTitle');
+            if (vPlayerTitle) vPlayerTitle.innerText = '正在载入: ' + item.vod_name;
+            const vDetailName = document.getElementById('videoDetailName');
+            if (vDetailName) vDetailName.innerText = item.vod_name;
+            const vEpList = document.getElementById('videoEpisodesList');
+            if (vEpList) vEpList.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;"><i class="fas fa-spinner fa-spin"></i> 正在全网秒级调取超清播放线路...</div>';
 
             try {
                 // 构造多级精准搜索关键词：完整标题、去除季数副标题的名、纯剧名
@@ -571,14 +576,21 @@
 
         window.currentVideo.groups = parsedGroups;
 
-        document.getElementById('videoSection').style.display = 'none';
-        document.getElementById('videoPlayerView').style.display = 'block';
+        const vSection = document.getElementById('videoSection');
+        if (vSection) vSection.style.display = 'none';
+        const vPlayerView = document.getElementById('videoPlayerView');
+        if (vPlayerView) vPlayerView.style.display = 'block';
 
-        document.getElementById('videoPlayerTitle').innerText = item.vod_name;
-        document.getElementById('videoSourceTag').innerText = item.type_name || '全网超清';
-        document.getElementById('videoDetailName').innerText = item.vod_name + ' (' + (item.vod_year || '热播') + ')';
-        document.getElementById('videoDetailMeta').innerText = (item.vod_area || '') + ' · ' + (item.type_name || '') + ' · 演员: ' + (item.vod_actor ? item.vod_actor.slice(0, 36) + '...' : '暂无');
-        document.getElementById('videoDetailDesc').innerText = item.vod_content ? item.vod_content.replace(/<[^>]+>/g, '').slice(0, 140) + '...' : (item.vod_remarks || '暂无详细简介');
+        const vPlayerTitle = document.getElementById('videoPlayerTitle');
+        if (vPlayerTitle) vPlayerTitle.innerText = item.vod_name;
+        const vSourceTag = document.getElementById('videoSourceTag');
+        if (vSourceTag) vSourceTag.innerText = item.type_name || '全网超清';
+        const vDetailName = document.getElementById('videoDetailName');
+        if (vDetailName) vDetailName.innerText = item.vod_name + ' (' + (item.vod_year || '热播') + ')';
+        const vDetailMeta = document.getElementById('videoDetailMeta');
+        if (vDetailMeta) vDetailMeta.innerText = (item.vod_area || '') + ' · ' + (item.type_name || '') + ' · 演员: ' + (item.vod_actor ? item.vod_actor.slice(0, 36) + '...' : '暂无');
+        const vDetailDesc = document.getElementById('videoDetailDesc');
+        if (vDetailDesc) vDetailDesc.innerText = item.vod_content ? item.vod_content.replace(/<[^>]+>/g, '').slice(0, 140) + '...' : (item.vod_remarks || '暂无详细简介');
 
         window.renderVideoSourceTabs(parsedGroups);
         window.renderVideoEpisodes(0);
@@ -936,15 +948,15 @@
     // 设置抽屉显隐控制
     window.toggleSettingsDrawer = function() {
         const drawer = document.getElementById('playerSettingsDrawer');
-        const overlay = document.getElementById('drawerOverlay');
+        const overlay = document.getElementById('drawerOverlay') || document.getElementById('settingsDrawerOverlay');
         if (!drawer) return;
-        const isOpen = drawer.classList.contains('active');
+        const isOpen = drawer.classList.contains('active') || drawer.classList.contains('open');
         if (isOpen) {
-            drawer.classList.remove('active');
-            if (overlay) overlay.classList.remove('active');
+            drawer.classList.remove('active', 'open');
+            if (overlay) overlay.classList.remove('active', 'open');
         } else {
-            drawer.classList.add('active');
-            if (overlay) overlay.classList.add('active');
+            drawer.classList.add('active', 'open');
+            if (overlay) overlay.classList.add('active', 'open');
         }
     };
 
@@ -953,7 +965,7 @@
     window.toggleP2pFeature = function() {
         window.isP2pEnabled = !window.isP2pEnabled;
         const sw = document.getElementById('p2pSwitch');
-        const pill = document.getElementById('p2pLiveBadge');
+        const pill = document.getElementById('p2pLiveBadge') || document.getElementById('p2pLivePill');
         const liveText = document.getElementById('p2pLiveText');
         if (sw) sw.classList.toggle('active', window.isP2pEnabled);
         if (pill) pill.classList.toggle('off', !window.isP2pEnabled);
@@ -1068,9 +1080,9 @@
     // 关闭视频播放器，返回影视主视窗
     window.closeVideoPlayer = function() {
         const drawer = document.getElementById('playerSettingsDrawer');
-        const overlay = document.getElementById('drawerOverlay');
-        if (drawer) drawer.classList.remove('active');
-        if (overlay) overlay.classList.remove('active');
+        const overlay = document.getElementById('drawerOverlay') || document.getElementById('settingsDrawerOverlay');
+        if (drawer) drawer.classList.remove('active', 'open');
+        if (overlay) overlay.classList.remove('active', 'open');
 
         if (window.currentP2pEngine) {
             try { window.currentP2pEngine.destroy(); } catch(e){}
