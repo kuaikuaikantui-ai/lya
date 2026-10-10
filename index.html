@@ -13,59 +13,81 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg-base: #0f1115;
-            --bg-card: #181a20;
-            --bg-card-hover: #22252e;
-            --border: #282c35;
-            --text-main: #e2e4e9;
-            --text-muted: #8b92a0;
+            --bg-base: #0b0d13;
+            --bg-gradient: radial-gradient(circle at 15% 15%, rgba(45, 212, 192, 0.12) 0%, transparent 45%),
+                           radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                           radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.08) 0%, transparent 60%);
+            --glass-bg: rgba(20, 26, 38, 0.65);
+            --glass-card: rgba(26, 33, 48, 0.6);
+            --glass-card-hover: rgba(36, 46, 68, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.09);
+            --glass-border-light: rgba(255, 255, 255, 0.18);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+            --glass-blur: blur(16px);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
             --accent: #2dd4c0;
-            --accent-glow: rgba(45, 212, 192, 0.15);
+            --accent-glow: rgba(45, 212, 192, 0.25);
             --reader-font-size: 17px;
             --reader-line-height: 1.9;
         }
 
         body[data-theme="warm"] {
-            --bg-base: #f7f1e3;
-            --bg-card: #ede3cb;
-            --bg-card-hover: #e2d7bd;
-            --border: #ded1b4;
-            --text-main: #2f2a24;
-            --text-muted: #6e6456;
-            --accent: #8b572a;
-            --accent-glow: rgba(139, 87, 42, 0.15);
+            --bg-base: #f4ece1;
+            --bg-gradient: radial-gradient(circle at 20% 20%, rgba(217, 119, 6, 0.12) 0%, transparent 50%),
+                           radial-gradient(circle at 80% 80%, rgba(180, 83, 9, 0.08) 0%, transparent 50%);
+            --glass-bg: rgba(245, 239, 230, 0.75);
+            --glass-card: rgba(255, 252, 248, 0.75);
+            --glass-card-hover: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(180, 160, 140, 0.25);
+            --glass-border-light: rgba(180, 160, 140, 0.4);
+            --glass-shadow: 0 8px 24px 0 rgba(140, 100, 60, 0.12);
+            --text-main: #2d261e;
+            --text-muted: #786c5e;
+            --accent: #b45309;
+            --accent-glow: rgba(180, 83, 9, 0.2);
         }
 
         body[data-theme="stealth"] {
-            --bg-base: #1e1e1e;
-            --bg-card: #252526;
-            --bg-card-hover: #2d2d2d;
-            --border: #3e3e42;
-            --text-main: #cccccc;
-            --text-muted: #6a9955;
-            --accent: #569cd6;
-            --accent-glow: rgba(86, 156, 214, 0.12);
-            font-family: Consolas, "Fira Code", Monaco, monospace !important;
+            --bg-base: #121316;
+            --bg-gradient: none;
+            --glass-bg: rgba(24, 25, 28, 0.85);
+            --glass-card: rgba(30, 31, 36, 0.8);
+            --glass-card-hover: rgba(40, 42, 48, 0.9);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-border-light: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            --text-main: #d4d4d8;
+            --text-muted: #71717a;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.2);
+            font-family: Consolas, monospace !important;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        
+
         body {
-            background: var(--bg-base);
+            background-color: var(--bg-base);
+            background-image: var(--bg-gradient);
+            background-attachment: fixed;
+            background-size: cover;
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Segoe UI", Roboto, sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             padding-bottom: constant(safe-area-inset-bottom);
             padding-bottom: env(safe-area-inset-bottom);
-            transition: background 0.2s, color 0.2s;
+            transition: background 0.3s, color 0.3s;
         }
 
+        /* 顶部导航玻璃拟态 */
         header {
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 12px 16px;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 12px 20px;
             padding-top: calc(12px + env(safe-area-inset-top));
             display: flex;
             align-items: center;
@@ -73,149 +95,268 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
 
         .brand {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--accent);
+            gap: 10px;
+            font-size: 17px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.3px;
             cursor: pointer;
+            text-decoration: none;
+        }
+        .brand i {
+            color: var(--accent);
+            filter: drop-shadow(0 0 8px var(--accent-glow));
         }
 
         .badge {
             font-size: 10px;
-            padding: 2px 6px;
+            font-weight: 600;
+            padding: 2px 8px;
             background: var(--accent-glow);
+            color: var(--accent);
             border: 1px solid var(--accent);
-            border-radius: 4px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
         }
 
         .header-actions { display: flex; gap: 8px; align-items: center; }
 
         button.btn {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            background: var(--glass-card);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
             color: var(--text-main);
-            padding: 7px 12px;
-            border-radius: 8px;
+            padding: 7px 14px;
+            border-radius: 10px;
             font-size: 13px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
-        button.btn:active { transform: scale(0.96); }
-        button.btn.primary { background: var(--accent); color: #000; font-weight: 600; border: none; }
+        button.btn:hover {
+            background: var(--glass-card-hover);
+            border-color: var(--glass-border-light);
+            transform: translateY(-1px);
+        }
+        button.btn:active { transform: scale(0.97); }
+        button.btn.primary {
+            background: linear-gradient(135deg, var(--accent) 0%, #0ea5e9 100%);
+            color: #051a1a;
+            font-weight: 600;
+            border: none;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
 
         main {
             flex: 1;
-            max-width: 900px;
+            max-width: 980px;
             width: 100%;
             margin: 0 auto;
-            padding: 14px 12px;
+            padding: 16px 14px;
         }
 
+        /* 顶部四大独立模块导航药丸 (整合1~4大页面) */
         .tab-nav {
             display: flex;
-            gap: 8px;
-            margin-bottom: 14px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 8px;
+            gap: 6px;
+            margin-bottom: 20px;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            padding: 6px;
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow);
+            position: sticky;
+            top: 60px;
+            z-index: 90;
         }
         .tab-nav-btn {
+            flex: 1;
             background: transparent;
             border: none;
             color: var(--text-muted);
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
-            padding: 6px 14px;
-            border-radius: 6px;
+            padding: 10px 12px;
+            border-radius: 12px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.25s ease;
+        }
+        .tab-nav-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
         }
         .tab-nav-btn.active {
-            background: var(--accent-glow);
+            background: var(--glass-card);
             color: var(--accent);
+            border: 1px solid var(--glass-border-light);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
         }
 
+        /* 玻璃拟态搜索框卡片 */
         .search-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 16px;
+            background: var(--glass-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: var(--glass-shadow);
         }
 
         .search-row {
             display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
+            gap: 10px;
+            margin-bottom: 12px;
         }
 
         .search-input {
             flex: 1;
-            background: rgba(0,0,0,0.25);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
             color: var(--text-main);
             font-size: 14px;
             outline: none;
-            -webkit-appearance: none;
+            transition: all 0.25s;
         }
-        .search-input:focus { border-color: var(--accent); }
+        .search-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 16px var(--accent-glow);
+            background: rgba(0, 0, 0, 0.45);
+        }
 
         .filter-row {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             align-items: center;
             flex-wrap: wrap;
         }
 
         .select-filter {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
             color: var(--text-main);
-            padding: 6px 10px;
-            border-radius: 6px;
+            padding: 8px 14px;
+            border-radius: 10px;
             font-size: 12px;
             outline: none;
+            backdrop-filter: blur(8px);
+        }
+
+        /* 第一页：最近观看三大子分类切换药丸 */
+        .history-subnav {
+            display: inline-flex;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 16px;
+        }
+        .history-subnav-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .history-subnav-btn.active {
+            background: var(--accent-glow);
+            color: var(--accent);
+            border: 1px solid rgba(45, 212, 192, 0.3);
         }
 
         .grid-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 14px;
         }
 
+        /* 液态拟态卡片 */
         .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 14px;
+            background: var(--glass-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 16px;
             cursor: pointer;
-            transition: transform 0.15s, border-color 0.15s;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
         }
-        .card:hover { border-color: var(--accent); }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+        }
+        .card:hover {
+            border-color: var(--accent);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(45, 212, 192, 0.15);
+            background: var(--glass-card-hover);
+        }
         .card:active { transform: scale(0.98); }
-        /* 沉浸式全屏阅读：手机与电脑端均彻底隐藏全局主站 Header 和 Tab 导航 */
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-main);
+        }
+        .card-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .card-tag {
+            font-size: 11px;
+            color: var(--accent);
+            font-weight: 500;
+            background: var(--accent-glow);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(45, 212, 192, 0.25);
+        }
+
+        /* 沉浸式阅读模式 */
         body.reading-mode header,
         body.reading-mode .tab-nav {
             display: none !important;
         }
-
         body.reading-mode main {
             padding: 0;
             max-width: 900px;
             width: 100%;
         }
-
         body.reading-mode .reader-wrapper {
             background: transparent;
             border: none;
@@ -223,197 +364,69 @@
             padding: 8px 16px;
             box-shadow: none;
         }
-
-        @media (max-width: 768px) {
-            body.reading-mode main {
-                padding: 0;
-            }
-            body.reading-mode .reader-floating-header {
-                margin: 0 0 8px 0;
-                border-radius: 0 0 12px 12px;
-            }
-            body.reading-mode .reader-wrapper {
-                padding: 6px 14px 40px 14px;
-            }
-            .text-stream {
-                padding: 0 !important;
-            }
-            .pager {
-                padding: 0 14px 20px 14px;
-            }
-        }
-
         body.reading-mode #readerView {
             padding-top: calc(6px + env(safe-area-inset-top));
         }
-
-        .reader-floating-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 10px 14px;
-            border-radius: 0 0 12px 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-            margin: 0 0 12px 0;
-            transition: transform 0.25s ease, opacity 0.25s ease;
-        }
-
-        .reader-floating-header.nav-hidden {
-            transform: translateY(-100%);
-            opacity: 0;
-            pointer-events: none;
-        }
-
-
-        .card-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
-        .card-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5; }
-        .card-tag { font-size: 11px; color: var(--accent); font-weight: 500; }
-
-        #detailView, #readerView { display: none; }
 
         .view-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 14px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--glass-border);
         }
 
         .catalog-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             gap: 8px;
-            max-height: 60vh;
+            max-height: 400px;
             overflow-y: auto;
-            margin-top: 12px;
-            -webkit-overflow-scrolling: touch;
+            padding: 4px;
         }
-
         .chap-btn {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            background: var(--glass-card);
+            border: 1px solid var(--glass-border);
             color: var(--text-main);
-            padding: 9px 8px;
-            border-radius: 6px;
+            padding: 8px 10px;
+            border-radius: 8px;
             font-size: 12px;
             text-align: center;
             cursor: pointer;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            transition: all 0.2s;
         }
-        .chap-btn:active { background: var(--accent-glow); }
-        .chap-btn.read-active { border-color: var(--accent); background: var(--accent-glow); }
-        /* 排版设置下拉面板 */
-        .format-dropdown {
-            position: relative;
-            display: inline-block;
+        .chap-btn:hover {
+            border-color: var(--accent);
+            background: var(--glass-card-hover);
         }
-        .format-panel {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: calc(100% + 8px);
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 10px 14px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-            min-width: 190px;
-            z-index: 120;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .format-panel.show {
-            display: flex;
-        }
-        .format-panel-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 12px;
-            color: var(--text-main);
-        }
-        .format-btn-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
+        .chap-btn.read-active {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+            color: var(--accent);
+            font-weight: 600;
         }
 
-
-        .reader-toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-            margin-bottom: 12px;
-            font-size: 12px;
-        }
-        .font-adjust { display: flex; gap: 6px; align-items: center; }
-
-        .reader-wrapper {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 14px 10px;
-            min-height: 60vh;
-        }
-
-        .img-stream {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            width: 100%;
-        }
-        .img-stream img {
-            width: 100%;
-            max-width: 800px;
-            height: auto;
-            display: block;
-            border-radius: 4px;
-        }
-
-        .text-stream {
-            font-size: var(--reader-font-size);
-            line-height: var(--reader-line-height);
-            white-space: pre-wrap;
-            padding: 10px 14px;
-            letter-spacing: 0.5px;
-        }
-
-        .pager {
-            display: flex;
-            gap: 10px;
-            margin-top: 18px;
-        }
-        .pager button { flex: 1; padding: 12px; }
-
-        
-        /* kanju3 风格搜索建议与推荐看点芯片 */
+        /* 影视海报网格与卡片 */
         .kanju-suggestions-box {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 12px;
-            padding: 8px 10px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border);
-            border-radius: 8px;
+            background: var(--glass-card);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            box-shadow: var(--glass-shadow);
         }
         .kanju-suggestion-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            overflow-x: auto;
-            scrollbar-width: none;
+            gap: 10px;
+            margin-bottom: 8px;
         }
-        .kanju-suggestion-row::-webkit-scrollbar { display: none; }
+        .kanju-suggestion-row:last-child { margin-bottom: 0; }
         .kanju-suggestion-label {
             font-size: 11px;
             font-weight: 600;
@@ -432,10 +445,10 @@
         .kanju-suggestion-chips::-webkit-scrollbar { display: none; }
         .kanju-chip {
             background: rgba(255, 255, 255, 0.06);
-            border: 1px solid var(--border);
+            border: 1px solid var(--glass-border);
             color: var(--text-main);
             font-size: 11px;
-            padding: 3px 10px;
+            padding: 4px 12px;
             border-radius: 14px;
             white-space: nowrap;
             cursor: pointer;
@@ -445,22 +458,18 @@
             background: var(--accent-glow);
             border-color: var(--accent);
             color: var(--accent);
+            transform: translateY(-1px);
         }
         .kanju-chip.sub {
             background: transparent;
             color: var(--text-muted);
             border-style: dashed;
         }
-        .kanju-chip.sub:hover {
-            color: var(--accent);
-            border-style: solid;
-        }
 
-        /* 影视网格：电脑端5~6列，手机端规范为精美3列紧凑海报 */
         .video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+            gap: 12px;
             margin-bottom: 24px;
         }
         @media (max-width: 600px) {
@@ -470,77 +479,57 @@
             }
         }
 
-        /* kanju 精品影视海报网格 (轻巧紧凑精致) */
         .kanju-poster-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
+            background: var(--glass-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             cursor: pointer;
-            transition: transform 0.2s ease, border-color 0.2s;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         }
         .kanju-poster-card:hover {
             border-color: var(--accent);
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(45, 212, 192, 0.2);
         }
-        .kanju-poster-card:active { transform: scale(0.97); }
         .kanju-poster-wrap {
             position: relative;
             width: 100%;
             aspect-ratio: 3 / 4.2;
-            background: #14161b;
+            background: #0f1218;
             overflow: hidden;
         }
         .kanju-poster-wrap img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transition: transform 0.3s;
         }
-        .kanju-score-badge {
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            background: rgba(239, 68, 68, 0.88);
-            color: #fff;
-            font-size: 9px;
-            font-weight: 700;
-            padding: 1px 5px;
-            border-radius: 3px;
-            backdrop-filter: blur(4px);
-            z-index: 2;
+        .kanju-poster-card:hover .kanju-poster-wrap img {
+            transform: scale(1.05);
         }
         .kanju-poster-badge {
             position: absolute;
-            top: 4px;
-            right: 4px;
-            background: rgba(0,0,0,0.75);
-            color: #2dd4c0;
+            top: 6px;
+            right: 6px;
+            background: rgba(0, 0, 0, 0.7);
+            color: var(--accent);
             font-size: 9px;
             font-weight: 600;
-            padding: 1px 5px;
-            border-radius: 3px;
+            padding: 2px 6px;
+            border-radius: 6px;
             backdrop-filter: blur(4px);
+            border: 1px solid rgba(45, 212, 192, 0.3);
         }
-        .kanju-play-hover {
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
-            color: #fff;
-            font-size: 20px;
-        }
-        .kanju-poster-card:hover .kanju-play-hover { opacity: 1; }
         .kanju-poster-info {
-            padding: 5px 6px 7px 6px;
+            padding: 8px;
         }
         .kanju-poster-title {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-main);
             overflow: hidden;
@@ -548,136 +537,21 @@
             white-space: nowrap;
             line-height: 1.3;
         }
-        
-        /* 最近观看横向滑动卡片 */
-        .recent-watch-wrapper {
-            margin-bottom: 16px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 10px 12px;
-        }
-        .recent-watch-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            font-size: 12px;
-            color: var(--text-main);
-            font-weight: 600;
-        }
-        .recent-watch-scroll {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-            scrollbar-width: none;
-        }
-        .recent-watch-scroll::-webkit-scrollbar { display: none; }
-        .recent-watch-card {
-            flex: 0 0 170px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            padding: 6px;
-            gap: 8px;
-            cursor: pointer;
-            transition: transform 0.2s, border-color 0.2s;
-        }
-        .recent-watch-card:hover {
-            border-color: var(--accent);
-            transform: translateY(-2px);
-        }
-        .recent-watch-card img {
-            width: 44px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 4px;
-            flex-shrink: 0;
-        }
-        .recent-watch-info {
-            overflow: hidden;
-            flex: 1;
-        }
-        .recent-watch-title {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-main);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .recent-watch-sub {
-            font-size: 10px;
-            color: var(--accent);
-            margin-top: 3px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
         .kanju-poster-meta {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 3px;
+            margin-top: 4px;
             font-size: 10px;
             color: var(--text-muted);
         }
-        .meta-tag {
-            color: var(--accent);
-            font-size: 9px;
-        }
 
-
-        /* 视频播放器 4K 超清画质增强 & GPU 边缘色彩锐化增强 */
-        #dplayerContainer video {
-            transform: translateZ(0);
-            backface-visibility: hidden;
-            -webkit-font-smoothing: antialiased;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: high-quality;
-            filter: contrast(106%) saturate(108%) brightness(101%);
-            transition: filter 0.3s ease;
-        }
-
-        /* 画质增强开/关模式 */
-        #dplayerContainer.hq-enhanced-off video {
-            filter: none !important;
-            image-rendering: auto !important;
-        }
-
-        .hq-toggle-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, rgba(45, 212, 192, 0.2), rgba(14, 165, 233, 0.2));
-            color: #2dd4c0;
-            border: 1px solid rgba(45, 212, 192, 0.35);
-            cursor: pointer;
-            user-select: none;
-            transition: all 0.2s;
-        }
-        .hq-toggle-badge:hover {
-            background: linear-gradient(135deg, rgba(45, 212, 192, 0.3), rgba(14, 165, 233, 0.3));
-            border-color: #2dd4c0;
-        }
-        .hq-toggle-badge.off {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-muted);
-            border-color: var(--border);
-        }
-
+        /* 模态框与弹层 */
         .modal-overlay {
             position: fixed; inset: 0;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: none;
             align-items: center;
             justify-content: center;
@@ -685,19 +559,22 @@
         }
         .modal-overlay.open { display: flex; }
         .modal-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border-light);
             width: 90%;
-            max-width: 450px;
+            max-width: 460px;
             max-height: 80vh;
-            border-radius: 14px;
+            border-radius: 18px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.5);
         }
         .modal-head {
             padding: 14px 18px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--glass-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -710,16 +587,141 @@
             gap: 8px;
         }
         .switch-item {
-            background: rgba(0,0,0,0.2);
-            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--glass-border);
             padding: 12px;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: all 0.2s;
         }
-        .switch-item:active { background: var(--accent-glow); border-color: var(--accent); }
+        .switch-item:hover {
+            border-color: var(--accent);
+            background: rgba(45, 212, 192, 0.1);
+        }
+
+        /* 视频播放器 4K 超清画质增强 & GPU 边缘色彩锐化增强 */
+        #dplayerContainer video {
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-font-smoothing: antialiased;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: high-quality;
+            filter: contrast(106%) saturate(108%) brightness(101%);
+            transition: filter 0.3s ease;
+        }
+        #dplayerContainer.hq-enhanced-off video {
+            filter: none !important;
+            image-rendering: auto !important;
+        }
+
+        .hq-toggle-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(45, 212, 192, 0.2), rgba(14, 165, 233, 0.2));
+            color: #2dd4c0;
+            border: 1px solid rgba(45, 212, 192, 0.35);
+            cursor: pointer;
+            user-select: none;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s;
+        }
+        .hq-toggle-badge:hover {
+            background: linear-gradient(135deg, rgba(45, 212, 192, 0.3), rgba(14, 165, 233, 0.3));
+            border-color: #2dd4c0;
+        }
+        .hq-toggle-badge.off {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            border-color: var(--glass-border);
+        }
+
+        .reader-wrapper {
+            background: var(--glass-card);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px 12px;
+            min-height: 60vh;
+        }
+        .img-stream {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+        .img-stream img {
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+            display: block;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+        .text-stream {
+            font-size: var(--reader-font-size);
+            line-height: var(--reader-line-height);
+            padding: 8px 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .text-stream p {
+            margin-bottom: 1.2em;
+            text-indent: 2em;
+        }
+        .pager {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+        }
+        .reader-floating-header {
+            position: sticky;
+            top: 0;
+            z-index: 95;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        .reader-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        .format-dropdown { position: relative; display: inline-block; }
+        .format-panel {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            min-width: 200px;
+            z-index: 120;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .format-panel.show { display: flex; }
+        .format-panel-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
+        .format-btn-group { display: flex; align-items: center; gap: 6px; }
     </style>
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
@@ -740,53 +742,207 @@
 </header>
 
 <main>
+    <!-- 顶部极简毛玻璃药丸导航栏：1.最近观看 2.小说 3.漫画 4.影视 -->
     <div class="tab-nav">
-        <button class="tab-nav-btn active" id="navShelfBtn" onclick="switchNav('shelf')"><i class="fas fa-bookmark"></i> 我的书架</button>
-        <button class="tab-nav-btn" id="navHistoryBtn" onclick="switchNav('history')"><i class="fas fa-history"></i> 最近阅读</button>
-        <button class="tab-nav-btn" id="navSearchBtn" onclick="switchNav('search')"><i class="fas fa-compass"></i> 全网搜索</button>
-        <button class="tab-nav-btn" id="navVideoBtn" onclick="switchNav('video')"><i class="fas fa-film"></i> 热播影视</button>
+        <button class="tab-nav-btn active" id="navHistoryBtn" onclick="switchNav('history')">
+            <i class="fas fa-clock-rotate-left"></i> 最近观看
+        </button>
+        <button class="tab-nav-btn" id="navNovelBtn" onclick="switchNav('novel')">
+            <i class="fas fa-book-open"></i> 小说专区
+        </button>
+        <button class="tab-nav-btn" id="navMangaBtn" onclick="switchNav('manga')">
+            <i class="fas fa-images"></i> 漫画专区
+        </button>
+        <button class="tab-nav-btn" id="navVideoBtn" onclick="switchNav('video')">
+            <i class="fas fa-clapperboard"></i> 影视专区
+        </button>
     </div>
 
-    <section id="shelfSection">
-        <div id="shelfGrid" class="grid-list"></div>
-        <div id="shelfEmpty" style="text-align: center; color: var(--text-muted); padding: 50px 0; display: none;">
-            书架暂无书籍，点击上方【全网搜索】发现精彩内容！
+    <!-- 第1页：最近观看（分设：影视 / 小说 / 漫画 三大标签） -->
+    <section id="historySection">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px; flex-wrap:wrap; gap:8px;">
+            <div class="history-subnav">
+                <button class="history-subnav-btn active" id="histTabVideo" onclick="switchHistoryTab('video')">
+                    <i class="fas fa-film"></i> 影视记录
+                </button>
+                <button class="history-subnav-btn" id="histTabNovel" onclick="switchHistoryTab('novel')">
+                    <i class="fas fa-book"></i> 小说记录
+                </button>
+                <button class="history-subnav-btn" id="histTabManga" onclick="switchHistoryTab('manga')">
+                    <i class="fas fa-palette"></i> 漫画记录
+                </button>
+            </div>
+            <button class="btn" style="font-size: 11px; padding: 4px 10px;" onclick="clearCurrentHistoryTab()">
+                <i class="fas fa-trash-alt"></i> 清空此分类记录
+            </button>
+        </div>
+
+        <!-- 影视观看记录列表 -->
+        <div id="videoHistoryContainer">
+            <div id="videoHistoryGrid" class="video-grid"></div>
+            <div id="videoHistoryEmpty" style="text-align: center; color: var(--text-muted); padding: 50px 0; display: none;">
+                <i class="fas fa-play-circle" style="font-size:32px; color:var(--accent); margin-bottom:12px; display:block;"></i>
+                暂无影视观看记录，点击上方【影视专区】立即畅享热门电影与电视剧！
+            </div>
+        </div>
+
+        <!-- 小说阅读记录列表 -->
+        <div id="novelHistoryContainer" style="display:none;">
+            <div id="novelHistoryGrid" class="grid-list"></div>
+            <div id="novelHistoryEmpty" style="text-align: center; color: var(--text-muted); padding: 50px 0; display: none;">
+                <i class="fas fa-book" style="font-size:32px; color:var(--accent); margin-bottom:12px; display:block;"></i>
+                暂无小说阅读记录，点击上方【小说专区】发现海量精品网文！
+            </div>
+        </div>
+
+        <!-- 漫画阅读记录列表 -->
+        <div id="mangaHistoryContainer" style="display:none;">
+            <div id="mangaHistoryGrid" class="grid-list"></div>
+            <div id="mangaHistoryEmpty" style="text-align: center; color: var(--text-muted); padding: 50px 0; display: none;">
+                <i class="fas fa-images" style="font-size:32px; color:var(--accent); margin-bottom:12px; display:block;"></i>
+                暂无漫画阅读记录，点击上方【漫画专区】畅看全彩高清漫画！
+            </div>
         </div>
     </section>
 
-    <section id="historySection" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;" id="historyHeaderBar">
-            <span style="font-size: 13px; color: var(--text-muted);"><i class="fas fa-clock" style="color:var(--accent);"></i> 自动记录阅读足迹</span>
-            <button class="btn" style="font-size: 11px; padding: 4px 8px;" onclick="clearRecentHistory()"><i class="fas fa-trash-alt"></i> 清空记录</button>
-        </div>
-        <div id="historyGrid" class="grid-list"></div>
-        <div id="historyEmpty" style="text-align: center; color: var(--text-muted); padding: 50px 0; display: none;">
-            暂无最近阅读记录，阅读过的作品会自动记录在这里！
-        </div>
-    </section>
-
-    <section id="searchSection" style="display: none;">
+    <!-- 第2页：小说独立专区 (独立搜索框、独立小说源、热门推荐) -->
+    <section id="novelSection" style="display: none;">
         <div class="search-box">
             <div class="search-row">
-                <input type="text" id="searchInput" class="search-input" placeholder="输入作品名搜索..." value="秘密教学" onkeydown="if(event.key==='Enter')doSearch()" />
-                <button class="btn primary" onclick="doSearch()"><i class="fas fa-search"></i> 搜索</button>
+                <input type="text" id="novelSearchInput" class="search-input" placeholder="输入小说书名、主角名搜索 (如: 剑来, 宿命之环, 凡人修仙)..." value="剑来" onkeydown="if(event.key==='Enter')doNovelSearch()" />
+                <button class="btn primary" onclick="doNovelSearch()"><i class="fas fa-search"></i> 搜小说</button>
             </div>
             <div class="filter-row">
-                <label style="font-size: 12px; color: var(--text-muted);">分类：</label>
-                <select id="tabSelect" class="select-filter" onchange="onTabChanged()">
-                    <option value="漫画" selected>漫画</option>
-                    <option value="小说">小说</option>
+                <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质小说源：</label>
+                <select id="novelSourceSelect" class="select-filter">
+                    <option value="七猫" selected>七猫 (官方正版、都市玄幻爆款)</option>
+                    <option value="番茄">番茄 (原创百万好书、全本连载)</option>
+                    <option value="伪69">伪69 (全网无删减、海量同人全集)</option>
+                    <option value="半夏小说">半夏小说 (纯爱言情、精品高分)</option>
+                    <option value="52书库">52书库 (完结经典精选)</option>
+                    <option value="老福特">老福特 (同人衍生、高热度粮仓)</option>
+                    <option value="爱下电子书">爱下电子书 (实体出版精校版)</option>
+                    <option value="全本小说">全本小说 (完本经典大作)</option>
+                    <option value="淘小说">淘小说 (冷门完本书库)</option>
+                    <option value="百度">百度 (百度小说官方库)</option>
+                    <option value="笔趣阁78">笔趣阁78 (传统经典长篇)</option>
+                    <option value="知乎">知乎 (知乎盐选热文)</option>
+                    <option value="ALL">⚡ 聚合搜 (同时检索全部小说源)</option>
                 </select>
-
-                <label style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">书源：</label>
-                <select id="sourceSelect" class="select-filter"></select>
             </div>
         </div>
 
-        <div id="resultsGrid" class="grid-list"></div>
+        <div class="kanju-suggestions-box">
+            <div class="kanju-suggestion-row">
+                <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热搜小说:</span>
+                <div class="kanju-suggestion-chips">
+                    <button class="kanju-chip" onclick="quickSearchNovel('剑来')">剑来</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('宿命之环')">宿命之环</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('道诡异仙')">道诡异仙</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('赤心巡天')">赤心巡天</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('诡秘之主')">诡秘之主</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('凡人修仙传')">凡人修仙传</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('雪中悍刀行')">雪中悍刀行</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('万相之王')">万相之王</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="novelResultsGrid" class="grid-list"></div>
     </section>
 
-    <section id="detailView">
+    <!-- 第3页：漫画独立专区 (独立搜索框、独立漫画源、热门推荐) -->
+    <section id="mangaSection" style="display: none;">
+        <div class="search-box">
+            <div class="search-row">
+                <input type="text" id="mangaSearchInput" class="search-input" placeholder="输入漫画作品名 (如: 秘密教学, 鬼灭之刃, 咒术回战)..." value="秘密教学" onkeydown="if(event.key==='Enter')doMangaSearch()" />
+                <button class="btn primary" onclick="doMangaSearch()"><i class="fas fa-search"></i> 搜漫画</button>
+            </div>
+            <div class="filter-row">
+                <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质漫画源：</label>
+                <select id="mangaSourceSelect" class="select-filter">
+                    <option value="新新漫画" selected>新新漫画 (韩漫/日漫/高清原画秒开)</option>
+                    <option value="全面漫画">全面漫画 (国漫/热血主流全本连载)</option>
+                    <option value="G社漫画">G社漫画 (绅士/热门韩漫全集)</option>
+                    <option value="番茄">番茄漫画 (官方精选画质)</option>
+                    <option value="ALL">⚡ 聚合搜 (同时检索全部漫画源)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="kanju-suggestions-box">
+            <div class="kanju-suggestion-row">
+                <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热门漫画:</span>
+                <div class="kanju-suggestion-chips">
+                    <button class="kanju-chip" onclick="quickSearchManga('秘密教学')">秘密教学</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('健身教练')">健身教练</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('重考生')">重考生</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('鬼灭之刃')">鬼灭之刃</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('咒术回战')">咒术回战</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('一人之下')">一人之下</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('妖神记')">妖神记</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('海贼王')">海贼王</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mangaResultsGrid" class="grid-list"></div>
+    </section>
+
+    <!-- 第4页：影视独立专区 (kanju3 精品热播与全网片源检索) -->
+    <section id="videoSection" style="display: none;">
+        <!-- kanju 搜索栏 -->
+        <div class="search-box">
+            <div class="search-row">
+                <input type="text" id="videoSearchInput" class="search-input" placeholder="输入片名搜索电影、热播剧、国漫、韩剧..." onkeydown="if(event.key==='Enter')window.doVideoSearch()" />
+                <button class="btn primary" onclick="window.doVideoSearch()"><i class="fas fa-search"></i> 搜全网</button>
+            </div>
+        </div>
+
+        <!-- 热门影片/看点标签 -->
+        <div class="kanju-suggestions-box">
+            <div class="kanju-suggestion-row">
+                <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热门影片:</span>
+                <div class="kanju-suggestion-chips" id="kanjuHotChips">
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('庆余年')">庆余年2</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('繁花')">繁花</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('狂飙')">狂飙</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('抓娃娃')">抓娃娃</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('周处除三害')">周处除三害</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('边水往事')">边水往事</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('玫瑰的故事')">玫瑰的故事</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('墨雨云间')">墨雨云间</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('凡人修仙传')">凡人修仙传</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('飞驰人生2')">飞驰人生2</button>
+                    <button class="kanju-chip" onclick="window.quickSearchVideo('唐朝诡事录')">唐朝诡事录</button>
+                </div>
+            </div>
+            <div class="kanju-suggestion-row">
+                <span class="kanju-suggestion-label"><i class="fas fa-compass" style="color:var(--accent);"></i> 推荐看点:</span>
+                <div class="kanju-suggestion-chips">
+                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('修仙')">热血修仙</button>
+                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('悬疑')">高分悬疑</button>
+                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('喜剧')">爆笑喜剧</button>
+                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('犯罪')">扫黑犯罪</button>
+                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('古装')">经典古装</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 列表头 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0 12px 0;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <h4 id="videoFeedTitle" style="font-size:15px; font-weight:600;"><i class="fas fa-fire" style="color:#f59e0b;"></i> 今日热门推荐</h4>
+                <button class="btn" style="font-size:11px; padding:3px 10px; border-radius:14px;" onclick="window.refreshVideoFeed()" title="点击换一批推荐片单"><i class="fas fa-sync-alt" id="refreshFeedIcon"></i> 换一批</button>
+            </div>
+            <span id="videoCountBadge" style="font-size:11px; color:var(--accent); background:rgba(45,212,192,0.1); padding:3px 10px; border-radius:12px; border:1px solid rgba(45,212,192,0.25);">实时更新</span>
+        </div>
+
+        <div id="videoGrid" class="video-grid"></div>
+    </section>
+
+    <!-- 书籍/漫画详情视图 -->
+    <section id="detailView" style="display:none;">
         <div class="view-header">
             <button class="btn" onclick="goBackFromDetail()"><i class="fas fa-arrow-left"></i> 返回</button>
             <h3 id="detailBookTitle" style="font-size: 16px;">书籍详情</h3>
@@ -796,7 +952,7 @@
             </div>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <span class="card-tag" id="detailSourceTag"></span>
+            <span class="card-tag" id="detailSourceTag">优质源</span>
             <span style="font-size: 12px; color: var(--text-muted);" id="detailAuthorTag"></span>
         </div>
         <p id="detailIntro" style="font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 16px;"></p>
@@ -805,14 +961,14 @@
         <div id="catalogList" class="catalog-grid"></div>
     </section>
 
-    <section id="readerView">
+    <!-- 小说/漫画阅读视窗 -->
+    <section id="readerView" style="display:none;">
         <div class="reader-floating-header" id="readerFloatingHeader">
             <div class="view-header" style="margin-bottom: 8px;">
                 <button class="btn" onclick="showView('detail')"><i class="fas fa-arrow-left"></i> 目录</button>
                 <h3 id="readerChapTitle" style="font-size: 14px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">章节标题</h3>
                 <div style="display:flex; gap:6px;">
                     <button class="btn" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 换源</button>
-                    
                 </div>
             </div>
 
@@ -862,70 +1018,6 @@
         </div>
     </section>
 
-    <!-- 影视专区 -->
-    <section id="videoSection" style="display: none;">
-        <!-- kanju 搜索栏 -->
-        <div class="search-box" style="margin-bottom: 12px;">
-            <div class="search-row">
-                <input type="text" id="videoSearchInput" class="search-input" placeholder="输入片名搜索电影、剧集、国漫、韩剧..." onkeydown="if(event.key==='Enter')window.doVideoSearch()" />
-                <button class="btn primary" onclick="window.doVideoSearch()"><i class="fas fa-search"></i> 搜全网</button>
-            </div>
-        </div>
-
-        <!-- kanju3 热门搜索 / 推荐看点快捷芯片 -->
-        <div class="kanju-suggestions-box">
-            <div class="kanju-suggestion-row">
-                <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热门影片:</span>
-                <div class="kanju-suggestion-chips" id="kanjuHotChips">
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('庆余年')">庆余年2</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('繁花')">繁花</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('狂飙')">狂飙</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('抓娃娃')">抓娃娃</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('周处除三害')">周处除三害</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('边水往事')">边水往事</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('玫瑰的故事')">玫瑰的故事</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('墨雨云间')">墨雨云间</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('凡人修仙传')">凡人修仙传</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('飞驰人生2')">飞驰人生2</button>
-                    <button class="kanju-chip" onclick="window.quickSearchVideo('唐朝诡事录')">唐朝诡事录</button>
-                </div>
-            </div>
-            <div class="kanju-suggestion-row">
-                <span class="kanju-suggestion-label"><i class="fas fa-compass" style="color:var(--accent);"></i> 推荐看点:</span>
-                <div class="kanju-suggestion-chips">
-                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('修仙')">热血修仙</button>
-                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('悬疑')">高分悬疑</button>
-                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('喜剧')">爆笑喜剧</button>
-                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('犯罪')">扫黑犯罪</button>
-                    <button class="kanju-chip sub" onclick="window.quickSearchVideo('古装')">经典古装</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- kanju3 专属【最近观看】记录条 -->
-        <div class="recent-watch-wrapper" id="videoRecentWatchSection">
-            <div class="recent-watch-head">
-                <span><i class="fas fa-history" style="color:var(--accent);"></i> 最近观看 (点击一键续播)</span>
-                <button class="btn" style="font-size:10px; padding:2px 8px;" onclick="window.clearVideoHistory()"><i class="fas fa-trash-alt"></i> 清空</button>
-            </div>
-            <div class="recent-watch-scroll" id="videoRecentWatchList"></div>
-            <div id="videoRecentWatchEmpty" style="font-size:11px; color:var(--text-muted); padding:6px 0; display:flex; align-items:center; gap:6px;">
-                <i class="fas fa-play-circle" style="color:var(--accent);"></i> 暂无观看记录，点击下方热门影片立即免广告畅看
-            </div>
-        </div>
-
-        <!-- 列表头 -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin: 12px 0 10px 0;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <h4 id="videoFeedTitle" style="font-size:14px; font-weight:600;"><i class="fas fa-fire" style="color:#f59e0b;"></i> 今日热门推荐</h4>
-                <button class="btn" style="font-size:11px; padding:3px 9px; border-radius:14px;" onclick="window.refreshVideoFeed()" title="点击换一批推荐片单"><i class="fas fa-sync-alt" id="refreshFeedIcon"></i> 换一批</button>
-            </div>
-            <span id="videoCountBadge" style="font-size:11px; color:var(--accent); background:rgba(45,212,192,0.1); padding:2px 8px; border-radius:12px; border:1px solid rgba(45,212,192,0.2);">实时更新</span>
-        </div>
-
-        <div id="videoGrid" class="video-grid"></div>
-    </section>
-
     <!-- 纯净视频播放视窗 -->
     <section id="videoPlayerView" style="display: none;">
         <div class="view-header" style="margin-bottom: 10px;">
@@ -939,7 +1031,7 @@
             </div>
         </div>
 
-        <div class="video-container" style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+        <div class="video-container" style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,0.6);">
             <div id="dplayerContainer" style="width:100%; height:100%;"></div>
         </div>
 
@@ -955,15 +1047,15 @@
             <div id="videoEpisodesList" class="catalog-grid" style="max-height: 220px; overflow-y:auto;"></div>
         </div>
 
-        <div style="margin-top:14px; padding:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;">
+        <div style="margin-top:14px; padding:14px; background:var(--glass-card); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:14px;">
             <h5 id="videoDetailName" style="font-size:13px; font-weight:600; margin-bottom:4px;"></h5>
             <p id="videoDetailMeta" style="font-size:11px; color:var(--text-muted); margin-bottom:6px;"></p>
             <p id="videoDetailDesc" style="font-size:12px; color:var(--text-muted); line-height:1.6;"></p>
         </div>
 
         <!-- 💬 原站真讨论与剧友交流视窗 -->
-        <div style="margin-top:14px; padding:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+        <div style="margin-top:14px; padding:14px; background:var(--glass-card); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--glass-border); padding-bottom:8px;">
                 <div style="font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
                     <i class="fas fa-comments" style="color:var(--accent);"></i>
                     <span>评论</span>
@@ -1337,14 +1429,20 @@
     }
 
     // ====================================================================
-    // 前端业务交互主逻辑 (还原原版极简高颜值体验)
+    // ====================================================================
+    // 前端四大独立模块业务交互主逻辑 (Apple-like 液态玻璃拟态体验)
+    // 1. 最近观看 (影视 / 小说 / 漫画)
+    // 2. 小说专区 (独立小说源 + 独立搜索)
+    // 3. 漫画专区 (独立漫画源 + 独立搜索)
+    // 4. 影视专区 (kanju3 全网聚合秒播 + 独立搜索)
     // ====================================================================
 
     let appConfig = null;
     let currentCatalog = [];
     let currentChapterIndex = 0;
     let currentBookInfo = null;
-    let previousView = 'shelf';
+    let previousView = 'history';
+    let currentHistoryTab = 'video';
     let currentFontSize = 17;
 
     // 清洗正文中的催费垃圾与隐藏字符
@@ -1386,6 +1484,7 @@
         return false;
     }
 
+    // 本地书架与阅读记录
     function getLocalShelf() {
         try {
             return JSON.parse(localStorage.getItem('open_reader_shelf') || '[]');
@@ -1394,76 +1493,6 @@
 
     function saveLocalShelf(shelf) {
         localStorage.setItem('open_reader_shelf', JSON.stringify(shelf));
-    }
-
-    function renderShelf() {
-        const shelf = getLocalShelf();
-        const grid = document.getElementById('shelfGrid');
-        const empty = document.getElementById('shelfEmpty');
-
-        if (shelf.length === 0) {
-            grid.innerHTML = '';
-            empty.style.display = 'block';
-            return;
-        }
-
-        empty.style.display = 'none';
-        grid.innerHTML = shelf.map((b, idx) => `
-            <div class="card" onclick="openBookFromShelf(${idx})">
-                <div>
-                    <div class="card-title">${b.book_name}</div>
-                    <div class="card-sub">读至: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '序章'}</span></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                    <span class="card-tag">${b.source}</span>
-                    <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="removeFromShelf(event, ${idx})">移出</button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function toggleBookShelf() {
-        if (!currentBookInfo) return;
-        let shelf = getLocalShelf();
-        const existingIdx = shelf.findIndex(b => b.book_name === currentBookInfo.book_name && b.source === currentBookInfo.source);
-        const btn = document.getElementById('shelfToggleBtn');
-
-        if (existingIdx !== -1) {
-            shelf.splice(existingIdx, 1);
-            btn.innerHTML = '<i class="fas fa-plus"></i> 加书架';
-        } else {
-            shelf.unshift({
-                ...currentBookInfo,
-                lastReadTitle: currentCatalog[currentChapterIndex]?.title || '未开始',
-                lastReadIndex: currentChapterIndex
-            });
-            btn.innerHTML = '<i class="fas fa-check"></i> 已在书架';
-        }
-        saveLocalShelf(shelf);
-        renderShelf();
-        initReaderScrollListener();
-    }
-
-    function updateShelfProgress(chapTitle, chapIdx) {
-        if (!currentBookInfo) return;
-        let shelf = getLocalShelf();
-        const item = shelf.find(b => b.book_name === currentBookInfo.book_name);
-        if (item) {
-            item.lastReadTitle = chapTitle;
-            item.lastReadIndex = chapIdx;
-            item.source = currentBookInfo.source;
-            saveLocalShelf(shelf);
-            renderShelf();
-        }
-        document.getElementById('readProgressText').innerText = `章节 ${chapIdx + 1} / ${currentCatalog.length}`;
-    }
-
-    function removeFromShelf(e, idx) {
-        e.stopPropagation();
-        let shelf = getLocalShelf();
-        shelf.splice(idx, 1);
-        saveLocalShelf(shelf);
-        renderShelf();
     }
 
     function getRecentHistory() {
@@ -1496,28 +1525,69 @@
             lastReadIndex: chapIdx || 0,
             readTime: Date.now()
         });
-        if (history.length > 60) history.pop();
+        if (history.length > 80) history.pop();
         saveRecentHistory(history);
     }
 
-    function renderHistory() {
-        const history = getRecentHistory();
-        const grid = document.getElementById('historyGrid');
-        const empty = document.getElementById('historyEmpty');
-        const headerBar = document.getElementById('historyHeaderBar');
+    // 渲染最近观看（分设：影视 / 小说 / 漫画）
+    function renderHistoryModule() {
+        renderVideoHistory();
+        renderNovelHistory();
+        renderMangaHistory();
+    }
 
-        if (history.length === 0) {
+    // 1. 影视观看历史渲染
+    function renderVideoHistory() {
+        const grid = document.getElementById('videoHistoryGrid');
+        const empty = document.getElementById('videoHistoryEmpty');
+        if (!grid || !empty) return;
+
+        const list = (typeof window.getVideoHistory === 'function') ? window.getVideoHistory() : [];
+        if (list.length === 0) {
             grid.innerHTML = '';
             empty.style.display = 'block';
-            if (headerBar) headerBar.style.display = 'none';
             return;
         }
 
         empty.style.display = 'none';
-        if (headerBar) headerBar.style.display = 'flex';
+        grid.innerHTML = list.map((item, idx) => {
+            const raw = item.raw_video || { vod_name: item.vod_name, vod_pic: item.vod_pic, vod_play_url: '', type_name: item.type_name };
+            return `
+                <div class="kanju-poster-card" onclick='window.resumeWatchVideo(${JSON.stringify(raw).replace(/'/g, "&#39;")}, ${item.ep_idx || 0})'>
+                    <div class="kanju-poster-wrap">
+                        <img src="${item.vod_pic || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&auto=format&fit=crop&q=60'}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&auto=format&fit=crop&q=60'" />
+                        <span class="kanju-poster-badge">${item.ep_title || '观看中'}</span>
+                    </div>
+                    <div class="kanju-poster-info">
+                        <div class="kanju-poster-title" title="${item.vod_name}">${item.vod_name}</div>
+                        <div class="kanju-poster-meta">
+                            <span>${item.group_name || '超清线路'}</span>
+                            <span style="color:var(--accent); font-weight:600;">续播</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
 
-        grid.innerHTML = history.map((b, idx) => `
-            <div class="card" onclick="openBookFromHistory(${idx})">
+    // 2. 小说阅读历史渲染
+    function renderNovelHistory() {
+        const grid = document.getElementById('novelHistoryGrid');
+        const empty = document.getElementById('novelHistoryEmpty');
+        if (!grid || !empty) return;
+
+        const all = getRecentHistory();
+        const list = all.filter(item => item.tab === '小说' || (!item.tab && item.source !== '新新漫画' && item.source !== '全面漫画' && item.source !== 'G社漫画'));
+
+        if (list.length === 0) {
+            grid.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+
+        empty.style.display = 'none';
+        grid.innerHTML = list.map((b, idx) => `
+            <div class="card" onclick="openBookFromHistory('${encodeURIComponent(JSON.stringify(b))}')">
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span class="card-title">${b.book_name}</span>
@@ -1527,140 +1597,110 @@
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
                     <span class="card-sub">${b.source || '优质源'}</span>
-                    <button class="btn" style="padding:3px 7px; font-size:11px;" onclick="removeFromHistory(event, ${idx})">移出</button>
+                    <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="removeFromHistoryByName(event, '${b.book_name}')"><i class="fas fa-trash-alt"></i> 移除</button>
                 </div>
             </div>
         `).join('');
     }
 
-    function openBookFromHistory(idx) {
-        const history = getRecentHistory();
-        const book = history[idx];
-        loadBookDetail(encodeURIComponent(JSON.stringify(book)), book.lastReadIndex || 0);
+    // 3. 漫画阅读历史渲染
+    function renderMangaHistory() {
+        const grid = document.getElementById('mangaHistoryGrid');
+        const empty = document.getElementById('mangaHistoryEmpty');
+        if (!grid || !empty) return;
+
+        const all = getRecentHistory();
+        const list = all.filter(item => item.tab === '漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画');
+
+        if (list.length === 0) {
+            grid.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+
+        empty.style.display = 'none';
+        grid.innerHTML = list.map((b, idx) => `
+            <div class="card" onclick="openBookFromHistory('${encodeURIComponent(JSON.stringify(b))}')">
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="card-title">${b.book_name}</span>
+                        <span class="card-tag" style="font-size:10px;">${formatTimeAgo(b.readTime)}</span>
+                    </div>
+                    <div class="card-sub">看至: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '第1话'}</span></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                    <span class="card-sub">${b.source || '漫画源'}</span>
+                    <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="removeFromHistoryByName(event, '${b.book_name}')"><i class="fas fa-trash-alt"></i> 移除</button>
+                </div>
+            </div>
+        `).join('');
     }
 
-    function removeFromHistory(e, idx) {
+    // 切换第1页最近观看中的3个子类
+    window.switchHistoryTab = function(tab) {
+        currentHistoryTab = tab;
+        document.getElementById('histTabVideo').classList.toggle('active', tab === 'video');
+        document.getElementById('histTabNovel').classList.toggle('active', tab === 'novel');
+        document.getElementById('histTabManga').classList.toggle('active', tab === 'manga');
+
+        document.getElementById('videoHistoryContainer').style.display = (tab === 'video') ? 'block' : 'none';
+        document.getElementById('novelHistoryContainer').style.display = (tab === 'novel') ? 'block' : 'none';
+        document.getElementById('mangaHistoryContainer').style.display = (tab === 'manga') ? 'block' : 'none';
+    };
+
+    window.clearCurrentHistoryTab = function() {
+        if (!confirm('确定清空当前分类的历史记录吗？')) return;
+        if (currentHistoryTab === 'video') {
+            if (typeof window.clearVideoHistory === 'function') window.clearVideoHistory();
+            renderVideoHistory();
+        } else if (currentHistoryTab === 'novel') {
+            let hist = getRecentHistory();
+            hist = hist.filter(item => item.tab === '漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画');
+            saveRecentHistory(hist);
+            renderNovelHistory();
+        } else if (currentHistoryTab === 'manga') {
+            let hist = getRecentHistory();
+            hist = hist.filter(item => item.tab === '小说');
+            saveRecentHistory(hist);
+            renderMangaHistory();
+        }
+    };
+
+    function removeFromHistoryByName(e, bookName) {
         e.stopPropagation();
         let history = getRecentHistory();
-        history.splice(idx, 1);
+        history = history.filter(b => b.book_name !== bookName);
         saveRecentHistory(history);
-        renderHistory();
+        renderNovelHistory();
+        renderMangaHistory();
     }
 
-    function clearRecentHistory() {
-        if (!confirm('确定要清空所有最近阅读记录吗？')) return;
-        localStorage.removeItem('open_reader_history');
-        renderHistory();
+    function openBookFromHistory(encodedBook) {
+        const book = JSON.parse(decodeURIComponent(encodedBook));
+        loadBookDetail(encodedBook, book.lastReadIndex || 0);
     }
 
-
-    function openBookFromShelf(idx) {
-        const shelf = getLocalShelf();
-        const book = shelf[idx];
-        loadBookDetail(encodeURIComponent(JSON.stringify(book)), book.lastReadIndex || 0);
-    }
-
-    async function init() {
-        try {
-            const res = await fetch('/api/info');
-            appConfig = await res.json();
-            if (appConfig.version) {
-                // document.getElementById('sourceVerTag').innerText = appConfig.version;
-            }
-        } catch(e) {}
-
-        const savedTab = localStorage.getItem('open_reader_last_tab') || '漫画';
-        document.getElementById('tabSelect').value = savedTab;
-        const searchInput = document.getElementById('searchInput');
-        if (savedTab === '漫画') {
-            searchInput.value = '秘密教学';
-            searchInput.placeholder = '输入漫画名，如：秘密教学...';
-        } else {
-            searchInput.value = '剑来';
-            searchInput.placeholder = '输入小说名，如：剑来...';
-        }
-
-        updateSources();
-        renderShelf();
-    }
-
-    function onTabChanged() {
-        const tab = document.getElementById('tabSelect').value;
-        localStorage.setItem('open_reader_last_tab', tab);
-        const searchInput = document.getElementById('searchInput');
-
-        if (tab === '漫画') {
-            if (searchInput.value === '剑来' || !searchInput.value) searchInput.value = '秘密教学';
-            searchInput.placeholder = '输入漫画名，如：秘密教学...';
-        } else {
-            if (searchInput.value === '秘密教学' || !searchInput.value) searchInput.value = '剑来';
-            searchInput.placeholder = '输入小说名，如：剑来...';
-        }
-
-        updateSources();
-    }
-
-    function updateSources() {
-        const tab = document.getElementById('tabSelect').value;
-        const sourceSelect = document.getElementById('sourceSelect');
-        
-        let sources = [];
-        if (tab === '漫画') {
-            sources = [
-                '新新漫画',      // 韩漫/日漫/成人韩漫直连原画
-                'G社漫画',      // 绅士/热门韩漫全集
-                '全面漫画',      // 国漫/热血主流连载
-                '番茄',          // 官方精选漫画
-                '⚡ 聚合搜 (展示全部漫画源结果)'
-            ];
-        } else {
-            sources = [
-                '七猫',          // 官方正版爆款、都市玄幻爽文
-                '番茄',          // 番茄原创百万小说
-                '伪69',          // 全网无删减、成人高辣、海量同人小说
-                '半夏小说',      // 纯爱/言情/精品高分小说
-                '52书库',        // 完结经典、无弹窗耽美言情精选
-                '老福特',        // 同人衍生、脑洞文、高热度粮仓
-                '爱下电子书',    // 实体出版、经典出版物精校版
-                '全本小说',      // 百万完本长篇
-                '淘小说',        // 聚合冷门好书
-                '百度',          // 百度小说书库
-                '笔趣阁78',      // 传统经典大作
-                '知乎',          // 知乎盐选热文
-                '⚡ 聚合搜 (展示全部小说源结果)'
-            ];
-        }
-
-        sourceSelect.innerHTML = sources.map(s => {
-            const val = s.startsWith('⚡') ? 'ALL' : s;
-            return `<option value="${val}">${s}</option>`;
-        }).join('');
-
-        // 默认首选最稳定优质书源
-        sourceSelect.value = (tab === '漫画') ? '新新漫画' : '七猫';
-    }
-
+    // 核心四大独立页面切换 (1.最近观看 2.小说 3.漫画 4.影视)
     function switchNav(nav) {
         document.body.classList.remove('reading-mode');
-        const isShelf = (nav === 'shelf');
         const isHistory = (nav === 'history');
-        const isSearch = (nav === 'search');
+        const isNovel = (nav === 'novel');
+        const isManga = (nav === 'manga');
         const isVideo = (nav === 'video');
 
-        document.getElementById('navShelfBtn').classList.toggle('active', isShelf);
         document.getElementById('navHistoryBtn').classList.toggle('active', isHistory);
-        document.getElementById('navSearchBtn').classList.toggle('active', isSearch);
-        const navVideoBtn = document.getElementById('navVideoBtn');
-        if (navVideoBtn) navVideoBtn.classList.toggle('active', isVideo);
+        document.getElementById('navNovelBtn').classList.toggle('active', isNovel);
+        document.getElementById('navMangaBtn').classList.toggle('active', isManga);
+        document.getElementById('navVideoBtn').classList.toggle('active', isVideo);
 
-        document.getElementById('shelfSection').style.display = isShelf ? 'block' : 'none';
         document.getElementById('historySection').style.display = isHistory ? 'block' : 'none';
-        document.getElementById('searchSection').style.display = isSearch ? 'block' : 'none';
+        document.getElementById('novelSection').style.display = isNovel ? 'block' : 'none';
+        document.getElementById('mangaSection').style.display = isManga ? 'block' : 'none';
+        document.getElementById('videoSection').style.display = isVideo ? 'block' : 'none';
+
         document.getElementById('detailView').style.display = 'none';
         document.getElementById('readerView').style.display = 'none';
 
-        const videoSec = document.getElementById('videoSection');
-        if (videoSec) videoSec.style.display = isVideo ? 'block' : 'none';
         const videoPlayer = document.getElementById('videoPlayerView');
         if (videoPlayer) videoPlayer.style.display = 'none';
 
@@ -1669,31 +1709,46 @@
         }
 
         previousView = nav;
-        if (isShelf) renderShelf();
-        if (isHistory) renderHistory();
+        if (isHistory) renderHistoryModule();
+        if (isNovel && (!document.getElementById('novelResultsGrid').innerHTML || document.getElementById('novelResultsGrid').children.length === 0)) {
+            doNovelSearch();
+        }
+        if (isManga && (!document.getElementById('mangaResultsGrid').innerHTML || document.getElementById('mangaResultsGrid').children.length === 0)) {
+            doMangaSearch();
+        }
         if (isVideo) {
             if (typeof window.loadVideoFeed === 'function') {
                 window.loadVideoFeed();
             }
         }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    async function doSearch() {
-        const title = document.getElementById('searchInput').value.trim();
-        const tab = document.getElementById('tabSelect').value;
-        const source = document.getElementById('sourceSelect').value;
-        const grid = document.getElementById('resultsGrid');
+    // ==========================================
+    // 独立小说专区搜索系统
+    // ==========================================
+    window.quickSearchNovel = function(wd) {
+        const input = document.getElementById('novelSearchInput');
+        if (input) input.value = wd;
+        doNovelSearch();
+    };
 
-        if (!title) return;
+    window.doNovelSearch = async function() {
+        const input = document.getElementById('novelSearchInput');
+        const title = input ? input.value.trim() : '';
+        const sourceSelect = document.getElementById('novelSourceSelect');
+        const source = sourceSelect ? sourceSelect.value : '七猫';
+        const grid = document.getElementById('novelResultsGrid');
+        if (!title || !grid) return;
+
         const isAll = (source === 'ALL');
-        grid.innerHTML = `<div style="color:var(--text-muted); padding:20px;"><i class="fas fa-spinner fa-spin"></i> 正在检索${isAll ? '全网优质书源' : '【' + source + '】'}...</div>`;
+        grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索小说《${title}》...</div>`;
 
         try {
-            const res = await fetch(`/api/search?title=${encodeURIComponent(title)}&tab=${encodeURIComponent(tab)}&source=${encodeURIComponent(source)}`);
+            const res = await fetch(`/api/search?title=${encodeURIComponent(title)}&tab=${encodeURIComponent('小说')}&source=${encodeURIComponent(source)}`);
             const data = await res.json();
             let rawList = data.data || [];
 
-            // 1. 彻底过滤打赏/VIP/引流伪书
             const spamKeywords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助', '专属'];
             let list = rawList.filter(item => {
                 if (!item || !item.book_name) return false;
@@ -1701,15 +1756,14 @@
                 return !spamKeywords.some(k => name.includes(k)) && item.book_id !== 'vip' && item.book_id !== 'svip';
             });
 
-            // 2. 严格按相关度精准排序
             const exactMatches = [];
             const prefixMatches = [];
             const containsMatches = [];
             const seen = new Set();
 
             list.forEach(item => {
+                item.tab = '小说';
                 const name = (item.book_name || '').trim();
-                // 在聚合搜模式下，包含来源区分 dedupeKey，确保各书源的所有匹配版本都能完整展示给用户任选！
                 const dedupeKey = isAll ? (name + '_' + (item.author || '') + '_' + (item.source || '')) : (name + '_' + (item.author || ''));
                 if (seen.has(dedupeKey)) return;
                 seen.add(dedupeKey);
@@ -1723,42 +1777,123 @@
                 }
             });
 
-            // 如果有包含搜索词的精准结果，彻底剔除上游返回的猫猫狗狗等风马牛不相及的模糊条目
             let finalList = [...exactMatches, ...prefixMatches, ...containsMatches];
-            if (finalList.length === 0) {
-                finalList = list;
-            }
+            if (finalList.length === 0) finalList = list;
 
             if (finalList.length === 0) {
                 grid.innerHTML = `
-                    <div style="color:var(--text-muted); padding:30px; text-align:center;">
-                        未检索到与《${title}》匹配的内容，请尝试更换书源或关键词。
+                    <div style="color:var(--text-muted); padding:40px; text-align:center; grid-column:1/-1;">
+                        未检索到小说《${title}》，可尝试更换上方小说源或简化关键词。
                     </div>
                 `;
                 return;
             }
 
-            // 3. 彻底还原原版极简纯净的卡片风格（无多余杂乱元素）
             grid.innerHTML = finalList.map(item => `
                 <div class="card" onclick="loadBookDetail('${encodeURIComponent(JSON.stringify(item))}')">
                     <div>
                         <div class="card-title">${item.book_name}</div>
-                        <div class="card-sub">${item.abstract ? cleanAdContent(item.abstract).slice(0, 65) + '...' : '暂无详细简介'}</div>
+                        <div class="card-sub">${item.abstract ? cleanAdContent(item.abstract).slice(0, 68) + '...' : '暂无详细小说简介'}</div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                        <span class="card-sub">${item.author || '网络源'}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                        <span class="card-sub"><i class="fas fa-pen-nib"></i> ${item.author || '网络作者'}</span>
                         <span class="card-tag">${item.source || source}</span>
                     </div>
                 </div>
             `).join('');
         } catch(e) {
-            grid.innerHTML = `<div style="color:red; padding:20px;">搜索失败: ${e.message}</div>`;
+            grid.innerHTML = `<div style="color:red; padding:30px; text-align:center; grid-column:1/-1;">小说搜索失败: ${e.message}</div>`;
         }
-    }
+    };
 
+    // ==========================================
+    // 独立漫画专区搜索系统
+    // ==========================================
+    window.quickSearchManga = function(wd) {
+        const input = document.getElementById('mangaSearchInput');
+        if (input) input.value = wd;
+        doMangaSearch();
+    };
+
+    window.doMangaSearch = async function() {
+        const input = document.getElementById('mangaSearchInput');
+        const title = input ? input.value.trim() : '';
+        const sourceSelect = document.getElementById('mangaSourceSelect');
+        const source = sourceSelect ? sourceSelect.value : '新新漫画';
+        const grid = document.getElementById('mangaResultsGrid');
+        if (!title || !grid) return;
+
+        const isAll = (source === 'ALL');
+        grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在检索漫画《${title}》原画资源...</div>`;
+
+        try {
+            const res = await fetch(`/api/search?title=${encodeURIComponent(title)}&tab=${encodeURIComponent('漫画')}&source=${encodeURIComponent(source)}`);
+            const data = await res.json();
+            let rawList = data.data || [];
+
+            const spamKeywords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助', '专属'];
+            let list = rawList.filter(item => {
+                if (!item || !item.book_name) return false;
+                const name = item.book_name;
+                return !spamKeywords.some(k => name.includes(k)) && item.book_id !== 'vip' && item.book_id !== 'svip';
+            });
+
+            const exactMatches = [];
+            const prefixMatches = [];
+            const containsMatches = [];
+            const seen = new Set();
+
+            list.forEach(item => {
+                item.tab = '漫画';
+                const name = (item.book_name || '').trim();
+                const dedupeKey = isAll ? (name + '_' + (item.author || '') + '_' + (item.source || '')) : (name + '_' + (item.author || ''));
+                if (seen.has(dedupeKey)) return;
+                seen.add(dedupeKey);
+
+                if (name === title) {
+                    exactMatches.push(item);
+                } else if (name.startsWith(title)) {
+                    prefixMatches.push(item);
+                } else if (name.includes(title)) {
+                    containsMatches.push(item);
+                }
+            });
+
+            let finalList = [...exactMatches, ...prefixMatches, ...containsMatches];
+            if (finalList.length === 0) finalList = list;
+
+            if (finalList.length === 0) {
+                grid.innerHTML = `
+                    <div style="color:var(--text-muted); padding:40px; text-align:center; grid-column:1/-1;">
+                        未检索到漫画《${title}》，可尝试更换上方漫画源或简化书名。
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = finalList.map(item => `
+                <div class="card" onclick="loadBookDetail('${encodeURIComponent(JSON.stringify(item))}')">
+                    <div>
+                        <div class="card-title"><i class="fas fa-images" style="color:var(--accent); margin-right:4px;"></i>${item.book_name}</div>
+                        <div class="card-sub">${item.abstract ? cleanAdContent(item.abstract).slice(0, 68) + '...' : '暂无详细漫画简介'}</div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                        <span class="card-sub">${item.author || '连载原著'}</span>
+                        <span class="card-tag">${item.source || source}</span>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) {
+            grid.innerHTML = `<div style="color:red; padding:30px; text-align:center; grid-column:1/-1;">漫画检索失败: ${e.message}</div>`;
+        }
+    };
+
+    // ==========================================
+    // 书籍/漫画详情与阅读加载
+    // ==========================================
     async function loadBookDetail(encodedItem, autoReadIndex = null) {
         const book = JSON.parse(decodeURIComponent(encodedItem));
-        const activeTab = book.tab || document.getElementById('tabSelect').value || '漫画';
+        const activeTab = book.tab || (previousView === 'manga' ? '漫画' : '小说');
         currentBookInfo = { ...book, tab: activeTab };
 
         document.getElementById('detailBookTitle').innerText = book.book_name;
@@ -1771,7 +1906,7 @@
         document.getElementById('shelfToggleBtn').innerHTML = isIn ? '<i class="fas fa-check"></i> 已在书架' : '<i class="fas fa-plus"></i> 加书架';
 
         const catalogList = document.getElementById('catalogList');
-        catalogList.innerHTML = '<div style="color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> 正在加载目录...</div>';
+        catalogList.innerHTML = '<div style="color:var(--text-muted); padding:20px;"><i class="fas fa-spinner fa-spin"></i> 正在加载目录...</div>';
         showView('detail');
 
         try {
@@ -1794,7 +1929,7 @@
                 readChapter(autoReadIndex);
             }
         } catch(e) {
-            catalogList.innerHTML = `<div style="color:red;">获取目录异常: ${e.message}</div>`;
+            catalogList.innerHTML = `<div style="color:red; padding:10px;">获取目录异常: ${e.message}</div>`;
         }
     }
 
@@ -1811,23 +1946,22 @@
         document.getElementById('nextBtn').disabled = (idx >= currentCatalog.length - 1);
 
         const tab = currentBookInfo.tab || '漫画';
-        updateShelfProgress(chap.title, idx);
         updateRecentHistory(currentBookInfo, chap.title, idx);
 
         try {
             const res = await fetch(`/api/content?item_id=${encodeURIComponent(chap.item_id)}&source=${encodeURIComponent(currentBookInfo.source)}&tab=${encodeURIComponent(tab)}&book_id=${encodeURIComponent(currentBookInfo.book_id)}&title=${encodeURIComponent(currentBookInfo.book_name)}&chap_title=${encodeURIComponent(chap.title)}&chap_idx=${idx}`);
             const data = await res.json();
 
-            // 1. 如果有漫画图片
+            // 1. 漫画图片
             if (data.images && data.images.length > 0) {
                 const isStealth = document.body.getAttribute('data-theme') === 'stealth';
                 if (isStealth) {
                     container.innerHTML = `
                         <div class="text-stream">
-                            // [摸鱼模式已生效 - 原画已被转化为轻量代码节点]<br>
+                            // [摸鱼模式已生效 - 原画转换为代码模式]<br>
                             // 章节: ${chap.title}<br>
-                            // 源站图片资源总数: ${data.images.length} 帧原画流<br>
-                            // 按 ESC 或右上角摸鱼按钮即可恢复原画预览
+                            // 源站原画图片总数: ${data.images.length} 帧<br>
+                            // 点击右上角摸鱼按钮即可恢复原画预览
                         </div>
                     `;
                 } else {
@@ -1841,7 +1975,7 @@
                 return;
             }
 
-            // 2. 如果是小说纯文本，清洗掉催费垃圾广告后展示
+            // 2. 小说纯文本
             const cleanedText = cleanAdContent(data.content);
             if (cleanedText && cleanedText.length > 0 && !isPaywallOrAdText(cleanedText)) {
                 container.innerHTML = `<div class="text-stream">${cleanedText}</div>`;
@@ -1849,25 +1983,13 @@
                 return;
             }
 
-            // 3. 章节受限或需要节点解析
-            if (data.isDirectPaywall) {
-                container.innerHTML = `
-                    <div style="color:var(--text-muted); padding:30px; text-align:center; line-height:1.8;">
-                        <i class="fas fa-info-circle" style="color:var(--accent); font-size:24px; margin-bottom:10px;"></i><br>
-                        <strong>漫画原画源站直连提示</strong><br>
-                        当前页面处于 GitHub Pages 纯前端静态环境，浏览器受跨域安全限制无法直抓原画。<br><br>
-                        <button class="btn primary" style="margin:4px;" onclick="openApiConfigModal()"><i class="fas fa-server"></i> 一键填入 Worker / EdgeOne 节点</button>
-                        <button class="btn" style="margin:4px;" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 切换其他漫画书源</button>
-                    </div>
-                `;
-            } else {
-                container.innerHTML = `
-                    <div style="color:var(--text-muted); padding:30px; text-align:center;">
-                        ${data.msg || '该章节在当前书源暂无正文内容或受限'}<br><br>
-                        <button class="btn primary" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 一键切换其他书源</button>
-                    </div>
-                `;
-            }
+            // 3. 提示
+            container.innerHTML = `
+                <div style="color:var(--text-muted); padding:30px; text-align:center;">
+                    ${data.msg || '该章节在当前书源暂无正文或受限'}<br><br>
+                    <button class="btn primary" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 换一个书源尝试</button>
+                </div>
+            `;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch(e) {
             container.innerHTML = `<div style="color:red; padding:30px; text-align:center;">加载章节失败: ${e.message}</div>`;
@@ -1882,6 +2004,26 @@
         if (currentChapterIndex < currentCatalog.length - 1) readChapter(currentChapterIndex + 1);
     }
 
+    function toggleBookShelf() {
+        if (!currentBookInfo) return;
+        let shelf = getLocalShelf();
+        const existingIdx = shelf.findIndex(b => b.book_name === currentBookInfo.book_name && b.source === currentBookInfo.source);
+        const btn = document.getElementById('shelfToggleBtn');
+
+        if (existingIdx !== -1) {
+            shelf.splice(existingIdx, 1);
+            btn.innerHTML = '<i class="fas fa-plus"></i> 加书架';
+        } else {
+            shelf.unshift({
+                ...currentBookInfo,
+                lastReadTitle: currentCatalog[currentChapterIndex]?.title || '未开始',
+                lastReadIndex: currentChapterIndex
+            });
+            btn.innerHTML = '<i class="fas fa-check"></i> 已在书架';
+        }
+        saveLocalShelf(shelf);
+    }
+
     let lastScrollTop = 0;
     let isReaderNavVisible = true;
 
@@ -1892,14 +2034,12 @@
             const floating = document.getElementById('readerFloatingHeader');
             if (!floating) return;
 
-            // 向下滚动超过 50px 时，自动隐藏顶部状态栏，享受纯净全屏阅读
             if (st > lastScrollTop && st > 80) {
                 if (isReaderNavVisible) {
                     floating.classList.add('nav-hidden');
                     isReaderNavVisible = false;
                 }
             } else if (st < lastScrollTop - 12) {
-                // 向上滚动时，自动呼出顶部栏方便目录换源
                 if (!isReaderNavVisible) {
                     floating.classList.remove('nav-hidden');
                     isReaderNavVisible = true;
@@ -1923,8 +2063,11 @@
         const isReader = (name === 'reader');
         document.body.classList.toggle('reading-mode', isReader);
 
-        document.getElementById('shelfSection').style.display = 'none';
-        document.getElementById('searchSection').style.display = 'none';
+        document.getElementById('historySection').style.display = 'none';
+        document.getElementById('novelSection').style.display = 'none';
+        document.getElementById('mangaSection').style.display = 'none';
+        document.getElementById('videoSection').style.display = 'none';
+
         document.getElementById('detailView').style.display = (name === 'detail') ? 'block' : 'none';
         document.getElementById('readerView').style.display = isReader ? 'block' : 'none';
 
@@ -1948,10 +2091,10 @@
         const list = document.getElementById('sourceSwitchList');
         modal.classList.add('open');
 
-        const tab = currentBookInfo.tab || '漫画';
+        const tab = currentBookInfo.tab || '小说';
         const candidateSources = (tab === '漫画') 
             ? ['新新漫画', '全面漫画', 'G社漫画', '番茄'] 
-            : ['七猫', '百度', '淘小说', '番茄', '笔趣阁78', '全本小说'];
+            : ['七猫', '番茄', '伪69', '半夏小说', '52书库', '老福特', '爱下电子书', '百度', '淘小说', '笔趣阁78', '知乎'];
 
         const otherSources = candidateSources.filter(s => s !== currentBookInfo.source);
 
@@ -1961,7 +2104,7 @@
                 <div class="switch-item" onclick="switchToSource('${s}')">
                     <div>
                         <div style="font-weight:600; font-size:14px;">${s}</div>
-                        <div style="font-size:11px; color:var(--text-muted);">一键切源搜索《${currentBookInfo.book_name}》</div>
+                        <div style="font-size:11px; color:var(--text-muted);">一键切至【${s}】重新搜索《${currentBookInfo.book_name}》</div>
                     </div>
                     <span class="card-tag">一键切换</span>
                 </div>
@@ -1976,11 +2119,18 @@
 
     function switchToSource(targetSource) {
         closeSourceModal();
-        document.getElementById('tabSelect').value = currentBookInfo.tab || '漫画';
-        document.getElementById('sourceSelect').value = targetSource;
-        document.getElementById('searchInput').value = currentBookInfo.book_name;
-        switchNav('search');
-        doSearch();
+        const isManga = (currentBookInfo.tab === '漫画');
+        if (isManga) {
+            document.getElementById('mangaSourceSelect').value = targetSource;
+            document.getElementById('mangaSearchInput').value = currentBookInfo.book_name;
+            switchNav('manga');
+            doMangaSearch();
+        } else {
+            document.getElementById('novelSourceSelect').value = targetSource;
+            document.getElementById('novelSearchInput').value = currentBookInfo.book_name;
+            switchNav('novel');
+            doNovelSearch();
+        }
     }
 
     function toggleTheme(themeName) {
@@ -2033,7 +2183,6 @@
         if (lineLbl) lineLbl.innerText = currentLineHeight.toFixed(1);
     }
 
-    // 点击页面任意外部区域关闭排版下拉框
     document.addEventListener('click', (e) => {
         const dropdown = document.querySelector('.format-dropdown');
         if (dropdown && !dropdown.contains(e.target)) {
@@ -2042,12 +2191,21 @@
         }
     });
 
-
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') toggleStealth();
         if (e.key === 'ArrowLeft') prevChapter();
         if (e.key === 'ArrowRight') nextChapter();
     });
+
+    async function init() {
+        try {
+            const res = await fetch('/api/info');
+            appConfig = await res.json();
+        } catch(e) {}
+
+        initReaderScrollListener();
+        renderHistoryModule();
+    }
 
     init();
 </script>
