@@ -829,11 +829,11 @@
         if (window.isVideoHqEnhanced) {
             container.classList.remove('hq-enhanced-off');
             badge.classList.remove('off');
-            if (text) text.innerText = '原站画质增强: 开';
+            if (text) text.innerText = 'GPU画质增强: 开';
         } else {
             container.classList.add('hq-enhanced-off');
             badge.classList.add('off');
-            if (text) text.innerText = '原站画质增强: 关';
+            if (text) text.innerText = 'GPU画质增强: 关';
         }
     };
 
