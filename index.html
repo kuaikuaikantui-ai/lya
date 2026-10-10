@@ -394,70 +394,175 @@
         }
         .pager button { flex: 1; padding: 12px; }
 
-        /* 影视专区样式 */
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
+        
+        /* kanju.ai 精品流媒体专属设计 */
+        .category-pill-group {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 4px 0 10px 0;
+            scrollbar-width: none;
         }
-        @media (max-width: 600px) {
-            .video-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 8px;
-            }
+        .category-pill-group::-webkit-scrollbar { display: none; }
+        .category-pill {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
         }
-        .video-card {
+        .category-pill.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: 600;
+            border-color: var(--accent);
+        }
+
+        /* 焦点大画幅 Banner */
+        .kanju-hero-banner {
+            position: relative;
+            width: 100%;
+            height: 190px;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 18px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: #111;
+        }
+        .kanju-hero-banner .hero-bg {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 20%;
+            transform: scale(1.02);
+            transition: transform 0.4s ease;
+        }
+        .kanju-hero-banner:hover .hero-bg { transform: scale(1.06); }
+        .kanju-hero-banner .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(15,17,21,0.95) 100%);
+        }
+        .kanju-hero-banner .hero-content {
+            position: absolute;
+            bottom: 14px;
+            left: 14px;
+            right: 14px;
+            z-index: 2;
+        }
+        .hero-tag {
+            font-size: 11px;
+            background: rgba(0,0,0,0.7);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: #fbbf24;
+            backdrop-filter: blur(4px);
+        }
+        .hero-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            margin: 6px 0 3px 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .hero-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .hero-play-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* kanju 精品影视海报网格 */
+        .kanju-poster-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 10px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: transform 0.25s ease, border-color 0.2s;
         }
-        .video-card:active { transform: scale(0.97); }
-        .video-thumb-wrap {
+        .kanju-poster-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-3px);
+        }
+        .kanju-poster-card:active { transform: scale(0.97); }
+        .kanju-poster-wrap {
             position: relative;
             width: 100%;
-            aspect-ratio: 3/4;
-            background: #111;
+            aspect-ratio: 10 / 14;
+            background: #14161b;
             overflow: hidden;
         }
-        .video-thumb-wrap img {
+        .kanju-poster-wrap img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        .video-badge {
+        .kanju-poster-badge {
             position: absolute;
-            bottom: 4px;
-            right: 4px;
+            top: 6px;
+            right: 6px;
             background: rgba(0,0,0,0.75);
-            color: #fff;
+            color: #2dd4c0;
             font-size: 10px;
-            padding: 2px 5px;
+            font-weight: 600;
+            padding: 2px 6px;
             border-radius: 4px;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(4px);
         }
-        .video-card-body { padding: 6px 8px; }
-        .video-card-title {
-            font-size: 12px;
+        .kanju-play-hover {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            color: #fff;
+            font-size: 24px;
+        }
+        .kanju-poster-card:hover .kanju-play-hover { opacity: 1; }
+        .kanju-poster-info {
+            padding: 8px;
+        }
+        .kanju-poster-title {
+            font-size: 13px;
             font-weight: 600;
             color: var(--text-main);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .video-card-sub {
-            font-size: 10px;
+        .kanju-poster-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+            font-size: 11px;
             color: var(--text-muted);
-            margin-top: 2px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
         }
+        .meta-tag {
+            color: var(--accent);
+            font-size: 10px;
+        }
+
 
 
         .modal-overlay {
@@ -650,27 +755,34 @@
 
     <!-- 影视专区 -->
     <section id="videoSection" style="display: none;">
-        <div class="search-box">
+        <!-- kanju 搜索栏 -->
+        <div class="search-box" style="margin-bottom: 12px;">
             <div class="search-row">
-                <input type="text" id="videoSearchInput" class="search-input" placeholder="搜索电影、电视剧、动漫、综艺..." onkeydown="if(event.key==='Enter')window.doVideoSearch()" />
-                <button class="btn primary" onclick="window.doVideoSearch()"><i class="fas fa-search"></i> 搜剧</button>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                <div style="display:flex; gap:6px;" id="videoLineTabs">
-                    <button class="btn primary" id="lineBtn_liangzi" style="font-size:11px; padding:3px 9px;" onclick="window.switchVideoLine('liangzi')">量子高清</button>
-                    <button class="btn" id="lineBtn_feifan" style="font-size:11px; padding:3px 9px;" onclick="window.switchVideoLine('feifan')">非凡影院</button>
-                    <button class="btn" id="lineBtn_baofeng" style="font-size:11px; padding:3px 9px;" onclick="window.switchVideoLine('baofeng')">暴风影院</button>
-                </div>
-                <span style="font-size:11px; color:var(--text-muted);"><i class="fas fa-shield-alt" style="color:var(--accent);"></i> 纯净无弹窗</span>
+                <input type="text" id="videoSearchInput" class="search-input" placeholder="输入片名搜索电影、剧集、国漫、韩剧..." onkeydown="if(event.key==='Enter')window.doVideoSearch()" />
+                <button class="btn primary" onclick="window.doVideoSearch()"><i class="fas fa-search"></i> 搜全网</button>
             </div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h4 id="videoSectionTitle" style="font-size:14px; font-weight:600;"><i class="fas fa-fire" style="color:#f59e0b;"></i> 热播精选推荐</h4>
+        <!-- kanju 顶级分类导航胶囊 (电影 / 电视剧 / 动漫 / 综艺) -->
+        <div class="category-pill-group" id="videoCategoryTabs">
+            <button class="category-pill active" id="catBtn_all" onclick="window.switchVideoCategory('all')"><i class="fas fa-sparkles"></i> 热门推荐</button>
+            <button class="category-pill" id="catBtn_movie" onclick="window.switchVideoCategory('movie')"><i class="fas fa-ticket-alt"></i> 动作大片</button>
+            <button class="category-pill" id="catBtn_tv" onclick="window.switchVideoCategory('tv')"><i class="fas fa-tv"></i> 爆款热剧</button>
+            <button class="category-pill" id="catBtn_anime" onclick="window.switchVideoCategory('anime')"><i class="fas fa-hat-wizard"></i> 热门国漫/日漫</button>
+            <button class="category-pill" id="catBtn_variety" onclick="window.switchVideoCategory('variety')"><i class="fas fa-microphone"></i> 爆笑综艺</button>
+        </div>
+
+        <!-- kanju 头条强档大画幅焦点 Banner -->
+        <div id="videoBannerSection" style="display: none;"></div>
+
+        <!-- 列表头 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0 12px 0;">
+            <h4 id="videoFeedTitle" style="font-size:14px; font-weight:600;"><i class="fas fa-fire" style="color:#f59e0b;"></i> 热播影视榜</h4>
             <span id="videoCountBadge" style="font-size:11px; color:var(--text-muted);">实时更新</span>
         </div>
+
         <div id="videoGrid" class="video-grid"></div>
-    </section>
+    </section></section>
 
     <!-- 纯净视频播放视窗 -->
     <section id="videoPlayerView" style="display: none;">

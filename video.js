@@ -1,49 +1,50 @@
-// --- 影视模块独立纯净脚本 (kanju无广模式 + 多播放源切换) ---
+// --- 影视模块 (深度还原 kanju.ai 高级流媒体UI模式) ---
 (function() {
     window.currentVideoList = [];
     window.currentVideo = null;
-    window.currentHls = null;
     window.currentEpisodeIdx = 0;
     window.currentGroupIdx = 0;
-    window.currentVideoSource = 'liangzi';
+    window.currentCategory = 'all'; // all | movie | tv | anime | variety
+    window.dpInstance = null;
 
-    // 切换顶部线路 (量子 / 非凡 / 暴风)
-    window.switchVideoLine = function(source) {
-        window.currentVideoSource = source;
-        document.querySelectorAll('#videoLineTabs button').forEach(btn => btn.classList.remove('primary'));
-        const activeBtn = document.getElementById('lineBtn_' + source);
-        if (activeBtn) activeBtn.classList.add('primary');
+    // 切换分类标签 (全部推荐 / 电影 / 电视剧 / 动漫 / 综艺)
+    window.switchVideoCategory = function(cat) {
+        window.currentCategory = cat;
+        document.querySelectorAll('#videoCategoryTabs .category-pill').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.getElementById('catBtn_' + cat);
+        if (activeBtn) activeBtn.classList.add('active');
 
         const input = document.getElementById('videoSearchInput');
         const wd = input ? input.value.trim() : '';
         if (wd) {
             window.doVideoSearch();
         } else {
-            window.loadVideoFeed(source);
+            window.loadVideoFeed(cat);
         }
     };
 
-    window.loadVideoFeed = async function(source = 'liangzi') {
-        window.currentVideoSource = source;
+    window.loadVideoFeed = async function(cat = 'all') {
         const grid = document.getElementById('videoGrid');
-        const titleBadge = document.getElementById('videoSectionTitle');
         const countBadge = document.getElementById('videoCountBadge');
-        if (titleBadge) {
-            const srcName = (source === 'liangzi') ? '量子影院' : ((source === 'feifan') ? '非凡影院' : '暴风影院');
-            titleBadge.innerHTML = '<i class="fas fa-fire" style="color:#f59e0b;"></i> 热播精选推荐 (' + srcName + ')';
-        }
         if (grid) {
-            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;"><i class="fas fa-spinner fa-spin"></i> 正在加载热播精选推荐...</div>';
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:50px;"><i class="fas fa-spinner fa-spin"></i> 正在加载精选热播片单...</div>';
         }
 
         try {
-            const res = await fetch('/api/video/feed?source=' + source + '&pg=1');
+            // 根据分类映射 type_id (13国产剧/6动作片/4动漫/3综艺)
+            let typeParam = '';
+            if (cat === 'movie') typeParam = '&t=6';
+            if (cat === 'tv') typeParam = '&t=13';
+            if (cat === 'anime') typeParam = '&t=4';
+            if (cat === 'variety') typeParam = '&t=3';
+
+            const res = await fetch('/api/video/feed?source=feifan&pg=1' + typeParam);
             const data = await res.json();
             window.currentVideoList = data.list || [];
-            if (countBadge) countBadge.innerText = '共 ' + window.currentVideoList.length + ' 部热片';
-            window.renderVideoGrid(window.currentVideoList);
+            if (countBadge) countBadge.innerText = '精选 ' + window.currentVideoList.length + ' 部大片';
+            window.renderKanjuUI(window.currentVideoList);
         } catch(e) {
-            if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:red; padding:30px;">加载推荐失败: ' + e.message + '</div>';
+            if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:red; padding:30px;">加载片单失败: ' + e.message + '</div>';
         }
     };
 
@@ -53,27 +54,65 @@
         if (!wd) return;
 
         const grid = document.getElementById('videoGrid');
-        const titleBadge = document.getElementById('videoSectionTitle');
+        const banner = document.getElementById('videoBannerSection');
+        if (banner) banner.style.display = 'none';
+
         const countBadge = document.getElementById('videoCountBadge');
+        const titleBadge = document.getElementById('videoFeedTitle');
         if (titleBadge) titleBadge.innerHTML = '<i class="fas fa-search" style="color:var(--accent);"></i> 搜索《' + wd + '》结果';
         if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索片源...</div>';
 
         try {
-            const res = await fetch('/api/video/search?source=' + window.currentVideoSource + '&wd=' + encodeURIComponent(wd));
+            const res = await fetch('/api/video/search?source=feifan&wd=' + encodeURIComponent(wd));
             const data = await res.json();
             window.currentVideoList = data.list || [];
-            if (countBadge) countBadge.innerText = '检索到 ' + window.currentVideoList.length + ' 个结果';
+            if (countBadge) countBadge.innerText = '检索到 ' + window.currentVideoList.length + ' 个资源';
             if (window.currentVideoList.length === 0) {
-                if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">暂未找到匹配影视，可尝试简短关键词或切换上方线路重试。</div>';
+                if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">暂未找到匹配影片，可尝试简化搜索词。</div>';
                 return;
             }
-            window.renderVideoGrid(window.currentVideoList);
+            window.renderVideoGridOnly(window.currentVideoList);
         } catch(e) {
             if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:red; padding:30px;">搜索失败: ' + e.message + '</div>';
         }
     };
 
-    window.renderVideoGrid = function(list) {
+    // 渲染带有 kanju 风格的首页推荐 (顶部精选大 Banner + 精美海报卡片)
+    window.renderKanjuUI = function(list) {
+        const grid = document.getElementById('videoGrid');
+        const bannerBox = document.getElementById('videoBannerSection');
+        const titleBadge = document.getElementById('videoFeedTitle');
+        if (titleBadge) titleBadge.innerHTML = '<i class="fas fa-fire" style="color:#f59e0b;"></i> 热播影视榜';
+
+        if (!list || list.length === 0) {
+            if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">暂无影视内容</div>';
+            return;
+        }
+
+        // 1. 顶部大画幅精选焦点图 Banner (如第 1 部高分推荐)
+        if (bannerBox && list.length > 0) {
+            const topItem = list[0];
+            bannerBox.style.display = 'block';
+            bannerBox.innerHTML = `
+                <div class="kanju-hero-banner" onclick="window.openVideoDetail(0)">
+                    <img class="hero-bg" src="${topItem.vod_pic}" alt="${topItem.vod_name}" referrerpolicy="no-referrer" />
+                    <div class="hero-overlay"></div>
+                    <div class="hero-content">
+                        <span class="hero-tag"><i class="fas fa-crown" style="color:#fbbf24;"></i> 强档推荐 · ${topItem.type_name || '大片'}</span>
+                        <h2 class="hero-title">${topItem.vod_name}</h2>
+                        <p class="hero-desc">${topItem.vod_remarks || ''} · ${topItem.vod_year || '热门'} · ${topItem.vod_area || '全网同步'}</p>
+                        <button class="hero-play-btn"><i class="fas fa-play"></i> 立即免广告播放</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 2. 随后的海报卡片网格
+        const restItems = list.slice(1);
+        window.renderVideoGridOnly(restItems, 1);
+    };
+
+    window.renderVideoGridOnly = function(list, startIndexOffset = 0) {
         const grid = document.getElementById('videoGrid');
         if (!grid) return;
         if (!list || list.length === 0) {
@@ -82,18 +121,23 @@
         }
 
         grid.innerHTML = list.map((item, idx) => {
+            const realIdx = idx + startIndexOffset;
             const pic = item.vod_pic || 'https://api.iconify.design/lucide:film.svg?color=%23555';
             const remark = item.vod_remarks || (item.vod_year || '高清');
             const type = item.type_name || '影视';
             return `
-                <div class="video-card" onclick="window.openVideoDetail(${idx})">
-                    <div class="video-thumb-wrap">
+                <div class="kanju-poster-card" onclick="window.openVideoDetail(${realIdx})">
+                    <div class="kanju-poster-wrap">
                         <img src="${pic}" alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='https://api.iconify.design/lucide:film.svg?color=%23888'" />
-                        <span class="video-badge">${remark}</span>
+                        <span class="kanju-poster-badge">${remark}</span>
+                        <div class="kanju-play-hover"><i class="fas fa-play"></i></div>
                     </div>
-                    <div class="video-card-body">
-                        <div class="video-card-title" title="${item.vod_name}">${item.vod_name}</div>
-                        <div class="video-card-sub">${type} · ${item.vod_year || ''}</div>
+                    <div class="kanju-poster-info">
+                        <div class="kanju-poster-title" title="${item.vod_name}">${item.vod_name}</div>
+                        <div class="kanju-poster-meta">
+                            <span class="meta-tag">${type}</span>
+                            <span>${item.vod_year || ''}</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -106,7 +150,6 @@
         window.currentVideo = item;
         window.currentGroupIdx = 0;
 
-        // 解析多播放线路组 (支持播放线路选择：如 lzm3u8, ffm3u8, 默认线路等)
         const playFroms = (item.vod_play_from || '默认线路').split('$$$');
         const playGroups = (item.vod_play_url || '').split('$$$');
 
@@ -128,7 +171,6 @@
             }
         });
 
-        // 优先将含 .m3u8 较多的线路排在首位
         parsedGroups.sort((a, b) => {
             const aHas = a.episodes.some(e => e.url.includes('.m3u8')) ? 1 : 0;
             const bHas = b.episodes.some(e => e.url.includes('.m3u8')) ? 1 : 0;
@@ -149,9 +191,9 @@
         window.renderVideoSourceTabs(parsedGroups);
         window.renderVideoEpisodes(0);
         window.playVideoEpisode(0);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // 渲染播放线路选择 Tabs
     window.renderVideoSourceTabs = function(groups) {
         const tabsBox = document.getElementById('videoPlaySourceTabs');
         if (!tabsBox) return;
@@ -161,7 +203,7 @@
         }
 
         tabsBox.innerHTML = groups.map((g, idx) => `
-            <button class="btn ${idx === window.currentGroupIdx ? 'primary' : ''}" style="padding:3px 9px; font-size:11px;" onclick="window.switchPlayGroup(${idx})">
+            <button class="btn ${idx === window.currentGroupIdx ? 'primary' : ''}" style="padding:4px 10px; font-size:11px;" onclick="window.switchPlayGroup(${idx})">
                 <i class="fas fa-play-circle"></i> ${g.name.toUpperCase()}
             </button>
         `).join('');
@@ -195,8 +237,6 @@
         `).join('');
     };
 
-    window.dpInstance = null;
-
     window.playVideoEpisode = function(idx) {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
@@ -222,11 +262,8 @@
 
         const videoUrl = ep.url;
         const isHls = videoUrl.includes('.m3u8');
-
-        // 生成专属弹幕频道ID (根据视频ID与集数隔离)
         const danmakuId = 'vod_' + (window.currentVideo.vod_id || window.currentVideo.id || 'common') + '_ep_' + idx;
 
-        // 初始化全功能专业级 DPlayer (支持网页全屏、设备全屏、弹幕发射与接收、倍速播放、快捷键)
         window.dpInstance = new DPlayer({
             container: container,
             autoplay: true,
@@ -258,7 +295,7 @@
             },
             danmaku: {
                 id: danmakuId,
-                api: 'https://dplayer.bilibili.com/v3/bili/', // 开源公共弹幕库支持
+                api: 'https://dplayer.bilibili.com/v3/bili/',
                 user: 'OpenReader_Guest',
                 bottom: '15%',
                 unlimited: true
