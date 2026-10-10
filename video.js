@@ -758,10 +758,25 @@
                 id: 'dmu_' + (kanjuCardId || videoTitle) + '_ep_' + idx,
                 api: window.location.origin + '/api/video/danmaku/',
                 user: '剧友',
-                bottom: '15%',
-                unlimited: true
+                bottom: '12%',
+                unlimited: false
             }
         });
+
+        // 绑定自动连播下一集及弹幕状态同步
+        setTimeout(() => {
+            if (window.dpInstance) {
+                window.dpInstance.on('ended', function() {
+                    if (window.isAutoNextEnabled) {
+                        console.log('[OpenHappy Video] 本集播放完毕，自动连播下一集...');
+                        window.playNextEpisode();
+                    }
+                });
+                if (!window.isDanmakuEnabled && window.dpInstance.danmaku) {
+                    window.dpInstance.danmaku.hide();
+                }
+            }
+        }, 500);
     };
 
     // 实时拉取并呈现 kanju3 原站真实讨论数据
@@ -834,6 +849,67 @@
             container.classList.add('hq-enhanced-off');
             badge.classList.add('off');
             if (text) text.innerText = 'GPU画质增强: 关';
+        }
+    };
+
+    // 弹幕独立开关 (从播放器底层设置解耦，随时一键开关)
+    window.isDanmakuEnabled = true;
+    window.toggleDanmaku = function() {
+        window.isDanmakuEnabled = !window.isDanmakuEnabled;
+        const badge = document.getElementById('danmakuToggleBtn');
+        const text = document.getElementById('danmakuToggleText');
+        if (badge) badge.classList.toggle('off', !window.isDanmakuEnabled);
+        if (text) text.innerText = '弹幕: ' + (window.isDanmakuEnabled ? '开' : '关');
+
+        if (window.dpInstance && window.dpInstance.danmaku) {
+            if (window.isDanmakuEnabled) {
+                window.dpInstance.danmaku.show();
+            } else {
+                window.dpInstance.danmaku.hide();
+            }
+        }
+    };
+
+    // 自动连播下一集开关
+    window.isAutoNextEnabled = true;
+    window.toggleAutoNext = function() {
+        window.isAutoNextEnabled = !window.isAutoNextEnabled;
+        const badge = document.getElementById('autoNextToggleBtn');
+        const text = document.getElementById('autoNextToggleText');
+        if (badge) badge.classList.toggle('off', !window.isAutoNextEnabled);
+        if (text) text.innerText = '自动连播: ' + (window.isAutoNextEnabled ? '开' : '关');
+    };
+
+    // 原站高频特性：画中画 (Picture-in-Picture)
+    window.togglePip = function() {
+        if (!window.dpInstance || !window.dpInstance.video) return;
+        const video = window.dpInstance.video;
+        if (document.pictureInPictureElement) {
+            document.exitPictureInPicture().catch(() => {});
+        } else if (document.pictureInPictureEnabled && video.requestPictureInPicture) {
+            video.requestPictureInPicture().catch(() => {});
+        } else {
+            alert('当前浏览器环境不支持画中画功能');
+        }
+    };
+
+    // 播放下一集
+    window.playNextEpisode = function() {
+        if (!window.currentVideo || !window.currentVideo.groups) return;
+        const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
+        if (!group || !group.episodes) return;
+        const nextIdx = (window.currentEpisodeIdx || 0) + 1;
+        if (nextIdx < group.episodes.length) {
+            window.playVideoEpisode(nextIdx);
+        } else {
+            console.log('[OpenHappy Video] 已播放到最后一集');
+        }
+    };
+
+    // 快进 / 快退 (跳过片头片尾快捷动作)
+    window.skipVideoTime = function(seconds) {
+        if (window.dpInstance) {
+            window.dpInstance.seek(window.dpInstance.video.currentTime + seconds);
         }
     };
 
