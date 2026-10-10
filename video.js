@@ -768,10 +768,10 @@
             if (res.ok) {
                 const data = await res.json();
                 const list = data.results || [];
-                if (badge) badge.innerText = list.length > 0 ? (list.length + '条真实讨论') : '原站讨论区';
+                if (badge) badge.innerText = list.length > 0 ? (list.length + '条评论') : '评论区';
 
                 if (list.length === 0) {
-                    container.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:20px; text-align:center;">原站暂无该影片讨论记录，快来抢先观看！</div>';
+                    container.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:20px; text-align:center;">暂无评论，快来抢先观看！</div>';
                     return;
                 }
 

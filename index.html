@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="极简阅读">
     <meta name="theme-color" content="#0f1115">
-    <link rel="apple-touch-icon" href="https://api.iconify.design/lucide:book-open.svg?color=%232dd4c0">
-    <title>OpenReader Pro · 极简聚合阅读</title>
+    <link rel="apple-touch-icon" href="https://api.iconify.design/lucide:sparkles.svg?color=%232dd4c0">
+    <title>OpenHappy · 昂哥构建</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -689,9 +689,9 @@
 
 <header>
     <div class="brand" onclick="switchNav('shelf')">
-        <i class="fas fa-book-open"></i>
-        <span>OpenReader Pro</span>
-        <span class="badge" id="sourceVerTag">原版清爽聚合</span>
+        <i class="fas fa-wand-magic-sparkles"></i>
+        <span>OpenHappy</span>
+        <span class="badge" id="sourceVerTag">昂哥构建</span>
     </div>
     <div class="header-actions">
         <button class="btn" title="护眼羊皮纸主题" onclick="toggleTheme('warm')"><i class="fas fa-sun"></i> 护眼</button>
@@ -921,7 +921,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--border); padding-bottom:8px;">
                 <div style="font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
                     <i class="fas fa-comments" style="color:var(--accent);"></i>
-                    <span>全网剧友真实讨论</span>
+                    <span>评论</span>
                     <span id="videoCommentsCountBadge" style="font-size:10px; color:var(--text-muted); font-weight:normal; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:8px;">同步原站</span>
                 </div>
                 <span style="font-size:11px; color:var(--text-muted);"><i class="fas fa-sync-alt" id="commentsLoadingIcon"></i> 实时拉取</span>
@@ -1520,7 +1520,7 @@
             const res = await fetch('/api/info');
             appConfig = await res.json();
             if (appConfig.version) {
-                document.getElementById('sourceVerTag').innerText = appConfig.version;
+                // document.getElementById('sourceVerTag').innerText = appConfig.version;
             }
         } catch(e) {}
 
