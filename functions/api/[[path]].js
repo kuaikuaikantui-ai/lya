@@ -243,32 +243,46 @@ const workerHandler = {
         }
 
         
-        // 🎬 影视聚合检索与推荐接口 (由云端Serverless代理，彻底解决浏览器CORS跨域问题)
+        // 🎬 影视聚合检索与推荐接口 (高可用多线路自动容灾Failover)
         if (url.pathname === '/api/video/feed' || url.pathname === '/api/video/search') {
             const wd = url.searchParams.get('wd') || '';
             const pg = url.searchParams.get('pg') || '1';
-            const source = url.searchParams.get('source') || 'liangzi';
+            const t = url.searchParams.get('t') || '';
 
-            let apiBase = 'https://cj.lziapi.com/api.php/provide/vod/?ac=detail';
-            if (source === 'feifan') apiBase = 'https://api.ffzyapi.com/api.php/provide/vod/?ac=detail';
-            if (source === 'baofeng') apiBase = 'https://bfzyapi.com/api.php/provide/vod/?ac=detail';
+            // 优先选择最稳定的高带宽非凡节点，量子节点作为灾备
+            const apis = [
+                'https://api.ffzyapi.com/api.php/provide/vod/?ac=detail',
+                'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',
+                'https://bfzyapi.com/api.php/provide/vod/?ac=detail'
+            ];
 
-            let targetUrl = apiBase + (wd ? ('&wd=' + encodeURIComponent(wd)) : ('&pg=' + pg));
-            try {
-                const r = await fetch(targetUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            let lastErr = '全部影视线路请求超时';
+            for (const base of apis) {
+                try {
+                    let targetUrl = base + (wd ? ('&wd=' + encodeURIComponent(wd)) : ('&pg=' + pg));
+                    if (t) targetUrl += '&t=' + t;
+
+                    const r = await fetch(targetUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    });
+                    if (r.ok) {
+                        const json = await r.json();
+                        if (json && json.list && json.list.length > 0) {
+                            return new Response(JSON.stringify(json), {
+                                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                            });
+                        }
                     }
-                });
-                const data = await r.text();
-                return new Response(data, {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
-            } catch(e) {
-                return new Response(JSON.stringify({ code: -1, msg: e.message, list: [] }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-                });
+                } catch(e) {
+                    lastErr = e.message;
+                }
             }
+
+            return new Response(JSON.stringify({ code: -1, msg: lastErr, list: [] }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
         }
 
         if (url.pathname === '/api/detail') {
