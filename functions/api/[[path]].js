@@ -196,6 +196,38 @@ const workerHandler = {
             const source = url.searchParams.get('source') || '新新漫画';
             const page = url.searchParams.get('page') || '1';
 
+            // ⚡ 聚合全网搜模式：对所有优质源进行高速并发请求并聚合呈现全部结果
+            if (source === 'ALL') {
+                const candidates = (tab === '漫画')
+                    ? ['新新漫画', 'G社漫画', '全面漫画', '番茄']
+                    : ['七猫', '番茄', '伪69', '半夏小说', '52书库', '老福特', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
+
+                const fetchTasks = candidates.map(async s => {
+                    try {
+                        const targetUrl = UPSTREAM + '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(s) + '&page=' + page + '&disabled_sources=0';
+                        const r = await fetch(targetUrl, { headers: getRandomHeaders() });
+                        if (!r.ok) return [];
+                        const json = await r.json();
+                        const list = json.data || [];
+                        return list.map(item => ({ ...item, source: s, tab }));
+                    } catch(e) {
+                        return [];
+                    }
+                });
+
+                const settled = await Promise.allSettled(fetchTasks);
+                const aggregated = [];
+                settled.forEach(res => {
+                    if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+                        aggregated.push(...res.value);
+                    }
+                });
+
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: aggregated }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             try {
                 const targetUrl = UPSTREAM + '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(source) + '&page=' + page + '&disabled_sources=0';
                 const r = await fetch(targetUrl, { headers: getRandomHeaders() });

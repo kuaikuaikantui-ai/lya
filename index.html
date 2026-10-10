@@ -736,8 +736,8 @@
 
             if (source === 'ALL') {
                 const candidates = (tab === '漫画') 
-                    ? ['新新漫画', '全面漫画', 'G社漫画', '番茄']
-                    : ['七猫', '百度', '淘小说', '番茄', '笔趣阁78'];
+                    ? ['新新漫画', 'G社漫画', '全面漫画', '番茄']
+                    : ['七猫', '番茄', '伪69', '半夏小说', '52书库', '老福特', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
 
                 const tasks = candidates.map(async s => {
                     try {
@@ -1212,7 +1212,7 @@
                 'G社漫画',      // 绅士/热门韩漫全集
                 '全面漫画',      // 国漫/热血主流连载
                 '番茄',          // 官方精选漫画
-                '⚡ 全网漫画并发'
+                '⚡ 聚合搜 (展示全部漫画源结果)'
             ];
         } else {
             sources = [
@@ -1228,7 +1228,7 @@
                 '百度',          // 百度小说书库
                 '笔趣阁78',      // 传统经典大作
                 '知乎',          // 知乎盐选热文
-                '⚡ 全网优质源聚合并发'
+                '⚡ 聚合搜 (展示全部小说源结果)'
             ];
         }
 
@@ -1285,7 +1285,7 @@
                 return !spamKeywords.some(k => name.includes(k)) && item.book_id !== 'vip' && item.book_id !== 'svip';
             });
 
-            // 2. 严格按相关度精准排序，彻底告别“乱搜”
+            // 2. 严格按相关度精准排序
             const exactMatches = [];
             const prefixMatches = [];
             const containsMatches = [];
@@ -1293,7 +1293,8 @@
 
             list.forEach(item => {
                 const name = (item.book_name || '').trim();
-                const dedupeKey = name + '_' + (item.author || '');
+                // 在聚合搜模式下，包含来源区分 dedupeKey，确保各书源的所有匹配版本都能完整展示给用户任选！
+                const dedupeKey = isAll ? (name + '_' + (item.author || '') + '_' + (item.source || '')) : (name + '_' + (item.author || ''));
                 if (seen.has(dedupeKey)) return;
                 seen.add(dedupeKey);
 
