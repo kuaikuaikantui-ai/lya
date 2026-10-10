@@ -688,10 +688,25 @@
                         if (window.Hls && window.Hls.isSupported()) {
                             const hls = new window.Hls({
                                 enableWorker: true,
-                                lowLatencyMode: true
+                                lowLatencyMode: true,
+                                startLevel: -1,             // 自动探测并从最高分辨率切入
+                                capLevelToPlayerSize: false,// 禁止因屏幕/容器尺寸限制下调分辨率
+                                maxBufferLength: 30,
+                                maxMaxBufferLength: 60,
+                                backBufferLength: 30
                             });
                             hls.loadSource(video.src);
                             hls.attachMedia(video);
+                            hls.on(window.Hls.Events.MANIFEST_PARSED, function (event, data) {
+                                // 核心画质锁定：如果有多个画质等级（如480P/720P/1080P/4K），强制锁定到最高层级
+                                if (data && data.levels && data.levels.length > 0) {
+                                    const highestLevel = data.levels.length - 1;
+                                    hls.currentLevel = highestLevel;
+                                    console.log(`[OpenHappy HQ] 自动锁定最高画质: ${data.levels[highestLevel].height || 'Max'}P, 比特率: ${data.levels[highestLevel].bitrate || 'Auto'}`);
+                                }
+                            });
+                            // 保持对 hls 实例的引用，便于画质控制
+                            window.currentHlsInstance = hls;
                         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                             video.src = videoUrl;
                         }
@@ -802,6 +817,26 @@
         }
     };
 
+    // 画质增强开关控制 (原站画质增强技术：GPU边缘对比度锐化 + HDR动态色彩增强)
+    window.isVideoHqEnhanced = true;
+    window.toggleVideoHqEnhance = function() {
+        const container = document.getElementById('dplayerContainer');
+        const badge = document.getElementById('hqToggleBtn');
+        const text = document.getElementById('hqToggleText');
+        if (!container || !badge) return;
+
+        window.isVideoHqEnhanced = !window.isVideoHqEnhanced;
+        if (window.isVideoHqEnhanced) {
+            container.classList.remove('hq-enhanced-off');
+            badge.classList.remove('off');
+            if (text) text.innerText = '原站画质增强: 开';
+        } else {
+            container.classList.add('hq-enhanced-off');
+            badge.classList.add('off');
+            if (text) text.innerText = '原站画质增强: 关';
+        }
+    };
+
     // 关闭视频播放器，返回影视主视窗
     window.closeVideoPlayer = function() {
         if (window.dpInstance) {
@@ -816,3 +851,4 @@
         window.renderRecentWatchBar();
     };
 })();
+

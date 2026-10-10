@@ -633,8 +633,47 @@
         }
 
 
+        /* 视频播放器 4K 超清画质增强 & GPU 边缘色彩锐化增强 */
+        #dplayerContainer video {
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-font-smoothing: antialiased;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: high-quality;
+            filter: contrast(106%) saturate(108%) brightness(101%);
+            transition: filter 0.3s ease;
+        }
 
-        .modal-overlay {
+        /* 画质增强开/关模式 */
+        #dplayerContainer.hq-enhanced-off video {
+            filter: none !important;
+            image-rendering: auto !important;
+        }
+
+        .hq-toggle-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(45, 212, 192, 0.2), rgba(14, 165, 233, 0.2));
+            color: #2dd4c0;
+            border: 1px solid rgba(45, 212, 192, 0.35);
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+        .hq-toggle-badge:hover {
+            background: linear-gradient(135deg, rgba(45, 212, 192, 0.3), rgba(14, 165, 233, 0.3));
+            border-color: #2dd4c0;
+        }
+        .hq-toggle-badge.off {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            border-color: var(--border);
+        }
+
             position: fixed; inset: 0;
             background: rgba(0,0,0,0.7);
             backdrop-filter: blur(4px);
@@ -890,8 +929,13 @@
     <section id="videoPlayerView" style="display: none;">
         <div class="view-header" style="margin-bottom: 10px;">
             <button class="btn" onclick="window.closeVideoPlayer()"><i class="fas fa-arrow-left"></i> 返回剧集</button>
-            <h3 id="videoPlayerTitle" style="font-size: 15px; max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">正在播放</h3>
-            <span class="card-tag" id="videoSourceTag">高清源</span>
+            <h3 id="videoPlayerTitle" style="font-size: 15px; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">正在播放</h3>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span class="hq-toggle-badge" id="hqToggleBtn" onclick="window.toggleVideoHqEnhance()" title="点击开启/关闭 GPU 原画质边缘锐化及色彩动态增强">
+                    <i class="fas fa-magic"></i> <span id="hqToggleText">原站画质增强: 开</span>
+                </span>
+                <span class="card-tag" id="videoSourceTag">高清源</span>
+            </div>
         </div>
 
         <div class="video-container" style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.5);">
