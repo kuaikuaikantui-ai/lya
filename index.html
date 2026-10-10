@@ -279,6 +279,42 @@
         }
         .chap-btn:active { background: var(--accent-glow); }
         .chap-btn.read-active { border-color: var(--accent); background: var(--accent-glow); }
+        /* 排版设置下拉面板 */
+        .format-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .format-panel {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+            min-width: 190px;
+            z-index: 120;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .format-panel.show {
+            display: flex;
+        }
+        .format-panel-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-main);
+        }
+        .format-btn-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
 
         .reader-toolbar {
             display: flex;
@@ -470,14 +506,37 @@
             </div>
 
             <div class="reader-toolbar" id="readerToolbar" style="margin-bottom: 0;">
-                <span id="readProgressText" style="color:var(--text-muted);">进度更新中...</span>
-                <div class="font-adjust" style="display:flex; align-items:center; gap:6px;">
-                    <span style="font-size:11px; color:var(--text-muted); margin-right:-2px;">字号:</span>
-                    <button class="btn" style="padding:2px 7px; font-size:11px;" onclick="adjustFontSize(-1)">A-</button>
-                    <button class="btn" style="padding:2px 7px; font-size:11px;" onclick="adjustFontSize(1)">A+</button>
-                    <span style="font-size:11px; color:var(--text-muted); margin-left:4px; margin-right:-2px;">行距:</span>
-                    <button class="btn" style="padding:2px 7px; font-size:11px;" title="缩小行距" onclick="adjustLineHeight(-0.2)"><i class="fas fa-compress-arrows-alt"></i> -</button>
-                    <button class="btn" style="padding:2px 7px; font-size:11px;" title="增大行距" onclick="adjustLineHeight(0.2)"><i class="fas fa-expand-arrows-alt"></i> +</button>
+                <span id="readProgressText" style="color:var(--text-muted); font-size:11px; max-width:28%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">进度更新中...</span>
+                
+                <!-- 快捷翻章 -->
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <button class="btn" style="padding:3px 9px; font-size:11px;" onclick="prevChapter()"><i class="fas fa-chevron-left"></i> 上一章</button>
+                    <button class="btn" style="padding:3px 9px; font-size:11px;" onclick="nextChapter()">下一章 <i class="fas fa-chevron-right"></i></button>
+                </div>
+
+                <!-- 排版设置下拉菜单 -->
+                <div class="format-dropdown">
+                    <button class="btn" id="formatToggleBtn" style="padding:3px 8px; font-size:11px;" onclick="toggleFormatMenu(event)">
+                        <i class="fas fa-font"></i> 排版 <i class="fas fa-caret-down" style="font-size:9px;"></i>
+                    </button>
+                    <div class="format-panel" id="formatPanel" onclick="event.stopPropagation()">
+                        <div class="format-panel-row">
+                            <span style="color:var(--text-muted);"><i class="fas fa-text-height"></i> 字号</span>
+                            <div class="format-btn-group">
+                                <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustFontSize(-1)">A-</button>
+                                <span id="curFontSizeLabel" style="font-size:11px; min-width:28px; text-align:center;">17px</span>
+                                <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustFontSize(1)">A+</button>
+                            </div>
+                        </div>
+                        <div class="format-panel-row">
+                            <span style="color:var(--text-muted);"><i class="fas fa-arrows-alt-v"></i> 行距</span>
+                            <div class="format-btn-group">
+                                <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustLineHeight(-0.2)">-</button>
+                                <span id="curLineHeightLabel" style="font-size:11px; min-width:28px; text-align:center;">1.9</span>
+                                <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustLineHeight(0.2)">+</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1483,13 +1542,41 @@
         currentFontSize = Math.min(26, Math.max(13, currentFontSize + delta));
         document.documentElement.style.setProperty('--reader-font-size', currentFontSize + 'px');
         localStorage.setItem('reader_font_size', currentFontSize);
+        updateFormatLabels();
     }
 
     function adjustLineHeight(delta) {
         currentLineHeight = Math.min(2.8, Math.max(1.3, parseFloat((currentLineHeight + delta).toFixed(1))));
         document.documentElement.style.setProperty('--reader-line-height', currentLineHeight);
         localStorage.setItem('reader_line_height', currentLineHeight);
+        updateFormatLabels();
     }
+
+    function toggleFormatMenu(e) {
+        if (e) e.stopPropagation();
+        const panel = document.getElementById('formatPanel');
+        if (panel) {
+            panel.classList.toggle('show');
+            updateFormatLabels();
+        }
+    }
+
+    function updateFormatLabels() {
+        const fontLbl = document.getElementById('curFontSizeLabel');
+        if (fontLbl) fontLbl.innerText = currentFontSize + 'px';
+        const lineLbl = document.getElementById('curLineHeightLabel');
+        if (lineLbl) lineLbl.innerText = currentLineHeight.toFixed(1);
+    }
+
+    // 点击页面任意外部区域关闭排版下拉框
+    document.addEventListener('click', (e) => {
+        const dropdown = document.querySelector('.format-dropdown');
+        if (dropdown && !dropdown.contains(e.target)) {
+            const panel = document.getElementById('formatPanel');
+            if (panel) panel.classList.remove('show');
+        }
+    });
+
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') toggleStealth();
