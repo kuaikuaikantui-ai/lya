@@ -394,6 +394,72 @@
         }
         .pager button { flex: 1; padding: 12px; }
 
+        /* 影视专区样式 */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 600px) {
+            .video-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+        }
+        .video-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .video-card:active { transform: scale(0.97); }
+        .video-thumb-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3/4;
+            background: #111;
+            overflow: hidden;
+        }
+        .video-thumb-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .video-badge {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.75);
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            backdrop-filter: blur(2px);
+        }
+        .video-card-body { padding: 6px 8px; }
+        .video-card-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .video-card-sub {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+
         .modal-overlay {
             position: fixed; inset: 0;
             background: rgba(0,0,0,0.7);
@@ -441,6 +507,8 @@
         }
         .switch-item:active { background: var(--accent-glow); border-color: var(--accent); }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.light.min.js"></script>
+    <script src="video.js"></script>
 </head>
 <body>
 
@@ -577,6 +645,58 @@
             <button class="btn primary" id="nextBtn" onclick="nextChapter()">下一章</button>
         </div>
     </section>
+
+    <!-- 影视专区 -->
+    <section id="videoSection" style="display: none;">
+        <div class="search-box">
+            <div class="search-row">
+                <input type="text" id="videoSearchInput" class="search-input" placeholder="搜索电影、电视剧、动漫、综艺..." onkeydown="if(event.key==='Enter')window.doVideoSearch()" />
+                <button class="btn primary" onclick="window.doVideoSearch()"><i class="fas fa-search"></i> 搜剧</button>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                <div style="display:flex; gap:8px;">
+                    <button class="btn" style="font-size:11px; padding:3px 9px;" onclick="window.loadVideoFeed('liangzi')">量子高清</button>
+                    <button class="btn" style="font-size:11px; padding:3px 9px;" onclick="window.loadVideoFeed('feifan')">非凡影院</button>
+                    <button class="btn" style="font-size:11px; padding:3px 9px;" onclick="window.loadVideoFeed('baofeng')">暴风影院</button>
+                </div>
+                <span style="font-size:11px; color:var(--text-muted);"><i class="fas fa-shield-alt" style="color:var(--accent);"></i> 纯净无弹窗</span>
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4 id="videoSectionTitle" style="font-size:14px; font-weight:600;"><i class="fas fa-fire" style="color:#f59e0b;"></i> 热播精选推荐</h4>
+            <span id="videoCountBadge" style="font-size:11px; color:var(--text-muted);">实时更新</span>
+        </div>
+        <div id="videoGrid" class="video-grid"></div>
+    </section>
+
+    <!-- 纯净视频播放视窗 -->
+    <section id="videoPlayerView" style="display: none;">
+        <div class="view-header" style="margin-bottom: 10px;">
+            <button class="btn" onclick="window.closeVideoPlayer()"><i class="fas fa-arrow-left"></i> 返回剧集</button>
+            <h3 id="videoPlayerTitle" style="font-size: 15px; max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">正在播放</h3>
+            <span class="card-tag" id="videoSourceTag">高清源</span>
+        </div>
+
+        <div class="video-container" style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+            <video id="hlsVideoPlayer" controls playsinline webkit-playsinline style="width:100%; height:100%; background:#000; object-fit:contain;"></video>
+        </div>
+
+        <div style="margin-top:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <h4 style="font-size:14px; font-weight:600;"><i class="fas fa-list-ol"></i> 剧集选集</h4>
+                <span id="currentEpisodeBadge" style="font-size:11px; color:var(--accent);">第1集</span>
+            </div>
+            <div id="videoEpisodesList" class="catalog-grid" style="max-height: 220px; overflow-y:auto;"></div>
+        </div>
+
+        <div style="margin-top:14px; padding:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;">
+            <h5 id="videoDetailName" style="font-size:13px; font-weight:600; margin-bottom:4px;"></h5>
+            <p id="videoDetailMeta" style="font-size:11px; color:var(--text-muted); margin-bottom:6px;"></p>
+            <p id="videoDetailDesc" style="font-size:12px; color:var(--text-muted); line-height:1.6;"></p>
+        </div>
+    </section>
+
 </main>
 
 
