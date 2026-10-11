@@ -546,18 +546,23 @@
         .catalog-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            grid-auto-rows: max-content;
+            align-content: start;
             gap: 8px;
-            max-height: 400px;
+            max-height: 420px;
             overflow-y: auto;
             padding: 4px;
         }
         .chap-btn {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.06);
             backdrop-filter: blur(18px) saturate(180%);
             -webkit-backdrop-filter: blur(18px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            color: rgba(241, 245, 249, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            color: rgba(248, 250, 252, 0.9);
             padding: 8px 12px;
+            min-height: 36px;
+            line-height: 18px;
+            flex-shrink: 0;
             border-radius: 20px;
             font-size: 12px;
             text-align: center;
@@ -570,15 +575,15 @@
         }
         .chap-btn:hover {
             color: #ffffff;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.04) 100%);
-            border-color: rgba(255, 255, 255, 0.38);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
+            border-color: rgba(255, 255, 255, 0.42);
             transform: translateY(-1px) scale(1.02);
             box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 6px 16px rgba(0, 0, 0, 0.3), 0 0 14px rgba(56, 189, 248, 0.22);
         }
         .chap-btn.read-active {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(56, 189, 248, 0.1) 50%, rgba(255, 255, 255, 0.12) 100%) !important;
-            border: 1px solid rgba(255, 255, 255, 0.48) !important;
-            border-top-color: rgba(255, 255, 255, 0.8) !important;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.28) 0%, rgba(56, 189, 248, 0.14) 50%, rgba(255, 255, 255, 0.16) 100%) !important;
+            border: 1px solid rgba(56, 189, 248, 0.65) !important;
+            border-top-color: rgba(255, 255, 255, 0.85) !important;
             color: #ffffff !important;
             font-weight: 600;
             text-shadow: 0 0 12px rgba(255, 255, 255, 0.7), 0 0 6px rgba(56, 189, 248, 0.5);
@@ -3099,17 +3104,21 @@
         </div>
     </section>
 
-    <!-- 阅读器内快捷目录抽屉弹窗 -->
+    <!-- 阅读器内快捷目录弹窗（与详情页目录完全同款布局） -->
     <div class="modal-overlay" id="readerCatalogModal" onclick="if(event.target===this)closeReaderCatalogModal()">
-        <div class="modal-card" style="max-width: 560px; max-height: 82vh; display: flex; flex-direction: column;">
+        <div class="modal-card" style="width: 94%; max-width: 860px; max-height: 84vh; background: rgba(13, 18, 28, 0.96); display: flex; flex-direction: column;">
             <div class="modal-head">
-                <span style="font-weight: 600;"><i class="fas fa-list-ul" style="color:var(--accent);"></i> 章节目录 <small id="readerCatalogModalSub" style="color:var(--text-muted); font-weight:400; margin-left:6px;"></small></span>
-                <div style="display:flex; gap:6px;">
-                    <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="reverseReaderCatalogOrder()"><i class="fas fa-sort"></i> 倒序</button>
-                    <button class="btn" onclick="closeReaderCatalogModal()">✕</button>
+                <span style="font-weight: 600; font-size: 14px;">📑 完整章节目录 <small id="readerCatalogModalSub" style="color:var(--text-muted); font-weight:400; margin-left:6px;"></small></span>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <button class="btn" id="readerCatalogSortBtn" style="padding:4px 10px; font-size:11.5px;" onclick="reverseReaderCatalogOrder()">
+                        <i class="fas fa-sort-numeric-down"></i> 正序 (1→最新)
+                    </button>
+                    <button class="btn" style="padding:4px 12px;" onclick="closeReaderCatalogModal()">✕</button>
                 </div>
             </div>
-            <div id="readerCatalogModalList" class="source-switch-list" style="overflow-y: auto; padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px;"></div>
+            <div style="padding: 12px 14px; overflow-y: auto; flex: 1; min-height: 0;">
+                <div id="readerCatalogModalList" class="catalog-grid" style="max-height: none; overflow: visible;"></div>
+            </div>
         </div>
     </div>
 
@@ -4559,7 +4568,7 @@
     };
 
     // ==========================================
-    // 智能目录正序归一化引擎 (自动识别倒序目录、剔除头部最新章节预览重复、乱序重排)
+    // 智能目录正序与去重归一化引擎 (绝不跨卷强排破坏多卷小说，精准剔除混杂重复线路/同名无编号重复章/试看重复章并翻转倒序)
     // ==========================================
     let _detailCatalogReversed = false;
 
@@ -4569,7 +4578,6 @@
         const map = { '零': 0, '〇': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
         const unitMap = { '十': 10, '百': 100, '千': 1000, '万': 10000 };
         let total = 0;
-        let currentUnit = 1;
         let tempNum = 0;
         let hasValidChar = false;
 
@@ -4595,170 +4603,190 @@
         return hasValidChar ? total : null;
     }
 
-    function parseChapterOrderNum(rawTitle) {
+    function parseChapterInfo(rawTitle) {
         const title = String(rawTitle || '').trim();
-        if (!title) return null;
+        if (!title) return { num: null, style: 'none', core: '' };
 
         if (/^(序[章言曲幕]?|楔子|引子|前言|预告|导读|Prologue)(\s|$|[：:·\-])/i.test(title)) {
-            return 0;
+            return { num: 0, style: 'prologue', core: title };
         }
 
-        let baseNum = null;
-        // 1. 匹配 "第123话/章/回/集/卷/节" 或 "第百二十三章"
-        const explicitMatch = title.match(/第\s*([0-9]+(?:\.[0-9]+)?|[零〇一二两三四五六七八九十百千万]+)\s*[话話章回集卷节節幕]/);
-        if (explicitMatch) {
-            baseNum = chineseNumToArabic(explicitMatch[1]);
+        // 1. 匹配 "第X卷" (单行本分卷，不与普通话数混淆)
+        const mVol = title.match(/^第\s*([0-9]+|[零〇一二两三四五六七八九十百千万]+)\s*卷(.*)$/);
+        if (mVol) {
+            return { num: null, style: 'volume', core: title };
         }
 
-        // 2. 匹配无"第"字但带单位，如 "125话"、"08章"
-        if (baseNum === null) {
-            const unitMatch = title.match(/(?:^|[\s【\[(\（])([0-9]{1,5}(?:\.[0-9]+)?|[零〇一二两三四五六七八九十百千万]{1,7})\s*[话話章回集节節]/);
-            if (unitMatch) {
-                baseNum = chineseNumToArabic(unitMatch[1]);
+        // 2. 匹配标准 "第X话/章/回/集/节"
+        const m1 = title.match(/^第\s*([0-9]+(?:\.[0-9]+)?|[零〇一二两三四五六七八九十百千万]+)\s*([话話章回集节節幕])(.*)$/);
+        if (m1) {
+            const n = chineseNumToArabic(m1[1]);
+            const rest = (m1[3] || '').replace(/^[\s\.:：\-_·]+/, '').trim();
+            return { num: n, style: 'di_unit', unit: m1[2], core: rest };
+        }
+
+        // 3. 匹配 "总X"
+        const mTotal = title.match(/^总\s*(\d+(?:\.\d+)?)(.*)$/);
+        if (mTotal) {
+            return { num: parseFloat(mTotal[1]), style: 'di_unit', core: (mTotal[2] || '').replace(/^[\s\.:：\-_·]+/, '').trim() };
+        }
+
+        // 4. 匹配纯数字开头: 如 "125 标题"、"001·标题"、"1.标题"
+        const mBare = title.match(/^(\d{1,5}(?:\.\d+)?)(?:\s*[\.、:：\-_·\s]\s*(.*))?$/);
+        if (mBare) {
+            const n = parseFloat(mBare[1]);
+            if (n < 1900 || n > 2100 || title.length <= 6) {
+                return { num: n, style: 'bare_num', core: (mBare[2] || '').trim() };
             }
         }
 
-        // 3. 匹配纯数字开头，如 "001 陨落的天才"、"12. 决战"、"125"
-        if (baseNum === null) {
-            const prefixMatch = title.match(/^\s*([0-9]{1,5}(?:\.[0-9]+)?)(?:\s*[\.、:：\-_~～\s]|$)/);
-            if (prefixMatch) {
-                const n = parseFloat(prefixMatch[1]);
-                // 排除年份如 2024
-                if (n < 1900 || n > 2100 || title.length <= 6) {
-                    baseNum = n;
-                }
-            }
-        }
-
-        if (baseNum === null || Number.isNaN(baseNum)) return null;
-
-        // 处理同章节 (上)/(中)/(下) 或 (1)/(2)/(3) 微调偏移，确保同话内上中下顺序稳定
-        if (/[（(\[【\s]上[）)\]】\s]?$/.test(title) || /[\s\-_—]上$/.test(title)) baseNum += 0.1;
-        else if (/[（(\[【\s]中[）)\]】\s]?$/.test(title) || /[\s\-_—]中$/.test(title)) baseNum += 0.2;
-        else if (/[（(\[【\s]下[）)\]】\s]?$/.test(title) || /[\s\-_—]下$/.test(title)) baseNum += 0.3;
-        else {
-            const subPart = title.match(/[（(\[【]([1-9])[）)\]】]\s*$/);
-            if (subPart) baseNum += parseInt(subPart[1], 10) * 0.05;
-        }
-
-        return baseNum;
+        return { num: null, style: 'none', core: title };
     }
 
-    function normalizeAndSortCatalog(rawList) {
+    function parseChapterOrderNum(rawTitle) {
+        return parseChapterInfo(rawTitle).num;
+    }
+
+    function normalizeAndSortCatalog(rawList, activeTab) {
         if (!Array.isArray(rawList) || rawList.length <= 1) {
             return { list: Array.isArray(rawList) ? rawList.slice() : [], wasFixed: false, fixReason: '' };
         }
 
-        let items = rawList.map((item, origIdx) => ({
+        const tab = activeTab || (currentBookInfo && currentBookInfo.tab) || '漫画';
+        const reasons = [];
+        let items = rawList.map((item, idx) => ({
             ...item,
-            _origIdx: origIdx,
-            _num: parseChapterOrderNum(item?.title)
+            _idx: idx,
+            _info: parseChapterInfo(item?.title)
         }));
 
-        let wasFixed = false;
-        const reasons = [];
+        // 第一步（针对漫画）：剔除同一页面被爬虫混入的两套重叠编号线路（如《完美世界》同时混入了 "第1~320话" 和 "1~162 标题(上/下)"）
+        if (tab === '漫画') {
+            const diItems = items.filter(x => x._info.style === 'di_unit' && x._info.num !== null);
+            const bareItems = items.filter(x => x._info.style === 'bare_num' && x._info.num !== null);
+            if (diItems.length >= 20 && bareItems.length >= 20) {
+                const diNums = new Set(diItems.map(x => Math.floor(x._info.num)));
+                const bareNums = new Set(bareItems.map(x => Math.floor(x._info.num)));
+                let overlap = 0;
+                const smallerSet = diNums.size <= bareNums.size ? diNums : bareNums;
+                const largerSet = diNums.size <= bareNums.size ? bareNums : diNums;
+                for (const n of smallerSet) {
+                    if (largerSet.has(n)) overlap++;
+                }
+                if (overlap >= smallerSet.size * 0.5) {
+                    const dropStyle = diItems.length >= bareItems.length ? 'bare_num' : 'di_unit';
+                    items = items.filter(x => x._info.style !== dropStyle);
+                    reasons.push('剔除重复混杂线路');
+                }
+            }
+        }
 
-        // 第一步：剔除采集站常见的“头部最新章节预览区”（即前 1~15 项是最新几百章，紧接着出现 第1章/序章，且尾部已经包含那些最新章）
-        if (items.length > 12) {
-            let firstStartIdx = -1;
-            const searchLimit = Math.min(20, Math.floor(items.length / 2));
-            for (let i = 1; i < searchLimit; i++) {
-                const n = items[i]._num;
-                if (n !== null && n <= 2 && items[0]._num !== null && items[0]._num > n + 5) {
-                    firstStartIdx = i;
+        // 第二步：剔除相邻的“有编号 vs 无编号同名重复章”（如《武炼巅峰》中 '1141 地肺火池' 紧挨着 '地肺火池'）及相邻的 '试看版' 重复章
+        const filteredAdj = [];
+        for (let i = 0; i < items.length; i++) {
+            const cur = items[i];
+            const prev = filteredAdj.length > 0 ? filteredAdj[filteredAdj.length - 1] : null;
+            const next = i + 1 < items.length ? items[i + 1] : null;
+            const curTitle = String(cur.title || '').trim();
+
+            if (/^(近期上线|敬请期待|暂缺|更新中|请假条?)([\s·\-_]*(近期上线|敬请期待|暂缺|更新中))?$/.test(curTitle)) {
+                continue;
+            }
+
+            if (cur._info.style === 'none' && cur._info.core.length >= 2) {
+                const sameAsPrev = prev && prev._info.num !== null && prev._info.core === cur._info.core;
+                const sameAsNext = next && next._info.num !== null && next._info.core === cur._info.core;
+                if (sameAsPrev || sameAsNext) {
+                    if (!reasons.includes('去重同名章节')) reasons.push('去重同名章节');
+                    continue;
+                }
+            }
+
+            if (/试看|先行版|野生版/.test(curTitle) && cur._info.num !== null) {
+                const hasOfficialPrev = prev && prev._info.num === cur._info.num && !/试看|先行版|野生版/.test(prev.title || '');
+                const hasOfficialNext = next && next._info.num === cur._info.num && !/试看|先行版|野生版/.test(next.title || '');
+                if (hasOfficialPrev || hasOfficialNext) {
+                    if (!reasons.includes('过滤试看重复章')) reasons.push('过滤试看重复章');
+                    continue;
+                }
+            }
+
+            filteredAdj.push(cur);
+        }
+        items = filteredAdj;
+
+        // 第三步（针对漫画）：如果倒序目录在到达 "第1话" 后又突然跳回 "第59话..第1话"（采集站尾部拼接了其他漫画），自动截断尾部冗余
+        if (tab === '漫画' && items.length > 80) {
+            for (let i = Math.floor(items.length * 0.45); i < items.length - 5; i++) {
+                const curNum = items[i]._info.num;
+                const nextNum = items[i + 1]?._info.num;
+                if (curNum === 1 && nextNum !== null && nextNum > 15) {
+                    items = items.slice(0, i + 1);
+                    if (!reasons.includes('清理尾部拼接冗余')) reasons.push('清理尾部拼接冗余');
                     break;
                 }
             }
+        }
+
+        // 第四步：剔除小说采集站常见的“头部最新章节预览区”（前 1~15 项是最新几百章，紧接着 第1章/序章，且尾部已包含这些章节）
+        if (items.length > 15) {
+            let firstStartIdx = -1;
+            const searchLimit = Math.min(18, Math.floor(items.length / 3));
+            for (let i = 1; i < searchLimit; i++) {
+                const n = items[i]._info.num;
+                if (n !== null && n <= 1 && items[0]._info.num !== null && items[0]._info.num > 15) {
+                    // 确认 i 之后是递增的 (如 第1章, 第2章, 第3章)
+                    const nextN = items[i + 1]?._info.num;
+                    if (nextN !== null && nextN >= n && nextN <= n + 3) {
+                        firstStartIdx = i;
+                        break;
+                    }
+                }
+            }
             if (firstStartIdx > 0) {
-                const headSlice = items.slice(0, firstStartIdx);
-                const tailSlice = items.slice(firstStartIdx);
-                const tailTitles = new Set(tailSlice.map(x => (x.title || '').trim()));
-                const duplicateInTailCount = headSlice.filter(x => tailTitles.has((x.title || '').trim())).length;
-                if (duplicateInTailCount >= 1 || (headSlice[0]._num > 10 && tailSlice[0]._num <= 2)) {
-                    items = tailSlice;
-                    wasFixed = true;
-                    reasons.push('剔除头部倒序预览');
-                }
+                items = items.slice(firstStartIdx);
+                reasons.push('剔除头部最新预览重复');
             }
         }
 
-        // 第二步：分析章节序号走向（判断整体是否倒序或局部乱序）
-        const numbered = items.filter(x => x._num !== null);
-        if (numbered.length >= Math.max(2, Math.floor(items.length * 0.35))) {
-            let ascPairs = 0;
-            let descPairs = 0;
-            for (let i = 1; i < numbered.length; i++) {
-                const diff = numbered[i]._num - numbered[i - 1]._num;
-                if (diff > 0) ascPairs++;
-                else if (diff < 0) descPairs++;
-            }
-
-            // 如果明显倒序（如从最新话排到第1话）
-            if (descPairs > ascPairs * 1.3) {
-                items.reverse();
-                wasFixed = true;
-                reasons.push('倒序已自动翻转为正序');
-            }
-
-            // 重新检查翻转后是否仍存在乱序章节（例如部分章节穿插错位）
-            const reNumbered = items.filter(x => x._num !== null);
-            let outOfOrderCount = 0;
-            for (let i = 1; i < reNumbered.length; i++) {
-                if (reNumbered[i]._num < reNumbered[i - 1]._num) {
-                    outOfOrderCount++;
+        // 第五步：基于相邻章节局部连续步进判断整体是否为倒序（绝不跨卷全局 sort，完美保留《剑来》等多卷书及漫画上下篇原始顺序）
+        let ascSteps = 0;
+        let descSteps = 0;
+        let lastNum = null;
+        for (const it of items) {
+            if (it._info.num !== null) {
+                if (lastNum !== null) {
+                    const diff = it._info.num - lastNum;
+                    if (diff > 0 && diff <= 10) ascSteps++;
+                    else if (diff < 0 && diff >= -10) descSteps++;
                 }
-            }
-
-            // 如果超过 65% 的章节都有明确序号，且存在乱序穿插，执行智能稳定正序重排
-            if (outOfOrderCount > 0 && reNumbered.length >= items.length * 0.65) {
-                // 为夹在数字章节之间的无数字番外分配插值序号，保持相对位置不乱飞
-                let lastKnownNum = 0;
-                items.forEach((it, idx) => {
-                    if (it._num !== null) {
-                        lastKnownNum = it._num;
-                        it._sortKey = it._num;
-                    } else {
-                        it._sortKey = lastKnownNum + 0.001 * (idx + 1);
-                    }
-                });
-                items.sort((a, b) => {
-                    if (Math.abs(a._sortKey - b._sortKey) > 1e-6) {
-                        return a._sortKey - b._sortKey;
-                    }
-                    return a._origIdx - b._origIdx;
-                });
-                wasFixed = true;
-                if (!reasons.includes('乱序章节已智能重排')) {
-                    reasons.push('乱序章节已重排');
-                }
+                lastNum = it._info.num;
             }
         }
 
-        // 第三步：去重（消除同名同 item_id 或连续完全重复的采集脏章节）
+        if (descSteps > ascSteps * 1.3 && descSteps >= 3) {
+            items.reverse();
+            reasons.unshift('倒序已自动转为正序');
+        }
+
+        // 第六步：最终清理相邻完全同名或重复 item_id
         const deduped = [];
         const seenItemIds = new Set();
         for (const it of items) {
             const idKey = it.item_id ? String(it.item_id) : '';
             const titleKey = String(it.title || '').trim();
-            if (idKey && seenItemIds.has(idKey)) {
-                wasFixed = true;
-                continue;
-            }
-            if (deduped.length > 0 && titleKey && titleKey === String(deduped[deduped.length - 1].title || '').trim()) {
-                wasFixed = true;
-                continue;
-            }
+            if (idKey && seenItemIds.has(idKey)) continue;
+            if (deduped.length > 0 && titleKey && titleKey === String(deduped[deduped.length - 1].title || '').trim()) continue;
             if (idKey) seenItemIds.add(idKey);
             const cleanItem = { ...it };
-            delete cleanItem._origIdx;
-            delete cleanItem._num;
-            delete cleanItem._sortKey;
+            delete cleanItem._idx;
+            delete cleanItem._info;
             deduped.push(cleanItem);
         }
 
         return {
             list: deduped,
-            wasFixed,
+            wasFixed: reasons.length > 0,
             fixReason: reasons.join(' · ')
         };
     }
@@ -4826,7 +4854,7 @@
             const data = await res.json();
             const rawCatalog = data.data || [];
 
-            const normalized = normalizeAndSortCatalog(rawCatalog);
+            const normalized = normalizeAndSortCatalog(rawCatalog, activeTab);
             currentCatalog = normalized.list;
 
             if (countBadge && currentCatalog.length > 0) {
@@ -5412,12 +5440,20 @@
 
     function renderReaderCatalogModalItems() {
         const listEl = document.getElementById('readerCatalogModalList');
+        const sortBtn = document.getElementById('readerCatalogSortBtn');
         if (!listEl) return;
+
+        if (sortBtn) {
+            sortBtn.innerHTML = _readerCatalogReversed
+                ? '<i class="fas fa-sort-numeric-up-alt"></i> 倒序 (最新→1)'
+                : '<i class="fas fa-sort-numeric-down"></i> 正序 (1→最新)';
+        }
+
         const indexed = currentCatalog.map((chap, idx) => ({ chap, idx }));
         if (_readerCatalogReversed) indexed.reverse();
 
         listEl.innerHTML = indexed.map(({ chap, idx }) => `
-            <div class="chap-btn ${idx === currentChapterIndex ? 'read-active' : ''}" title="${escapeNovelHtml(chap.title)}" onclick="closeReaderCatalogModal(); readChapter(${idx});">
+            <div class="chap-btn ${idx === currentChapterIndex ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="closeReaderCatalogModal(); readChapter(${idx});">
                 ${escapeNovelHtml(chap.title)}
             </div>
         `).join('');
