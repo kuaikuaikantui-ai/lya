@@ -28,8 +28,11 @@
             --text-muted: #8e9bb0;
             --accent: #38bdf8;
             --accent-glow: rgba(56, 189, 248, 0.22);
-            --reader-font-size: 17px;
+            --reader-font-size: 18px;
             --reader-line-height: 1.9;
+            --reader-para-spacing: 1.15em;
+            --reader-max-width: 820px;
+            --reader-font-family: "LXGW WenKai Screen", "LXGW WenKai", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", serif;
         }
 
         body[data-theme="warm"] {
@@ -1059,9 +1062,19 @@
             background: var(--glass-card);
             backdrop-filter: var(--glass-blur);
             border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 16px 12px;
-            min-height: 60vh;
+            border-radius: 20px;
+            padding: 36px 42px;
+            min-height: 75vh;
+            max-width: var(--reader-max-width, 820px);
+            margin: 0 auto;
+            position: relative;
+            transition: max-width 0.25s ease, background 0.3s ease, color 0.3s ease;
+        }
+        @media (max-width: 640px) {
+            .reader-wrapper {
+                padding: 22px 18px;
+                border-radius: 16px;
+            }
         }
         .img-stream {
             display: flex;
@@ -1078,21 +1091,136 @@
             border-radius: 6px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.3);
         }
+        /* 赫蹏 (Heti) + 微信读书级专业中文书籍排版流 */
         .text-stream {
+            font-family: var(--reader-font-family);
             font-size: var(--reader-font-size);
             line-height: var(--reader-line-height);
-            padding: 8px 12px;
-            white-space: pre-wrap;
+            padding: 4px 4px 18px;
             word-break: break-word;
+            overflow-wrap: break-word;
+            text-align: justify;
+            text-justify: inter-ideograph;
+            letter-spacing: 0.025em;
+            -webkit-font-smoothing: antialiased;
+            font-feature-settings: "palt" 1, "kern" 1;
+            hanging-punctuation: allow-end;
         }
-        .text-stream p {
-            margin-bottom: 1.2em;
-            text-indent: 2em;
+        .text-stream.heti {
+            max-width: 100%;
+            font-size: var(--reader-font-size);
+            line-height: var(--reader-line-height);
+            font-family: var(--reader-font-family);
+        }
+        .text-stream p,
+        .text-stream p.novel-para {
+            margin: 0 0 var(--reader-para-spacing, 1.15em) 0 !important;
+            text-indent: 2em !important;
+            line-height: var(--reader-line-height) !important;
+            text-align: justify;
+        }
+        .text-stream p.novel-scene-break {
+            text-indent: 0 !important;
+            text-align: center !important;
+            opacity: 0.55;
+            letter-spacing: 0.35em;
+            margin: 1.6em 0 !important;
+            user-select: none;
+        }
+        /* 书籍扉页式章节头部 */
+        .novel-chapter-header {
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+            text-align: left;
+        }
+        .novel-chapter-book badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            opacity: 0.72;
+            margin-bottom: 8px;
+        }
+        .novel-chapter-title {
+            font-family: var(--reader-font-family);
+            font-size: calc(var(--reader-font-size) * 1.42);
+            font-weight: 700;
+            line-height: 1.35;
+            margin: 6px 0 12px 0 !important;
+            text-indent: 0 !important;
+            letter-spacing: 0.02em;
+        }
+        .novel-chapter-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 14px;
+            font-size: 12px;
+            opacity: 0.65;
+        }
+        /* 仿真书页左右翻页模式 (Paginated Book Mode) */
+        .reader-wrapper.mode-paginated {
+            height: calc(100vh - 86px);
+            min-height: 520px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 26px 36px 42px;
+            user-select: none;
+        }
+        @media (max-width: 640px) {
+            .reader-wrapper.mode-paginated {
+                height: calc(100vh - 54px);
+                padding: 18px 16px 38px;
+            }
+        }
+        .reader-paginated-viewport {
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+        .reader-wrapper.mode-paginated .text-stream {
+            height: 100%;
+            column-width: calc(var(--reader-max-width, 820px) - 72px);
+            column-gap: 64px;
+            column-fill: auto;
+            transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+            padding: 0;
+        }
+        .reader-book-footer {
+            position: absolute;
+            left: 24px;
+            right: 24px;
+            bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11.5px;
+            opacity: 0.58;
+            pointer-events: none;
+        }
+        /* 顶部极细阅读进度条 */
+        .reader-top-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            width: 0%;
+            background: linear-gradient(90deg, #2dd4c0, #38bdf8, #818cf8);
+            z-index: 220;
+            transition: width 0.15s ease;
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
         }
         .pager {
             display: flex;
             justify-content: space-between;
-            margin-top: 16px;
+            align-items: center;
+            gap: 10px;
+            max-width: var(--reader-max-width, 820px);
+            margin: 18px auto 0;
         }
         .reader-floating-header {
             position: fixed;
@@ -1102,7 +1230,7 @@
             width: calc(100% - 20px);
             max-width: 880px;
             z-index: 180;
-            background: rgba(14, 18, 28, 0.88);
+            background: rgba(14, 18, 28, 0.92);
             backdrop-filter: blur(28px) saturate(210%);
             -webkit-backdrop-filter: blur(28px) saturate(210%);
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1117,7 +1245,7 @@
             pointer-events: auto;
         }
         body.light-mode .reader-floating-header {
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.94);
             border-color: rgba(0, 0, 0, 0.1);
             box-shadow: inset 0 1px 2px #fff, 0 12px 32px rgba(0, 0, 0, 0.14);
         }
@@ -1146,20 +1274,46 @@
             position: absolute;
             right: 0;
             top: calc(100% + 8px);
-            background: var(--glass-bg);
-            backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 12px 16px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            min-width: 200px;
-            z-index: 120;
+            background: rgba(15, 20, 32, 0.96);
+            backdrop-filter: blur(28px);
+            border: 1px solid var(--glass-border-light);
+            border-radius: 14px;
+            padding: 14px 16px;
+            box-shadow: 0 14px 40px rgba(0,0,0,0.65);
+            min-width: 270px;
+            z-index: 190;
             flex-direction: column;
             gap: 12px;
         }
         .format-panel.show { display: flex; }
-        .format-panel-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
-        .format-btn-group { display: flex; align-items: center; gap: 6px; }
+        .format-panel-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--text-main); }
+        .format-btn-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+        .format-chip-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.14);
+            color: var(--text-main);
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.18s;
+        }
+        .format-chip-btn.active {
+            background: rgba(56, 189, 248, 0.22);
+            border-color: #38bdf8;
+            color: #38bdf8;
+            font-weight: 600;
+        }
+        body.light-mode .format-chip-btn {
+            background: rgba(15,23,42,0.05);
+            border-color: rgba(15,23,42,0.12);
+            color: #1e293b;
+        }
+        body.light-mode .format-chip-btn.active {
+            background: rgba(37,99,235,0.15);
+            border-color: #2563eb;
+            color: #1d4ed8;
+        }
     
         /* Apple VisionOS 纯透明真液态玻璃 (Liquid Glass) 导航栏与动态折射光随动 */
         .tab-nav-container {
@@ -2257,6 +2411,10 @@
             }
         }
     </style>
+    <!-- 开源中文专业排版引擎 Heti (赫蹏) + 霞鹜文楷屏幕阅读字体 (LXGW WenKai Screen) -->
+    <link rel="stylesheet" href="https://unpkg.com/heti/umd/heti.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css">
+    <script src="https://unpkg.com/heti/umd/heti-addon.min.js" defer></script>
     <script src="p2p-engine.min.js"></script>
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
@@ -2739,11 +2897,13 @@
 
     <!-- 小说/漫画阅读视窗 -->
     <section id="readerView" style="display:none;">
+        <div class="reader-top-progress" id="readerTopProgressBar"></div>
         <div class="reader-floating-header" id="readerFloatingHeader">
             <div class="view-header" style="margin-bottom: 8px;">
-                <button class="btn" onclick="showView('detail')"><i class="fas fa-arrow-left"></i> 目录</button>
-                <h3 id="readerChapTitle" style="font-size: 14px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">章节标题</h3>
+                <button class="btn" onclick="showView('detail')"><i class="fas fa-arrow-left"></i> 详情</button>
+                <h3 id="readerChapTitle" style="font-size: 14px; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">章节标题</h3>
                 <div style="display:flex; gap:6px;">
+                    <button class="btn" onclick="openReaderCatalogModal()" title="章节目录"><i class="fas fa-list-ul"></i> 目录</button>
                     <button class="btn" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 换源</button>
                 </div>
             </div>
@@ -2764,14 +2924,30 @@
                     <button class="palette-btn mint" onclick="setNovelTheme('mint')" title="护眼绿"></button>
                 </div>
 
-                <!-- 排版设置下拉菜单 -->
+                <!-- 排版设置下拉菜单 (集成赫蹏 Heti + 霞鹜文楷开源排版引擎) -->
                 <div class="format-dropdown">
                     <button class="btn" id="formatToggleBtn" style="padding:3px 8px; font-size:11px;" onclick="toggleFormatMenu(event)">
-                        <i class="fas fa-font"></i> 排版 <i class="fas fa-caret-down" style="font-size:9px;"></i>
+                        <i class="fas fa-sliders-h"></i> 排版 <i class="fas fa-caret-down" style="font-size:9px;"></i>
                     </button>
                     <div class="format-panel" id="formatPanel" onclick="event.stopPropagation()">
                         <div class="format-panel-row">
-                            <span style="color:var(--text-muted);"><i class="fas fa-palette"></i> 阅读背景</span>
+                            <span style="color:var(--text-muted);"><i class="fas fa-book-reader"></i> 翻页模式</span>
+                            <div class="format-btn-group">
+                                <button class="format-chip-btn" data-rmode="scroll" onclick="setReaderLayoutMode('scroll')">上下卷轴</button>
+                                <button class="format-chip-btn" data-rmode="paginated" onclick="setReaderLayoutMode('paginated')">左右书页</button>
+                            </div>
+                        </div>
+                        <div class="format-panel-row">
+                            <span style="color:var(--text-muted);"><i class="fas fa-font"></i> 开源字体</span>
+                            <div class="format-btn-group">
+                                <button class="format-chip-btn" data-rfont="wenkai" onclick="setReaderFontFamily('wenkai')">霞鹜文楷</button>
+                                <button class="format-chip-btn" data-rfont="serif" onclick="setReaderFontFamily('serif')">思源书宋</button>
+                                <button class="format-chip-btn" data-rfont="sans" onclick="setReaderFontFamily('sans')">系统黑体</button>
+                                <button class="format-chip-btn" data-rfont="kaiti" onclick="setReaderFontFamily('kaiti')">古典楷体</button>
+                            </div>
+                        </div>
+                        <div class="format-panel-row">
+                            <span style="color:var(--text-muted);"><i class="fas fa-palette"></i> 阅读纸张</span>
                             <div class="theme-palette-group">
                                 <button class="palette-btn parchment" onclick="setNovelTheme('parchment')" title="羊皮纸"></button>
                                 <button class="palette-btn night" onclick="setNovelTheme('night')" title="极夜黑"></button>
@@ -2781,19 +2957,35 @@
                             </div>
                         </div>
                         <div class="format-panel-row">
-                            <span style="color:var(--text-muted);"><i class="fas fa-text-height"></i> 字号</span>
+                            <span style="color:var(--text-muted);"><i class="fas fa-text-height"></i> 字号大小</span>
                             <div class="format-btn-group">
                                 <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustFontSize(-1)">A-</button>
-                                <span id="curFontSizeLabel" style="font-size:11px; min-width:28px; text-align:center;">17px</span>
+                                <span id="curFontSizeLabel" style="font-size:11px; min-width:32px; text-align:center;">18px</span>
                                 <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustFontSize(1)">A+</button>
                             </div>
                         </div>
                         <div class="format-panel-row">
-                            <span style="color:var(--text-muted);"><i class="fas fa-arrows-alt-v"></i> 行距</span>
+                            <span style="color:var(--text-muted);"><i class="fas fa-arrows-alt-v"></i> 行间距离</span>
                             <div class="format-btn-group">
-                                <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustLineHeight(-0.2)">-</button>
-                                <span id="curLineHeightLabel" style="font-size:11px; min-width:28px; text-align:center;">1.9</span>
-                                <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustLineHeight(0.2)">+</button>
+                                <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustLineHeight(-0.15)">-</button>
+                                <span id="curLineHeightLabel" style="font-size:11px; min-width:32px; text-align:center;">1.9</span>
+                                <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="adjustLineHeight(0.15)">+</button>
+                            </div>
+                        </div>
+                        <div class="format-panel-row">
+                            <span style="color:var(--text-muted);"><i class="fas fa-paragraph"></i> 段落间距</span>
+                            <div class="format-btn-group">
+                                <button class="format-chip-btn" data-rpara="0.65em" onclick="setReaderParaSpacing('0.65em')">紧凑</button>
+                                <button class="format-chip-btn" data-rpara="1.15em" onclick="setReaderParaSpacing('1.15em')">标准</button>
+                                <button class="format-chip-btn" data-rpara="1.65em" onclick="setReaderParaSpacing('1.65em')">疏朗</button>
+                            </div>
+                        </div>
+                        <div class="format-panel-row">
+                            <span style="color:var(--text-muted);"><i class="fas fa-arrows-alt-h"></i> 版面宽度</span>
+                            <div class="format-btn-group">
+                                <button class="format-chip-btn" data-rwidth="680px" onclick="setReaderMaxWidth('680px')">窄版</button>
+                                <button class="format-chip-btn" data-rwidth="820px" onclick="setReaderMaxWidth('820px')">标准</button>
+                                <button class="format-chip-btn" data-rwidth="1020px" onclick="setReaderMaxWidth('1020px')">宽屏</button>
                             </div>
                         </div>
                     </div>
@@ -2801,15 +2993,30 @@
             </div>
         </div>
 
-        <div class="reader-wrapper" id="readerContainer" onclick="toggleReaderControls(event)" title="点击屏幕任意处可切换顶部工具栏显隐">
+        <div class="reader-wrapper" id="readerContainer" onclick="handleReaderContainerClick(event)" title="点击中央切换菜单；左右翻页模式下点击两侧翻页">
             <div style="text-align: center; color: var(--text-muted); padding: 40px;">正在加载正文...</div>
         </div>
 
-        <div class="pager">
-            <button class="btn" id="prevBtn" onclick="prevChapter()">上一章</button>
-            <button class="btn primary" id="nextBtn" onclick="nextChapter()">下一章</button>
+        <div class="pager" id="readerBottomPager">
+            <button class="btn" id="prevBtn" onclick="prevChapter()"><i class="fas fa-chevron-left"></i> 上一章</button>
+            <button class="btn" onclick="openReaderCatalogModal()"><i class="fas fa-list-ul"></i> 目录 (<span id="pagerChapRatio">0/0</span>)</button>
+            <button class="btn primary" id="nextBtn" onclick="nextChapter()">下一章 <i class="fas fa-chevron-right"></i></button>
         </div>
     </section>
+
+    <!-- 阅读器内快捷目录抽屉弹窗 -->
+    <div class="modal-overlay" id="readerCatalogModal" onclick="if(event.target===this)closeReaderCatalogModal()">
+        <div class="modal-card" style="max-width: 560px; max-height: 82vh; display: flex; flex-direction: column;">
+            <div class="modal-head">
+                <span style="font-weight: 600;"><i class="fas fa-list-ul" style="color:var(--accent);"></i> 章节目录 <small id="readerCatalogModalSub" style="color:var(--text-muted); font-weight:400; margin-left:6px;"></small></span>
+                <div style="display:flex; gap:6px;">
+                    <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="reverseReaderCatalogOrder()"><i class="fas fa-sort"></i> 倒序</button>
+                    <button class="btn" onclick="closeReaderCatalogModal()">✕</button>
+                </div>
+            </div>
+            <div id="readerCatalogModalList" class="source-switch-list" style="overflow-y: auto; padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px;"></div>
+        </div>
+    </div>
 
     <!-- 原站同款纯净视频播放视窗 (功能与设置全部集成进播放器内部) -->
     <section id="videoPlayerView" style="display: none;">
@@ -4216,9 +4423,327 @@
         }
     }
 
+    // ====================================================================
+    // 开源级小说排版与双模阅读器引擎 (集成赫蹏 Heti + 霞鹜文楷 + 智能分段重排 + 仿真翻页)
+    // ====================================================================
+    const _novelChapterCache = new Map();
+    let _lastRenderedNovelData = null;
+    let _readerCatalogReversed = false;
+
+    let currentReaderMode = localStorage.getItem('reader_layout_mode') || 'scroll';
+    let currentReaderFont = localStorage.getItem('reader_font_family_key') || 'wenkai';
+    let currentParaSpacing = localStorage.getItem('reader_para_spacing') || '1.15em';
+    let currentReaderMaxWidth = localStorage.getItem('reader_max_width') || '820px';
+    let currentLineHeight = parseFloat(localStorage.getItem('reader_line_height') || '1.9');
+    currentFontSize = parseInt(localStorage.getItem('reader_font_size') || '18', 10);
+
+    let _paginatedCurrentPage = 0;
+    let _paginatedTotalPages = 1;
+
+    const READER_FONT_MAP = {
+        wenkai: "'LXGW WenKai Screen', 'LXGW WenKai', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', serif",
+        serif: "'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', 'SimSun', serif",
+        sans: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
+        kaiti: "'Kaiti SC', 'STKaiti', 'KaiTi', 'LXGW WenKai Screen', serif"
+    };
+
+    function applyReaderTypographyPrefs() {
+        const root = document.documentElement;
+        root.style.setProperty('--reader-font-size', currentFontSize + 'px');
+        root.style.setProperty('--reader-line-height', currentLineHeight);
+        root.style.setProperty('--reader-para-spacing', currentParaSpacing);
+        root.style.setProperty('--reader-max-width', currentReaderMaxWidth);
+        root.style.setProperty('--reader-font-family', READER_FONT_MAP[currentReaderFont] || READER_FONT_MAP.wenkai);
+        updateFormatLabels();
+    }
+    applyReaderTypographyPrefs();
+
+    function escapeNovelHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // 核心智能分段与排版清洗算法：解决原始纯文本无分段、断行错乱或千字大长段问题
+    function smartSegmentNovelParagraphs(rawText, chapTitle, bookName) {
+        if (!rawText || typeof rawText !== 'string') return [];
+
+        let text = rawText
+            // HTML 换行/段落标签转标准换行
+            .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+            .replace(/<\/\s*p\s*>/gi, '\n')
+            .replace(/<\s*p[^>]*>/gi, '\n')
+            // 常见 HTML 实体解码
+            .replace(/&nbsp;/gi, ' ')
+            .replace(/&ldquo;/gi, '“')
+            .replace(/&rdquo;/gi, '”')
+            .replace(/&lsquo;/gi, '‘')
+            .replace(/&rsquo;/gi, '’')
+            .replace(/&hellip;/gi, '……')
+            .replace(/&mdash;/gi, '——')
+            .replace(/&amp;/gi, '&')
+            // 剔除残留 HTML 标签
+            .replace(/<[^>]+>/g, '')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n');
+
+        // 如果全篇几乎没有换行符，但存在句末紧跟两个全角空格/缩进空格的情况，自动切分为自然段
+        const newlineCount = (text.match(/\n/g) || []).length;
+        if (newlineCount < 5 && text.length > 300) {
+            text = text
+                .replace(/([\u3000\s]{2,})/g, '\n')
+                .replace(/([。！？…”」』】])\s*(?=[\u4e00-\u9fa5“「『])/g, '$1\n');
+        } else {
+            // 将段中出现的连续全角空格 (\u3000\u3000) 也视为分段信号
+            text = text.replace(/([。！？…”」』】])[\u3000 ]{2,}/g, '$1\n');
+        }
+
+        // 过滤采集站常见垃圾尾注与水印行
+        const noiseLineRegex = /(记住本站|请收藏本站|最新章节|手机访问|一秒记住|天才一秒记住|笔趣阁|顶点小说|本章未完|点击下一页|请大家收藏|更新时间[:：]|本章字数|求月票|求推荐票|ps[:：]|PS[:：].*求|www\.|\.com|\.cc|\.net|\.org)/i;
+
+        const rawLines = text.split('\n');
+        const cleanedLines = [];
+        const normChap = (chapTitle || '').replace(/[\s　:：\-_第章]/g, '');
+        const normBook = (bookName || '').replace(/[\s　《》]/g, '');
+
+        for (let i = 0; i < rawLines.length; i++) {
+            let line = rawLines[i].replace(/^[\s\u3000\u00A0]+|[\s\u3000\u00A0]+$/g, '');
+            if (!line) continue;
+
+            // 去除首行重复的章节名或书名
+            if (cleanedLines.length === 0 && i < 3) {
+                const normLine = line.replace(/[\s　:：\-_第章《》]/g, '');
+                if ((normChap && normLine === normChap) || (normBook && normLine === normBook)) {
+                    continue;
+                }
+            }
+            if (line.length < 70 && noiseLineRegex.test(line)) {
+                continue;
+            }
+            cleanedLines.push(line);
+        }
+
+        // 第一步：修复采集源硬回车断行（如果上一行末尾不是句末标点，且下一行较短或明显是接续）
+        const stitchedParas = [];
+        const endPunctRegex = /[。！？…~～”’」』】》—…：；.!?"'\])]$/;
+        for (let i = 0; i < cleanedLines.length; i++) {
+            const cur = cleanedLines[i];
+            if (stitchedParas.length === 0) {
+                stitchedParas.push(cur);
+                continue;
+            }
+            const prev = stitchedParas[stitchedParas.length - 1];
+            const prevEndsWithPunct = endPunctRegex.test(prev);
+            const curStartsWithDialogOrChapter = /^[“"「『【《第]/.test(cur);
+            if (!prevEndsWithPunct && prev.length >= 16 && prev.length < 180 && !curStartsWithDialogOrChapter) {
+                stitchedParas[stitchedParas.length - 1] = prev + cur;
+            } else {
+                stitchedParas.push(cur);
+            }
+        }
+
+        // 第二步：智能拆分超长“文字墙”段落（单段超过 210 字时，在对话结束或 2~3 个完整句号处自然呼吸分段）
+        const finalParas = [];
+        for (const para of stitchedParas) {
+            if (para.length <= 210) {
+                finalParas.push(para);
+                continue;
+            }
+            // 按句子边界切分并重新聚合为 90~170 字的舒适阅读段落
+            const tokens = para.split(/([。！？…”」』]+["”」』]*)/);
+            let acc = '';
+            for (let j = 0; j < tokens.length; j += 2) {
+                const sentence = (tokens[j] || '') + (tokens[j + 1] || '');
+                if (!sentence.trim()) continue;
+                acc += sentence;
+                const isDialogueEnd = /[。！？…][”」』]$/.test(sentence);
+                if ((acc.length >= 95 && isDialogueEnd) || acc.length >= 155) {
+                    finalParas.push(acc.trim());
+                    acc = '';
+                }
+            }
+            if (acc.trim()) {
+                if (acc.trim().length < 28 && finalParas.length > 0) {
+                    finalParas[finalParas.length - 1] += acc.trim();
+                } else {
+                    finalParas.push(acc.trim());
+                }
+            }
+        }
+
+        return finalParas;
+    }
+
+    function formatNovelContentToHtml(rawText, chapTitle, bookInfo) {
+        const bookName = bookInfo?.book_name || '小说正文';
+        const sourceName = bookInfo?.source || '书源';
+        const paras = smartSegmentNovelParagraphs(rawText, chapTitle, bookName);
+        const totalChars = paras.reduce((sum, p) => sum + p.length, 0);
+        const estMinutes = Math.max(1, Math.round(totalChars / 420));
+
+        const headerHtml = `
+            <header class="novel-chapter-header">
+                <div class="novel-book-badge">
+                    <i class="fas fa-book-open"></i>
+                    <span>《${escapeNovelHtml(bookName)}》 · ${escapeNovelHtml(sourceName)}</span>
+                </div>
+                <h2 class="novel-chapter-title">${escapeNovelHtml(chapTitle || '正文')}</h2>
+                <div class="novel-chapter-meta">
+                    <span><i class="far fa-file-word"></i> 本章 ${totalChars} 字</span>
+                    <span><i class="far fa-clock"></i> 约 ${estMinutes} 分钟读完</span>
+                    <span><i class="fas fa-feather-alt"></i> 赫蹏 Heti · 霞鹜文楷排版</span>
+                </div>
+            </header>
+        `;
+
+        const bodyHtml = paras.map(p => `<p class="novel-para">${escapeNovelHtml(p)}</p>`).join('');
+        return {
+            headerHtml,
+            bodyHtml,
+            fullScrollHtml: `<article class="text-stream heti" id="novelArticleStream">${headerHtml}${bodyHtml}</article>`,
+            totalChars,
+            paraCount: paras.length
+        };
+    }
+
+    function applyHetiTypography() {
+        try {
+            if (typeof window.Heti === 'function') {
+                const heti = new window.Heti('.text-stream.heti');
+                heti.autoSpacing();
+            }
+        } catch (e) {}
+    }
+
+    function renderNovelIntoContainer(formatted, chapTitle, idx) {
+        const container = document.getElementById('readerContainer');
+        const bottomPager = document.getElementById('readerBottomPager');
+        if (!container) return;
+
+        _lastRenderedNovelData = { formatted, chapTitle, idx };
+
+        const isPaginated = (currentReaderMode === 'paginated');
+        container.classList.toggle('mode-paginated', isPaginated);
+
+        if (isPaginated) {
+            if (bottomPager) bottomPager.style.display = 'none';
+            container.innerHTML = `
+                <div class="reader-paginated-viewport" id="readerPaginatedViewport">
+                    <article class="text-stream heti" id="novelArticleStream">
+                        ${formatted.headerHtml}
+                        ${formatted.bodyHtml}
+                    </article>
+                </div>
+                <div class="reader-book-footer">
+                    <span id="paginatedFooterLeft">${escapeNovelHtml(chapTitle)}</span>
+                    <span id="paginatedFooterRight">第 1 / 1 页 · 点击左右侧翻页</span>
+                </div>
+            `;
+            applyHetiTypography();
+            _paginatedCurrentPage = 0;
+            requestAnimationFrame(() => recalcPaginatedLayout());
+        } else {
+            if (bottomPager) bottomPager.style.display = 'flex';
+            container.innerHTML = formatted.fullScrollHtml;
+            applyHetiTypography();
+            window.scrollTo({ top: 0, behavior: 'auto' });
+            lastScrollTop = 0;
+            updateScrollReadingProgress();
+        }
+    }
+
+    function recalcPaginatedLayout() {
+        if (currentReaderMode !== 'paginated') return;
+        const viewport = document.getElementById('readerPaginatedViewport');
+        const stream = document.getElementById('novelArticleStream');
+        if (!viewport || !stream) return;
+
+        const pageWidth = viewport.clientWidth;
+        if (pageWidth <= 0) return;
+        const colGap = 64;
+        stream.style.columnWidth = pageWidth + 'px';
+        stream.style.columnGap = colGap + 'px';
+
+        const totalScrollWidth = stream.scrollWidth;
+        const stride = pageWidth + colGap;
+        _paginatedTotalPages = Math.max(1, Math.round((totalScrollWidth + colGap) / stride));
+        if (_paginatedCurrentPage >= _paginatedTotalPages) {
+            _paginatedCurrentPage = _paginatedTotalPages - 1;
+        }
+        applyPaginatedTransform();
+    }
+
+    function applyPaginatedTransform() {
+        const viewport = document.getElementById('readerPaginatedViewport');
+        const stream = document.getElementById('novelArticleStream');
+        if (!viewport || !stream) return;
+        const stride = viewport.clientWidth + 64;
+        const offset = -(_paginatedCurrentPage * stride);
+        stream.style.transform = `translate3d(${offset}px, 0, 0)`;
+
+        const rightFooter = document.getElementById('paginatedFooterRight');
+        if (rightFooter) {
+            rightFooter.innerText = `第 ${_paginatedCurrentPage + 1} / ${_paginatedTotalPages} 页 · 第 ${currentChapterIndex + 1}/${currentCatalog.length} 章`;
+        }
+        const topBar = document.getElementById('readerTopProgressBar');
+        if (topBar) {
+            const pct = Math.min(100, Math.round(((_paginatedCurrentPage + 1) / _paginatedTotalPages) * 100));
+            topBar.style.width = pct + '%';
+        }
+        const progEl = document.getElementById('readProgressText');
+        if (progEl) {
+            progEl.innerText = `第 ${_paginatedCurrentPage + 1}/${_paginatedTotalPages} 页 (${currentChapterIndex + 1}/${currentCatalog.length}章)`;
+        }
+    }
+
+    function turnPaginatedPage(delta) {
+        if (currentReaderMode !== 'paginated') return;
+        const target = _paginatedCurrentPage + delta;
+        if (target < 0) {
+            if (currentChapterIndex > 0) prevChapter();
+            return;
+        }
+        if (target >= _paginatedTotalPages) {
+            if (currentChapterIndex < currentCatalog.length - 1) nextChapter();
+            return;
+        }
+        _paginatedCurrentPage = target;
+        applyPaginatedTransform();
+    }
+
+    async function fetchChapterDataWithCache(idx) {
+        const chap = currentCatalog[idx];
+        if (!chap || !currentBookInfo) return null;
+        const tab = currentBookInfo.tab || '漫画';
+        const cacheKey = `${currentBookInfo.source}__${currentBookInfo.book_id}__${chap.item_id}`;
+        if (_novelChapterCache.has(cacheKey)) {
+            return _novelChapterCache.get(cacheKey);
+        }
+        const res = await fetch(`/api/content?item_id=${encodeURIComponent(chap.item_id)}&source=${encodeURIComponent(currentBookInfo.source)}&tab=${encodeURIComponent(tab)}&book_id=${encodeURIComponent(currentBookInfo.book_id)}&title=${encodeURIComponent(currentBookInfo.book_name)}&chap_title=${encodeURIComponent(chap.title)}&chap_idx=${idx}`);
+        const data = await res.json();
+        if (data && ((data.content && data.content.length > 50) || (data.images && data.images.length > 0))) {
+            if (_novelChapterCache.size > 25) {
+                const firstKey = _novelChapterCache.keys().next().value;
+                _novelChapterCache.delete(firstKey);
+            }
+            _novelChapterCache.set(cacheKey, data);
+        }
+        return data;
+    }
+
+    function prefetchNextNovelChapter(nextIdx) {
+        if (nextIdx < 0 || nextIdx >= currentCatalog.length) return;
+        setTimeout(() => {
+            fetchChapterDataWithCache(nextIdx).catch(() => {});
+        }, 400);
+    }
+
     async function readChapter(idx) {
         currentChapterIndex = idx;
         const chap = currentCatalog[idx];
+        if (!chap) return;
         showView('reader');
 
         document.getElementById('readerChapTitle').innerText = chap.title;
@@ -4226,32 +4751,38 @@
         if (progEl && currentCatalog.length > 0) {
             progEl.innerText = `第 ${idx + 1} / ${currentCatalog.length} 章`;
         }
+        const pagerRatio = document.getElementById('pagerChapRatio');
+        if (pagerRatio && currentCatalog.length > 0) {
+            pagerRatio.innerText = `${idx + 1}/${currentCatalog.length}`;
+        }
         const catalogBtns = document.querySelectorAll('#catalogList .chap-btn');
         catalogBtns.forEach((btn, i) => btn.classList.toggle('read-active', i === idx));
 
         const container = document.getElementById('readerContainer');
-        container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:40px;"><i class="fas fa-spinner fa-spin"></i> 正在加载正文...</div>';
+        container.classList.remove('mode-paginated');
+        container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:60px 20px;"><i class="fas fa-spinner fa-spin"></i> 正在智能排版加载正文...</div>';
 
         document.getElementById('prevBtn').disabled = (idx === 0);
         document.getElementById('nextBtn').disabled = (idx >= currentCatalog.length - 1);
 
-        const tab = currentBookInfo.tab || '漫画';
         updateRecentHistory(currentBookInfo, chap.title, idx);
 
         try {
-            const res = await fetch(`/api/content?item_id=${encodeURIComponent(chap.item_id)}&source=${encodeURIComponent(currentBookInfo.source)}&tab=${encodeURIComponent(tab)}&book_id=${encodeURIComponent(currentBookInfo.book_id)}&title=${encodeURIComponent(currentBookInfo.book_name)}&chap_title=${encodeURIComponent(chap.title)}&chap_idx=${idx}`);
-            const data = await res.json();
+            const data = await fetchChapterDataWithCache(idx);
 
             // 1. 漫画图片
-            if (data.images && data.images.length > 0) {
+            if (data && data.images && data.images.length > 0) {
+                _lastRenderedNovelData = null;
+                const bottomPager = document.getElementById('readerBottomPager');
+                if (bottomPager) bottomPager.style.display = 'flex';
                 const isStealth = document.body.getAttribute('data-theme') === 'stealth';
                 if (isStealth) {
                     container.innerHTML = `
                         <div class="text-stream">
-                            // [摸鱼模式已生效 - 原画转换为代码模式]<br>
-                            // 章节: ${chap.title}<br>
-                            // 源站原画图片总数: ${data.images.length} 帧<br>
-                            // 点击右上角摸鱼按钮即可恢复原画预览
+                            <p class="novel-para">// [摸鱼模式已生效 - 原画转换为代码模式]</p>
+                            <p class="novel-para">// 章节: ${escapeNovelHtml(chap.title)}</p>
+                            <p class="novel-para">// 源站原画图片总数: ${data.images.length} 帧</p>
+                            <p class="novel-para">// 点击右上角摸鱼按钮即可恢复原画预览</p>
                         </div>
                     `;
                 } else {
@@ -4266,16 +4797,17 @@
                 return;
             }
 
-            // 2. 小说纯文本
-            const cleanedText = cleanAdContent(data.content);
+            // 2. 小说纯文本 -> 开源级智能分段重排与赫蹏排版
+            const cleanedText = cleanAdContent(data ? data.content : '');
             if (cleanedText && cleanedText.length > 0 && !isPaywallOrAdText(cleanedText)) {
-                container.innerHTML = `<div class="text-stream">${cleanedText}</div>`;
-                window.scrollTo({ top: 0, behavior: 'auto' });
-                lastScrollTop = 0;
+                const formatted = formatNovelContentToHtml(cleanedText, chap.title, currentBookInfo);
+                renderNovelIntoContainer(formatted, chap.title, idx);
+                prefetchNextNovelChapter(idx + 1);
                 return;
             }
 
             // 3. 提示 (无正文时自动呼出顶部工具栏方便返回或换源)
+            _lastRenderedNovelData = null;
             const floating = document.getElementById('readerFloatingHeader');
             if (floating) {
                 floating.classList.remove('nav-hidden');
@@ -4283,7 +4815,7 @@
             }
             container.innerHTML = `
                 <div style="color:var(--text-muted); padding:60px 30px 30px; text-align:center;">
-                    ${data.msg || '该章节在当前书源暂无正文或受限'}<br><br>
+                    ${(data && data.msg) || '该章节在当前书源暂无正文或受限'}<br><br>
                     <button class="btn primary" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 换一个书源尝试</button>
                 </div>
             `;
@@ -4305,6 +4837,48 @@
 
     function nextChapter() {
         if (currentChapterIndex < currentCatalog.length - 1) readChapter(currentChapterIndex + 1);
+    }
+
+    // 阅读器内快捷目录抽屉
+    function openReaderCatalogModal() {
+        const modal = document.getElementById('readerCatalogModal');
+        const listEl = document.getElementById('readerCatalogModalList');
+        const subEl = document.getElementById('readerCatalogModalSub');
+        if (!modal || !listEl) return;
+
+        if (subEl) {
+            subEl.innerText = currentBookInfo ? `《${currentBookInfo.book_name}》 共 ${currentCatalog.length} 章` : '';
+        }
+        renderReaderCatalogModalItems();
+        modal.classList.add('open');
+
+        setTimeout(() => {
+            const activeItem = listEl.querySelector('.chap-btn.read-active');
+            if (activeItem) activeItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }, 60);
+    }
+
+    function renderReaderCatalogModalItems() {
+        const listEl = document.getElementById('readerCatalogModalList');
+        if (!listEl) return;
+        const indexed = currentCatalog.map((chap, idx) => ({ chap, idx }));
+        if (_readerCatalogReversed) indexed.reverse();
+
+        listEl.innerHTML = indexed.map(({ chap, idx }) => `
+            <div class="chap-btn ${idx === currentChapterIndex ? 'read-active' : ''}" title="${escapeNovelHtml(chap.title)}" onclick="closeReaderCatalogModal(); readChapter(${idx});">
+                ${escapeNovelHtml(chap.title)}
+            </div>
+        `).join('');
+    }
+
+    function reverseReaderCatalogOrder() {
+        _readerCatalogReversed = !_readerCatalogReversed;
+        renderReaderCatalogModalItems();
+    }
+
+    function closeReaderCatalogModal() {
+        const modal = document.getElementById('readerCatalogModal');
+        if (modal) modal.classList.remove('open');
     }
 
     function toggleBookShelf() {
@@ -4331,9 +4905,24 @@
     let isReaderNavVisible = false;
     let lastReaderToggleTime = 0;
 
+    function updateScrollReadingProgress() {
+        if (currentReaderMode === 'paginated') return;
+        const docEl = document.documentElement;
+        const st = window.pageYOffset || docEl.scrollTop || 0;
+        const maxScroll = Math.max(1, docEl.scrollHeight - window.innerHeight);
+        const pct = Math.min(100, Math.max(0, Math.round((st / maxScroll) * 100)));
+        const topBar = document.getElementById('readerTopProgressBar');
+        if (topBar) topBar.style.width = pct + '%';
+        const progEl = document.getElementById('readProgressText');
+        if (progEl && currentCatalog.length > 0) {
+            progEl.innerText = `第 ${currentChapterIndex + 1}/${currentCatalog.length} 章 · ${pct}%`;
+        }
+    }
+
     function initReaderScrollListener() {
         window.addEventListener('scroll', () => {
             if (!document.body.classList.contains('reading-mode')) return;
+            updateScrollReadingProgress();
             const st = window.pageYOffset || document.documentElement.scrollTop;
             const floating = document.getElementById('readerFloatingHeader');
             if (!floating) return;
@@ -4353,6 +4942,39 @@
             }
             lastScrollTop = Math.max(0, st);
         }, { passive: true });
+
+        window.addEventListener('resize', () => {
+            if (document.body.classList.contains('reading-mode') && currentReaderMode === 'paginated') {
+                recalcPaginatedLayout();
+            }
+        });
+    }
+
+    function handleReaderContainerClick(e) {
+        if (e && e.target && (e.target.closest('button') || e.target.closest('.modal-card') || e.target.closest('.pager') || e.target.closest('.reader-toolbar'))) {
+            return;
+        }
+        if (window.getSelection && window.getSelection().toString().trim().length > 0) {
+            return;
+        }
+
+        // 仿真书页翻页模式下：点击左侧 32% 区域上一页，点击右侧 32% 区域下一页，点击中间 36% 呼出菜单
+        if (currentReaderMode === 'paginated' && _lastRenderedNovelData) {
+            const container = document.getElementById('readerContainer');
+            if (container && e) {
+                const rect = container.getBoundingClientRect();
+                const relX = (e.clientX - rect.left) / Math.max(1, rect.width);
+                if (relX < 0.32) {
+                    turnPaginatedPage(-1);
+                    return;
+                }
+                if (relX > 0.68) {
+                    turnPaginatedPage(1);
+                    return;
+                }
+            }
+        }
+        toggleReaderControls(e);
     }
 
     function toggleReaderControls(e) {
@@ -4467,21 +5089,49 @@
         }
     }
 
-    let currentLineHeight = parseFloat(localStorage.getItem('reader_line_height') || '1.9');
-    document.documentElement.style.setProperty('--reader-line-height', currentLineHeight);
+    function setReaderLayoutMode(mode) {
+        currentReaderMode = (mode === 'paginated') ? 'paginated' : 'scroll';
+        localStorage.setItem('reader_layout_mode', currentReaderMode);
+        updateFormatLabels();
+        if (_lastRenderedNovelData) {
+            renderNovelIntoContainer(_lastRenderedNovelData.formatted, _lastRenderedNovelData.chapTitle, _lastRenderedNovelData.idx);
+        }
+    }
+
+    function setReaderFontFamily(fontKey) {
+        if (!READER_FONT_MAP[fontKey]) return;
+        currentReaderFont = fontKey;
+        localStorage.setItem('reader_font_family_key', fontKey);
+        applyReaderTypographyPrefs();
+        if (currentReaderMode === 'paginated') requestAnimationFrame(() => recalcPaginatedLayout());
+    }
+
+    function setReaderParaSpacing(val) {
+        currentParaSpacing = val;
+        localStorage.setItem('reader_para_spacing', val);
+        applyReaderTypographyPrefs();
+        if (currentReaderMode === 'paginated') requestAnimationFrame(() => recalcPaginatedLayout());
+    }
+
+    function setReaderMaxWidth(val) {
+        currentReaderMaxWidth = val;
+        localStorage.setItem('reader_max_width', val);
+        applyReaderTypographyPrefs();
+        if (currentReaderMode === 'paginated') requestAnimationFrame(() => recalcPaginatedLayout());
+    }
 
     function adjustFontSize(delta) {
-        currentFontSize = Math.min(26, Math.max(13, currentFontSize + delta));
-        document.documentElement.style.setProperty('--reader-font-size', currentFontSize + 'px');
+        currentFontSize = Math.min(28, Math.max(14, currentFontSize + delta));
         localStorage.setItem('reader_font_size', currentFontSize);
-        updateFormatLabels();
+        applyReaderTypographyPrefs();
+        if (currentReaderMode === 'paginated') requestAnimationFrame(() => recalcPaginatedLayout());
     }
 
     function adjustLineHeight(delta) {
-        currentLineHeight = Math.min(2.8, Math.max(1.3, parseFloat((currentLineHeight + delta).toFixed(1))));
-        document.documentElement.style.setProperty('--reader-line-height', currentLineHeight);
+        currentLineHeight = Math.min(2.8, Math.max(1.4, parseFloat((currentLineHeight + delta).toFixed(2))));
         localStorage.setItem('reader_line_height', currentLineHeight);
-        updateFormatLabels();
+        applyReaderTypographyPrefs();
+        if (currentReaderMode === 'paginated') requestAnimationFrame(() => recalcPaginatedLayout());
     }
 
     function toggleFormatMenu(e) {
@@ -4497,7 +5147,20 @@
         const fontLbl = document.getElementById('curFontSizeLabel');
         if (fontLbl) fontLbl.innerText = currentFontSize + 'px';
         const lineLbl = document.getElementById('curLineHeightLabel');
-        if (lineLbl) lineLbl.innerText = currentLineHeight.toFixed(1);
+        if (lineLbl) lineLbl.innerText = currentLineHeight.toFixed(2).replace(/\.00$/, '.0').replace(/(\.\d)0$/, '$1');
+
+        document.querySelectorAll('[data-rmode]').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-rmode') === currentReaderMode);
+        });
+        document.querySelectorAll('[data-rfont]').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-rfont') === currentReaderFont);
+        });
+        document.querySelectorAll('[data-rpara]').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-rpara') === currentParaSpacing);
+        });
+        document.querySelectorAll('[data-rwidth]').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-rwidth') === currentReaderMaxWidth);
+        });
     }
 
     document.addEventListener('click', (e) => {
@@ -4509,9 +5172,32 @@
     });
 
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') toggleStealth();
-        if (e.key === 'ArrowLeft') prevChapter();
-        if (e.key === 'ArrowRight') nextChapter();
+        if (e.key === 'Escape') {
+            const catModal = document.getElementById('readerCatalogModal');
+            if (catModal && catModal.classList.contains('open')) {
+                closeReaderCatalogModal();
+                return;
+            }
+            toggleStealth();
+            return;
+        }
+        if (!document.body.classList.contains('reading-mode')) return;
+        if (e.key === 'ArrowLeft') {
+            if (currentReaderMode === 'paginated' && _lastRenderedNovelData) {
+                e.preventDefault();
+                turnPaginatedPage(-1);
+            } else {
+                prevChapter();
+            }
+        }
+        if (e.key === 'ArrowRight') {
+            if (currentReaderMode === 'paginated' && _lastRenderedNovelData) {
+                e.preventDefault();
+                turnPaginatedPage(1);
+            } else {
+                nextChapter();
+            }
+        }
     });
 
     // ====================================================================
