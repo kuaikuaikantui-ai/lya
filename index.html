@@ -226,7 +226,7 @@
             padding: 16px 14px;
         }
 
-        /* 页面平滑切换动效 (消除生硬感) */
+        /* 页面平滑切换动效 (消除生硬感，100% 重置 transform/filter 避免破坏 fixed 定位坐标系) */
         .liquid-view-enter {
             animation: liquidViewIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
@@ -238,8 +238,8 @@
             }
             100% {
                 opacity: 1;
-                transform: translateY(0) scale(1);
-                filter: blur(0);
+                transform: none;
+                filter: none;
             }
         }
 
@@ -3584,14 +3584,19 @@
 
         sections.forEach(s => {
             if (!s.el) return;
+            const animTarget = (s.el.id === 'historySection')
+                ? (s.el.querySelector('.my-content-panel') || s.el)
+                : s.el;
             if (s.active) {
                 s.el.style.display = 'block';
                 s.el.classList.remove('liquid-view-enter');
-                void s.el.offsetWidth;
-                s.el.classList.add('liquid-view-enter');
+                animTarget.classList.remove('liquid-view-enter');
+                void animTarget.offsetWidth;
+                animTarget.classList.add('liquid-view-enter');
             } else {
                 s.el.style.display = 'none';
                 s.el.classList.remove('liquid-view-enter');
+                animTarget.classList.remove('liquid-view-enter');
             }
         });
 
@@ -3610,6 +3615,7 @@
 
         if (isHistory) {
             renderHistoryModule();
+            requestAnimationFrame(() => updateSubnavGlider(currentHistoryTab || 'video'));
         }
         if (isNovel) {
             renderNovelRecommendPlaza();
