@@ -297,9 +297,27 @@
             backdrop-filter: blur(8px);
         }
 
-        /* 第一页：最近观看与书架 纯透明液态玻璃导航 (支持鼠标跟随透镜) */
+        /* 第一页：“我的”中心 左侧竖向极光透镜 Tab 栏 + 右侧独立分栏展示布局 */
+        .my-workspace-layout {
+            display: grid;
+            grid-template-columns: 210px minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+        .my-sidebar-wrap {
+            position: sticky;
+            top: 126px;
+            z-index: 20;
+        }
+        .my-content-panel {
+            min-width: 0;
+            width: 100%;
+        }
         .history-subnav {
-            display: inline-flex;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
             position: relative;
             background: rgba(255, 255, 255, 0.03) !important;
             backdrop-filter: blur(28px) saturate(220%) !important;
@@ -309,8 +327,8 @@
                 inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.3),
                 inset 0 -1px 2px 0 rgba(0, 0, 0, 0.35),
                 0 12px 30px -8px rgba(0, 0, 0, 0.5) !important;
-            padding: 4px !important;
-            border-radius: 30px !important;
+            padding: 8px !important;
+            border-radius: 22px !important;
             overflow: hidden;
             --mouse-x: -200px;
             --mouse-y: -200px;
@@ -320,8 +338,8 @@
             position: absolute;
             left: var(--mouse-x, -200px);
             top: var(--mouse-y, -200px);
-            width: 140px;
-            height: 140px;
+            width: 160px;
+            height: 160px;
             transform: translate(-50%, -50%);
             background: radial-gradient(circle, rgba(255, 255, 255, 0.28) 0%, rgba(56, 189, 248, 0.14) 35%, transparent 70%);
             border-radius: 50%;
@@ -338,24 +356,49 @@
             background: transparent !important;
             border: none !important;
             outline: none;
-            color: rgba(241, 245, 249, 0.6) !important;
-            font-size: 12.5px !important;
+            color: rgba(241, 245, 249, 0.68) !important;
+            font-size: 13.5px !important;
             font-weight: 500 !important;
-            padding: 7px 16px !important;
-            border-radius: 25px !important;
+            padding: 12px 14px !important;
+            border-radius: 16px !important;
             cursor: pointer;
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 6px;
+            justify-content: space-between;
+            width: 100%;
+            gap: 8px;
             z-index: 4;
             position: relative;
             transition: color 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
             user-select: none;
+            text-align: left;
+        }
+        .history-subnav-btn .my-tab-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+        }
+        .history-subnav-btn .my-tab-left i {
+            width: 18px;
+            text-align: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .my-tab-count {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: rgba(241, 245, 249, 0.85);
+            flex-shrink: 0;
+            transition: all 0.25s ease;
         }
         .history-subnav-btn:hover {
             color: #ffffff !important;
-            transform: scale(1.03) !important;
+            transform: translateX(2px) !important;
         }
         .history-subnav-btn.active {
             color: #ffffff !important;
@@ -364,18 +407,23 @@
             background: transparent !important;
             border: none !important;
         }
+        .history-subnav-btn.active .my-tab-count {
+            background: rgba(56, 189, 248, 0.22);
+            border-color: rgba(56, 189, 248, 0.5);
+            color: #fff;
+        }
         .subnav-glider {
             position: absolute;
-            top: 4px;
-            bottom: 4px;
-            left: 4px;
-            width: 88px;
+            top: 8px;
+            left: 8px;
+            width: calc(100% - 16px);
+            height: 44px;
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.12) 100%) !important;
             backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
             -webkit-backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
             border: 1px solid rgba(255, 255, 255, 0.42) !important;
             border-top-color: rgba(255, 255, 255, 0.75) !important;
-            border-radius: 25px !important;
+            border-radius: 16px !important;
             box-shadow: 
                 inset 0 1.5px 3px 0 rgba(255, 255, 255, 0.8),
                 inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
@@ -383,7 +431,7 @@
                 0 0 22px rgba(56, 189, 248, 0.35) !important;
             z-index: 2;
             pointer-events: none;
-            transition: left 0.38s cubic-bezier(0.34, 1.35, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.35, 0.64, 1), transform 0.38s cubic-bezier(0.34, 1.35, 0.64, 1);
+            transition: left 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), top 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), width 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), height 0.36s cubic-bezier(0.34, 1.35, 0.64, 1);
         }
 
         .grid-list {
@@ -1381,32 +1429,150 @@
             transition: left 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), top 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), width 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), height 0.36s cubic-bezier(0.34, 1.35, 0.64, 1);
         }
         body.light-mode .source-route-nav {
-            background: rgba(255, 255, 255, 0.65) !important;
-            border-color: rgba(0, 0, 0, 0.08) !important;
+            background: rgba(255, 255, 255, 0.72) !important;
+            border-color: rgba(15, 23, 42, 0.09) !important;
+            box-shadow: inset 0 1px 1px #fff, 0 8px 24px rgba(15, 23, 42, 0.06) !important;
         }
         body.light-mode .source-route-btn {
-            color: #64748b !important;
+            color: #475569 !important;
+        }
+        body.light-mode .source-route-btn:hover,
+        body.light-mode .history-subnav-btn:hover,
+        body.light-mode .tab-nav-btn:hover {
+            color: #0f172a !important;
         }
         body.light-mode .source-route-glider {
-            background: rgba(255, 255, 255, 0.88) !important;
-            border: 1px solid rgba(0, 0, 0, 0.08) !important;
-            box-shadow: inset 0 1px 2px #fff, 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+            background: rgba(255, 255, 255, 0.92) !important;
+            border: 1px solid rgba(37, 99, 235, 0.18) !important;
+            box-shadow: inset 0 1px 2px #fff, 0 4px 16px rgba(37, 99, 235, 0.12) !important;
         }
-        body.light-mode .search-input {
-            background: rgba(255, 255, 255, 0.8) !important;
-            border-color: rgba(0, 0, 0, 0.1) !important;
+        body.light-mode .brand {
+            color: #0f172a !important;
+        }
+        body.light-mode .my-tab-count {
+            background: rgba(15, 23, 42, 0.06) !important;
+            border-color: rgba(15, 23, 42, 0.1) !important;
+            color: #334155 !important;
+        }
+        body.light-mode .history-subnav-btn.active .my-tab-count {
+            background: rgba(37, 99, 235, 0.14) !important;
+            border-color: rgba(37, 99, 235, 0.32) !important;
+            color: #1d4ed8 !important;
+        }
+        /* 日间模式：彻底解决卡片发黑、看不清问题 */
+        body.light-mode .card,
+        body.light-mode .kanju-poster-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.85) 100%) !important;
+            border: 1px solid rgba(15, 23, 42, 0.09) !important;
+            box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.95), 0 8px 24px -6px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+            color: #0f172a !important;
+        }
+        body.light-mode .card::before,
+        body.light-mode .kanju-poster-card::before {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 100%) !important;
+        }
+        body.light-mode .card:hover,
+        body.light-mode .kanju-poster-card:hover {
+            background: #ffffff !important;
+            border-color: rgba(37, 99, 235, 0.35) !important;
+            box-shadow: inset 0 1px 2px #ffffff, 0 16px 36px -8px rgba(37, 99, 235, 0.16), 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+        }
+        body.light-mode .kanju-poster-wrap {
+            background: #e2e8f0 !important;
+        }
+        body.light-mode .kanju-poster-title,
+        body.light-mode .card-title {
+            color: #0f172a !important;
+        }
+        body.light-mode .kanju-poster-meta,
+        body.light-mode .card-sub {
+            color: #475569 !important;
+        }
+        body.light-mode .card-tag {
+            background: rgba(37, 99, 235, 0.1) !important;
+            color: #1d4ed8 !important;
+            border-color: rgba(37, 99, 235, 0.22) !important;
+        }
+        body.light-mode .history-vertical-block,
+        body.light-mode .search-box,
+        body.light-mode .detail-header {
+            background: rgba(255, 255, 255, 0.82) !important;
+            border-color: rgba(15, 23, 42, 0.09) !important;
+            box-shadow: inset 0 1px 1px #ffffff, 0 10px 30px -6px rgba(15, 23, 42, 0.07) !important;
+        }
+        body.light-mode .search-input,
+        body.light-mode .select-filter {
+            background: rgba(255, 255, 255, 0.92) !important;
+            border-color: rgba(15, 23, 42, 0.14) !important;
+            color: #0f172a !important;
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03) !important;
+        }
+        body.light-mode .select-filter option {
+            background: #ffffff !important;
             color: #0f172a !important;
         }
         body.light-mode button.btn {
-            background: rgba(255, 255, 255, 0.8) !important;
-            border-color: rgba(0, 0, 0, 0.1) !important;
+            background: rgba(255, 255, 255, 0.88) !important;
+            border-color: rgba(15, 23, 42, 0.12) !important;
             color: #0f172a !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+        }
+        body.light-mode button.btn:hover {
+            background: #ffffff !important;
+            border-color: rgba(37, 99, 235, 0.35) !important;
+            color: #1d4ed8 !important;
+        }
+        body.light-mode .chap-btn {
+            background: rgba(255, 255, 255, 0.88) !important;
+            border-color: rgba(15, 23, 42, 0.1) !important;
+            color: #1e293b !important;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+        }
+        body.light-mode .chap-btn:hover {
+            background: #ffffff !important;
+            border-color: rgba(37, 99, 235, 0.4) !important;
+            color: #1d4ed8 !important;
+        }
+        body.light-mode .kanju-chip {
+            background: rgba(255, 255, 255, 0.85) !important;
+            border-color: rgba(15, 23, 42, 0.1) !important;
+            color: #334155 !important;
+        }
+        body.light-mode .kanju-chip.active {
+            background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+            color: #ffffff !important;
+            border-color: transparent !important;
+        }
+        body.light-mode .kanju-suggestions-box,
+        body.light-mode .modal-card,
+        body.light-mode .format-panel {
+            background: rgba(255, 255, 255, 0.96) !important;
+            border-color: rgba(15, 23, 42, 0.12) !important;
+            color: #0f172a !important;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15) !important;
+        }
+        body.light-mode .switch-item {
+            background: rgba(248, 250, 252, 0.9) !important;
+            border-color: rgba(15, 23, 42, 0.08) !important;
+            color: #0f172a !important;
+        }
+        body.light-mode .skeleton-card {
+            background: rgba(255, 255, 255, 0.85) !important;
+            border-color: rgba(15, 23, 42, 0.08) !important;
+        }
+        body.light-mode .skeleton-poster-box,
+        body.light-mode .skeleton-line {
+            background: rgba(15, 23, 42, 0.06) !important;
+        }
+        body.light-mode .reader-floating-header {
+            background: rgba(255, 255, 255, 0.88) !important;
+            border-color: rgba(15, 23, 42, 0.1) !important;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1) !important;
         }
         body.light-mode .badge {
-            background: rgba(0, 0, 0, 0.06) !important;
+            background: rgba(15, 23, 42, 0.06) !important;
             color: #0f172a !important;
-            border-color: rgba(0, 0, 0, 0.12) !important;
+            border-color: rgba(15, 23, 42, 0.12) !important;
         }
 
         /* ============================================================================
@@ -1700,8 +1866,48 @@
         .palette-btn.slate { background: #1e2330; }
 
         /* ============================================================================
-           移动端全场景深度适配 (Mobile Responsive Perfection)
+           多端分辨率智能适配：区分电脑端 (PC 宽屏) / 平板端 / 手机端 (Mobile)
            ============================================================================ */
+        @media (min-width: 1024px) {
+            header {
+                padding: 16px 40px;
+            }
+            main {
+                max-width: 1280px;
+                padding: 22px 32px 52px;
+            }
+            .tab-nav {
+                max-width: 620px;
+            }
+            .my-workspace-layout {
+                grid-template-columns: 220px minmax(0, 1fr);
+                gap: 24px;
+            }
+            .video-grid {
+                grid-template-columns: repeat(auto-fill, minmax(166px, 1fr));
+                gap: 18px;
+            }
+            .grid-list {
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 18px;
+            }
+        }
+
+        @media (min-width: 641px) and (max-width: 1023px) {
+            main {
+                max-width: 980px;
+                padding: 18px 20px 40px;
+            }
+            .my-workspace-layout {
+                grid-template-columns: 180px minmax(0, 1fr);
+                gap: 16px;
+            }
+            .video-grid {
+                grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+                gap: 14px;
+            }
+        }
+
         @media (max-width: 640px) {
             header {
                 padding: 10px 12px;
@@ -1712,7 +1918,7 @@
                 gap: 7px;
             }
             main {
-                padding: 10px 10px 24px;
+                padding: 10px 10px 28px;
             }
             .tab-nav-container {
                 top: 54px;
@@ -1732,25 +1938,65 @@
             .tab-nav-btn i {
                 font-size: 11.5px;
             }
-            .history-header-bar {
-                flex-direction: column;
-                align-items: stretch !important;
-                gap: 8px !important;
+            /* 手机端“我的”页面：左侧紧凑竖向标签栏 + 右侧独立内容区，一眼尽览且分开展示 */
+            .my-workspace-layout {
+                grid-template-columns: 86px minmax(0, 1fr);
+                gap: 10px;
+            }
+            .my-sidebar-wrap {
+                top: 110px;
             }
             .history-subnav {
                 display: flex !important;
+                flex-direction: column !important;
                 width: 100% !important;
-                padding: 3.5px !important;
+                padding: 5px !important;
+                border-radius: 16px !important;
+                gap: 4px !important;
             }
             .history-subnav-btn {
-                flex: 1 !important;
-                padding: 7px 4px !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 10px 4px !important;
                 font-size: 11.5px !important;
                 gap: 4px !important;
-                white-space: nowrap !important;
+                text-align: center !important;
+                border-radius: 12px !important;
             }
-            .history-subnav-btn i {
-                font-size: 11px;
+            .history-subnav-btn .my-tab-left {
+                flex-direction: column;
+                gap: 3px;
+            }
+            .history-subnav-btn .my-tab-left i {
+                font-size: 14px;
+                width: auto;
+            }
+            .my-tab-count {
+                font-size: 10px;
+                padding: 1px 6px;
+            }
+            .my-content-panel .history-vertical-block {
+                padding: 12px !important;
+                border-radius: 16px !important;
+            }
+            .my-content-panel .video-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px !important;
+            }
+            .my-content-panel .grid-list {
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+            .video-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+            .kanju-poster-info {
+                padding: 8px 8px 9px;
+            }
+            .kanju-poster-title {
+                font-size: 12.5px;
             }
             .source-route-nav {
                 display: flex !important;
@@ -1852,7 +2098,7 @@
         <div class="tab-nav" id="mainTabNav">
             <div class="tab-glider" id="tabGlider"></div>
             <button class="tab-nav-btn active" id="navHistoryBtn" onclick="switchNav('history')">
-                <i class="fas fa-clock-rotate-left"></i> <span>最近观看</span>
+                <i class="fas fa-user-astronaut"></i> <span>我的</span>
             </button>
             <button class="tab-nav-btn" id="navNovelBtn" onclick="switchNav('novel')">
                 <i class="fas fa-book-open"></i> <span>小说专区</span>
@@ -1866,85 +2112,121 @@
         </div>
     </div>
 
-    <!-- 第1页：最近观看与书架（四大板块上下竖向依次排列，打开即一眼尽览：影视记录 / 我的书架 / 小说记录 / 漫画记录） -->
+    <!-- 第1页：“我的”个人中心（左侧竖向极光透镜 Tab 栏一眼尽览 + 右侧独立面板分开展示） -->
     <section id="historySection">
-        <div class="history-vertical-stack" style="display:flex; flex-direction:column; gap:20px;">
+        <div class="my-workspace-layout">
+            <!-- 左侧竖向 Tab 导航栏：一眼看见全部 4 个分类，点击切换右侧独立视图 -->
+            <aside class="my-sidebar-wrap">
+                <div class="history-subnav" id="historySubNav">
+                    <div class="subnav-glider" id="subnavGlider"></div>
+                    <button class="history-subnav-btn active" id="histTabVideo" onclick="switchHistoryTab('video')">
+                        <span class="my-tab-left">
+                            <i class="fas fa-film" style="color:#38bdf8;"></i>
+                            <span>影视记录</span>
+                        </span>
+                        <span class="my-tab-count" id="videoTabCountBadge">0</span>
+                    </button>
+                    <button class="history-subnav-btn" id="histTabShelf" onclick="switchHistoryTab('shelf')">
+                        <span class="my-tab-left">
+                            <i class="fas fa-bookmark" style="color:#f59e0b;"></i>
+                            <span>我的书架</span>
+                        </span>
+                        <span class="my-tab-count" id="shelfTabCountBadge">0</span>
+                    </button>
+                    <button class="history-subnav-btn" id="histTabNovel" onclick="switchHistoryTab('novel')">
+                        <span class="my-tab-left">
+                            <i class="fas fa-book" style="color:#10b981;"></i>
+                            <span>小说记录</span>
+                        </span>
+                        <span class="my-tab-count" id="novelTabCountBadge">0</span>
+                    </button>
+                    <button class="history-subnav-btn" id="histTabManga" onclick="switchHistoryTab('manga')">
+                        <span class="my-tab-left">
+                            <i class="fas fa-palette" style="color:#a855f7;"></i>
+                            <span>漫画记录</span>
+                        </span>
+                        <span class="my-tab-count" id="mangaTabCountBadge">0</span>
+                    </button>
+                </div>
+            </aside>
 
-            <!-- 1. 影视观看记录板块 -->
-            <div id="videoHistoryContainer" class="history-vertical-block" style="background:var(--glass-card); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:18px; padding:16px 18px; box-shadow:var(--glass-shadow);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--glass-border);">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <i class="fas fa-film" style="color:#38bdf8; font-size:15px;"></i>
-                        <h3 style="font-size:15px; font-weight:700; margin:0;">影视记录</h3>
-                        <span id="videoHistoryCountBadge" class="badge" style="font-size:10px; padding:2px 8px;">0 部</span>
+            <!-- 右侧分开展示的内容区 -->
+            <div class="my-content-panel">
+                <!-- 1. 影视观看记录板块 -->
+                <div id="videoHistoryContainer" class="history-vertical-block" style="background:var(--glass-card); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:18px; padding:16px 18px; box-shadow:var(--glass-shadow);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--glass-border);">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="fas fa-film" style="color:#38bdf8; font-size:15px;"></i>
+                            <h3 style="font-size:15px; font-weight:700; margin:0;">影视记录</h3>
+                            <span id="videoHistoryCountBadge" class="badge" style="font-size:10px; padding:2px 8px;">0 部</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="switchNav('video')">去影视专区 <i class="fas fa-angle-right"></i></button>
+                            <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="clearHistorySection('video')"><i class="fas fa-trash-alt"></i> 清空</button>
+                        </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="switchNav('video')">去影视专区 <i class="fas fa-angle-right"></i></button>
-                        <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="clearHistorySection('video')"><i class="fas fa-trash-alt"></i> 清空</button>
+                    <div id="videoHistoryGrid" class="video-grid" style="margin-bottom:0;"></div>
+                    <div id="videoHistoryEmpty" style="text-align:center; color:var(--text-muted); padding:28px 12px; font-size:13px; display:none;">
+                        <i class="fas fa-play-circle" style="color:var(--accent); margin-right:6px;"></i>暂无影视观看记录，点击右上角【去影视专区】立即畅享热门大片！
                     </div>
                 </div>
-                <div id="videoHistoryGrid" class="video-grid" style="margin-bottom:0;"></div>
-                <div id="videoHistoryEmpty" style="text-align:center; color:var(--text-muted); padding:18px 12px; font-size:12.5px; display:none;">
-                    <i class="fas fa-play-circle" style="color:var(--accent); margin-right:6px;"></i>暂无影视观看记录，点击右上角【去影视专区】立即畅享热门大片！
+
+                <!-- 2. 我的书架板块 -->
+                <div id="shelfHistoryContainer" class="history-vertical-block" style="display:none; background:var(--glass-card); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:18px; padding:16px 18px; box-shadow:var(--glass-shadow);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--glass-border);">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="fas fa-bookmark" style="color:#f59e0b; font-size:15px;"></i>
+                            <h3 style="font-size:15px; font-weight:700; margin:0;">我的书架</h3>
+                            <span id="shelfHistoryCountBadge" class="badge" style="font-size:10px; padding:2px 8px;">0 本</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="clearHistorySection('shelf')"><i class="fas fa-trash-alt"></i> 清空书架</button>
+                        </div>
+                    </div>
+                    <div id="shelfHistoryGrid" class="grid-list"></div>
+                    <div id="shelfHistoryEmpty" style="text-align:center; color:var(--text-muted); padding:28px 12px; font-size:13px; display:none;">
+                        <i class="fas fa-bookmark" style="color:#f59e0b; margin-right:6px;"></i>书架空空如也，在小说或漫画详情页点击【加书架】即可收藏至此随时追更！
+                    </div>
+                </div>
+
+                <!-- 3. 小说阅读记录板块 -->
+                <div id="novelHistoryContainer" class="history-vertical-block" style="display:none; background:var(--glass-card); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:18px; padding:16px 18px; box-shadow:var(--glass-shadow);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--glass-border);">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="fas fa-book" style="color:#10b981; font-size:15px;"></i>
+                            <h3 style="font-size:15px; font-weight:700; margin:0;">小说记录</h3>
+                            <span id="novelHistoryCountBadge" class="badge" style="font-size:10px; padding:2px 8px;">0 本</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="switchNav('novel')">去小说专区 <i class="fas fa-angle-right"></i></button>
+                            <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="clearHistorySection('novel')"><i class="fas fa-trash-alt"></i> 清空</button>
+                        </div>
+                    </div>
+                    <div id="novelHistoryGrid" class="grid-list"></div>
+                    <div id="novelHistoryEmpty" style="text-align:center; color:var(--text-muted); padding:28px 12px; font-size:13px; display:none;">
+                        <i class="fas fa-book" style="color:#10b981; margin-right:6px;"></i>暂无小说阅读记录，点击右上角【去小说专区】发现海量精品网文！
+                    </div>
+                </div>
+
+                <!-- 4. 漫画阅读记录板块 -->
+                <div id="mangaHistoryContainer" class="history-vertical-block" style="display:none; background:var(--glass-card); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:18px; padding:16px 18px; box-shadow:var(--glass-shadow);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--glass-border);">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="fas fa-palette" style="color:#a855f7; font-size:15px;"></i>
+                            <h3 style="font-size:15px; font-weight:700; margin:0;">漫画记录</h3>
+                            <span id="mangaHistoryCountBadge" class="badge" style="font-size:10px; padding:2px 8px;">0 部</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="switchNav('manga')">去漫画专区 <i class="fas fa-angle-right"></i></button>
+                            <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="clearHistorySection('manga')"><i class="fas fa-trash-alt"></i> 清空</button>
+                        </div>
+                    </div>
+                    <div id="mangaHistoryGrid" class="grid-list"></div>
+                    <div id="mangaHistoryEmpty" style="text-align:center; color:var(--text-muted); padding:28px 12px; font-size:13px; display:none;">
+                        <i class="fas fa-images" style="color:#a855f7; margin-right:6px;"></i>暂无漫画阅读记录，点击右上角【去漫画专区】畅看全彩高清漫画！
+                    </div>
                 </div>
             </div>
-
-            <!-- 2. 我的书架板块 (位于影视记录之后、小说记录之前) -->
-            <div id="shelfHistoryContainer" class="history-vertical-block" style="background:var(--glass-card); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:18px; padding:16px 18px; box-shadow:var(--glass-shadow);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--glass-border);">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <i class="fas fa-bookmark" style="color:#f59e0b; font-size:15px;"></i>
-                        <h3 style="font-size:15px; font-weight:700; margin:0;">我的书架</h3>
-                        <span id="shelfHistoryCountBadge" class="badge" style="font-size:10px; padding:2px 8px;">0 本</span>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="clearHistorySection('shelf')"><i class="fas fa-trash-alt"></i> 清空书架</button>
-                    </div>
-                </div>
-                <div id="shelfHistoryGrid" class="grid-list"></div>
-                <div id="shelfHistoryEmpty" style="text-align:center; color:var(--text-muted); padding:18px 12px; font-size:12.5px; display:none;">
-                    <i class="fas fa-bookmark" style="color:#f59e0b; margin-right:6px;"></i>书架空空如也，在小说或漫画详情页点击【加书架】即可收藏至此随时追更！
-                </div>
-            </div>
-
-            <!-- 3. 小说阅读记录板块 -->
-            <div id="novelHistoryContainer" class="history-vertical-block" style="background:var(--glass-card); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:18px; padding:16px 18px; box-shadow:var(--glass-shadow);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--glass-border);">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <i class="fas fa-book" style="color:#10b981; font-size:15px;"></i>
-                        <h3 style="font-size:15px; font-weight:700; margin:0;">小说记录</h3>
-                        <span id="novelHistoryCountBadge" class="badge" style="font-size:10px; padding:2px 8px;">0 本</span>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="switchNav('novel')">去小说专区 <i class="fas fa-angle-right"></i></button>
-                        <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="clearHistorySection('novel')"><i class="fas fa-trash-alt"></i> 清空</button>
-                    </div>
-                </div>
-                <div id="novelHistoryGrid" class="grid-list"></div>
-                <div id="novelHistoryEmpty" style="text-align:center; color:var(--text-muted); padding:18px 12px; font-size:12.5px; display:none;">
-                    <i class="fas fa-book" style="color:#10b981; margin-right:6px;"></i>暂无小说阅读记录，点击右上角【去小说专区】发现海量精品网文！
-                </div>
-            </div>
-
-            <!-- 4. 漫画阅读记录板块 -->
-            <div id="mangaHistoryContainer" class="history-vertical-block" style="background:var(--glass-card); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:18px; padding:16px 18px; box-shadow:var(--glass-shadow);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--glass-border);">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <i class="fas fa-palette" style="color:#a855f7; font-size:15px;"></i>
-                        <h3 style="font-size:15px; font-weight:700; margin:0;">漫画记录</h3>
-                        <span id="mangaHistoryCountBadge" class="badge" style="font-size:10px; padding:2px 8px;">0 部</span>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="switchNav('manga')">去漫画专区 <i class="fas fa-angle-right"></i></button>
-                        <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="clearHistorySection('manga')"><i class="fas fa-trash-alt"></i> 清空</button>
-                    </div>
-                </div>
-                <div id="mangaHistoryGrid" class="grid-list"></div>
-                <div id="mangaHistoryEmpty" style="text-align:center; color:var(--text-muted); padding:18px 12px; font-size:12.5px; display:none;">
-                    <i class="fas fa-images" style="color:#a855f7; margin-right:6px;"></i>暂无漫画阅读记录，点击右上角【去漫画专区】畅看全彩高清漫画！
-                </div>
-            </div>
-
         </div>
     </section>
 
@@ -2318,7 +2600,7 @@
         }).catch(() => {});
     }
 
-    // 通用极光透镜位移函数 (支持单行与多行自适应丝滑跟随，纯 CSS 硬件加速零卡顿)
+    // 通用极光透镜位移函数 (支持单行、多行与竖向侧边栏自适应丝滑跟随，纯 CSS 硬件加速零卡顿)
     function moveGliderToButton(container, glider, btn) {
         if (!container || !glider || !btn) return;
         const navRect = container.getBoundingClientRect();
@@ -2327,7 +2609,7 @@
         const left = (btnRect.left - navRect.left) + (container.scrollLeft || 0);
         glider.style.left = `${left}px`;
         glider.style.width = `${btnRect.width}px`;
-        if (glider.classList.contains('source-route-glider')) {
+        if (glider.classList.contains('source-route-glider') || glider.classList.contains('subnav-glider')) {
             const top = (btnRect.top - navRect.top) + (container.scrollTop || 0);
             glider.style.top = `${top}px`;
             glider.style.height = `${btnRect.height}px`;
@@ -2905,12 +3187,13 @@
         saveRecentHistory(history);
     }
 
-    // 渲染最近观看与书架（竖向同时展示：1.影视记录 2.我的书架 3.小说记录 4.漫画记录）
+    // 渲染“我的”个人中心（左侧竖向 Tab 实时计数徽章同步 + 右侧独立面板分开展示）
     function renderHistoryModule() {
         renderVideoHistory();
         renderShelfHistory();
         renderNovelHistory();
         renderMangaHistory();
+        setTimeout(() => updateSubnavGlider(currentHistoryTab || 'video'), 30);
     }
 
     // 渲染我的书架
@@ -2918,10 +3201,12 @@
         const grid = document.getElementById('shelfHistoryGrid');
         const empty = document.getElementById('shelfHistoryEmpty');
         const badge = document.getElementById('shelfHistoryCountBadge');
+        const tabBadge = document.getElementById('shelfTabCountBadge');
         if (!grid || !empty) return;
 
         const list = getLocalShelf();
         if (badge) badge.textContent = `${list.length} 本`;
+        if (tabBadge) tabBadge.textContent = `${list.length}`;
         if (list.length === 0) {
             grid.innerHTML = '';
             empty.style.display = 'block';
@@ -2963,10 +3248,12 @@
         const grid = document.getElementById('videoHistoryGrid');
         const empty = document.getElementById('videoHistoryEmpty');
         const badge = document.getElementById('videoHistoryCountBadge');
+        const tabBadge = document.getElementById('videoTabCountBadge');
         if (!grid || !empty) return;
 
         const list = (typeof window.getVideoHistory === 'function') ? window.getVideoHistory() : [];
         if (badge) badge.textContent = `${list.length} 部`;
+        if (tabBadge) tabBadge.textContent = `${list.length}`;
         if (list.length === 0) {
             grid.innerHTML = '';
             empty.style.display = 'block';
@@ -2999,11 +3286,13 @@
         const grid = document.getElementById('novelHistoryGrid');
         const empty = document.getElementById('novelHistoryEmpty');
         const badge = document.getElementById('novelHistoryCountBadge');
+        const tabBadge = document.getElementById('novelTabCountBadge');
         if (!grid || !empty) return;
 
         const all = getRecentHistory();
         const list = all.filter(item => item.tab === '小说' || (!item.tab && item.source !== '新新漫画' && item.source !== '全面漫画' && item.source !== 'G社漫画'));
         if (badge) badge.textContent = `${list.length} 本`;
+        if (tabBadge) tabBadge.textContent = `${list.length}`;
 
         if (list.length === 0) {
             grid.innerHTML = '';
@@ -3034,11 +3323,13 @@
         const grid = document.getElementById('mangaHistoryGrid');
         const empty = document.getElementById('mangaHistoryEmpty');
         const badge = document.getElementById('mangaHistoryCountBadge');
+        const tabBadge = document.getElementById('mangaTabCountBadge');
         if (!grid || !empty) return;
 
         const all = getRecentHistory();
         const list = all.filter(item => item.tab === '漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画');
         if (badge) badge.textContent = `${list.length} 部`;
+        if (tabBadge) tabBadge.textContent = `${list.length}`;
 
         if (list.length === 0) {
             grid.innerHTML = '';
@@ -3064,24 +3355,40 @@
         `).join('');
     }
 
-    // 兼容调用：保持4个板块全部显示，并平滑滚动至指定板块
+    // “我的”页面左侧竖向 Tab 切换：左侧4个分类一眼可见，右侧对应面板分开独立展示
     window.switchHistoryTab = function(tab) {
-        currentHistoryTab = tab;
-        ['videoHistoryContainer', 'shelfHistoryContainer', 'novelHistoryContainer', 'mangaHistoryContainer'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'block';
-        });
-        renderHistoryModule();
-        const map = {
+        currentHistoryTab = tab || 'video';
+        const tabs = ['video', 'shelf', 'novel', 'manga'];
+        const btnMap = {
+            video: 'histTabVideo',
+            shelf: 'histTabShelf',
+            novel: 'histTabNovel',
+            manga: 'histTabManga'
+        };
+        const panelMap = {
             video: 'videoHistoryContainer',
             shelf: 'shelfHistoryContainer',
             novel: 'novelHistoryContainer',
             manga: 'mangaHistoryContainer'
         };
-        const target = document.getElementById(map[tab]);
-        if (target && tab !== 'video') {
-            setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
-        }
+        tabs.forEach(t => {
+            const btn = document.getElementById(btnMap[t]);
+            if (btn) btn.classList.toggle('active', t === currentHistoryTab);
+            const panel = document.getElementById(panelMap[t]);
+            if (panel) {
+                if (t === currentHistoryTab) {
+                    panel.style.display = 'block';
+                    panel.classList.remove('liquid-view-enter');
+                    void panel.offsetWidth;
+                    panel.classList.add('liquid-view-enter');
+                } else {
+                    panel.style.display = 'none';
+                    panel.classList.remove('liquid-view-enter');
+                }
+            }
+        });
+        updateSubnavGlider(currentHistoryTab);
+        renderHistoryModule();
     };
 
     // 独立清空指定板块记录
