@@ -4638,6 +4638,113 @@
         window.loadChiguaFeedByKeywords(kws, `${catName} · 24小时吃瓜观察室`);
     };
 
+    // 通用 HTML 吃瓜/资讯站点解析器（支持 Typecho / WordPress / 常见图文视频页结构）
+    async function fetchTextWithCorsFallback(targetUrl) {
+        const candidates = [
+            targetUrl,
+            '/api/proxy?url=' + encodeURIComponent(targetUrl),
+            'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl),
+            'https://corsproxy.io/?' + encodeURIComponent(targetUrl)
+        ];
+        for (const u of candidates) {
+            try {
+                const r = await window.__rawFetch(u, { signal: AbortSignal.timeout(5000) });
+                if (r.ok) {
+                    const txt = await r.text();
+                    if (txt && txt.length > 100) return txt;
+                }
+            } catch (e) {}
+        }
+        return '';
+    }
+
+    function parseGenericHtmlArticles(html, baseOrigin) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const items = [];
+        const seen = new Set();
+
+        // 匹配常见 Typecho / WordPress / 资讯卡片链接 (/archives/, /post/, /article/, .html)
+        const cards = doc.querySelectorAll('article, .post, .post-card, .item, .list-item, .video-item, .blog-post, a[href*="/archives/"], a[href*="/post/"]');
+        cards.forEach((el) => {
+            const linkEl = (el.tagName === 'A') ? el : el.querySelector('a[href]');
+            if (!linkEl) return;
+            let href = linkEl.getAttribute('href') || '';
+            if (!href || href === '#' || href.startsWith('javascript:')) return;
+            try {
+                href = new URL(href, baseOrigin).href;
+            } catch (e) { return; }
+            if (seen.has(href)) return;
+
+            // 提取标题
+            const titleNode = el.querySelector('h1, h2, h3, h4, .title, .post-title, .entry-title') || linkEl;
+            const title = (titleNode.getAttribute('title') || titleNode.textContent || '').replace(/\s+/g, ' ').trim();
+            if (!title || title.length < 4 || ['首页', '登录', '注册', '搜索', '下一页', '上一页'].includes(title)) return;
+
+            // 提取封面图 (支持 img src / data-src / data-original / style background-image)
+            let pic = '';
+            const imgEl = el.querySelector('img');
+            if (imgEl) {
+                pic = imgEl.getAttribute('data-src') || imgEl.getAttribute('data-original') || imgEl.getAttribute('src') || '';
+            }
+            if (!pic) {
+                const bgNode = el.querySelector('[style*="background"]') || el;
+                const styleStr = (bgNode && bgNode.getAttribute('style')) || '';
+                const m = styleStr.match(/url\(['"]?([^'")]+)['"]?\)/i);
+                if (m && m[1]) pic = m[1];
+            }
+            if (pic) {
+                try { pic = new URL(pic, baseOrigin).href; } catch (e) {}
+            }
+
+            seen.add(href);
+            items.push({
+                vod_id: 'html_' + btoa(unescape(encodeURIComponent(href))).slice(0, 24),
+                vod_name: title,
+                vod_pic: pic,
+                vod_remarks: '吃瓜爆料',
+                vod_score: '9.6',
+                vod_class: '吃瓜观察室',
+                vod_year: '24h热榜',
+                article_url: href
+            });
+        });
+        return items;
+    }
+
+    window.openChiguaHtmlArticle = async function(encodedItem) {
+        let item;
+        try { item = JSON.parse(decodeURIComponent(encodedItem)); } catch (e) { return; }
+        if (!item || !item.article_url) {
+            if (typeof window.openVideoPlayer === 'function') window.openVideoPlayer(encodedItem);
+            return;
+        }
+        try {
+            const html = await fetchTextWithCorsFallback(item.article_url);
+            if (html) {
+                // 提取页面内的 .m3u8 或 .mp4 视频流地址
+                const m3u8Match = html.match(/https?:\\?\/\\?\/[^\s"'<>\\]+\.m3u8(?:\?[^\s"'<>\\]*)?/i)
+                               || html.match(/https?:\\?\/\\?\/[^\s"'<>\\]+\.mp4(?:\?[^\s"'<>\\]*)?/i);
+                if (m3u8Match) {
+                    const streamUrl = m3u8Match[0].replace(/\\\//g, '/');
+                    item.vod_play_url = `正片$${streamUrl}`;
+                    if (typeof window.openVideoPlayer === 'function') {
+                        window.openVideoPlayer(encodeURIComponent(JSON.stringify(item)));
+                        return;
+                    }
+                }
+            }
+        } catch (e) {}
+
+        // 若未检出直连视频流或需图文阅读，直接在顶部沙箱视图打开该文章
+        const wrap = document.getElementById('chiguaIframeWrap');
+        const frame = document.getElementById('chiguaSandboxFrame');
+        if (wrap && frame) {
+            wrap.style.display = 'block';
+            frame.src = item.article_url;
+            wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     window.loadChiguaFeedByKeywords = async function(keywords, sectionTitle) {
         const grid = document.getElementById('chiguaGrid');
         const titleEl = document.getElementById('chiguaFeedTitle');
@@ -4654,15 +4761,16 @@
         const merged = [];
         const seenIds = new Set();
 
-        // 1. 若用户绑定了自定义吃瓜 JSON/CMS 源，优先尝试拉取
+        // 1. 若用户在本地绑定了自定义吃瓜源，优先尝试 JSON 接口及通用 HTML 文章卡片解析
         const customOrigin = (localStorage.getItem('openhappy_chigua_origin') || '').trim().replace(/\/+$/, '');
         if (customOrigin) {
+            const kw = keywords[0] || '';
+            let parsedFromCustom = false;
             try {
-                const kw = keywords[0] || '';
                 const apiUrl = customOrigin.includes('?')
                     ? `${customOrigin}&wd=${encodeURIComponent(kw)}`
                     : `${customOrigin}/api.php/provide/vod/?ac=detail&wd=${encodeURIComponent(kw)}`;
-                const r = await window.__rawFetch(apiUrl, { signal: AbortSignal.timeout(4500) });
+                const r = await window.__rawFetch(apiUrl, { signal: AbortSignal.timeout(3500) });
                 if (r.ok) {
                     const d = await r.json();
                     const list = d.list || d.data || [];
@@ -4670,6 +4778,7 @@
                         const id = 'custom_' + (item.vod_id || item.id || item.vod_name);
                         if (seenIds.has(id)) return;
                         seenIds.add(id);
+                        parsedFromCustom = true;
                         merged.push({
                             vod_id: item.vod_id || item.id || id,
                             vod_name: item.vod_name || item.title || '吃瓜爆料',
@@ -4683,6 +4792,27 @@
                     });
                 }
             } catch (e) {}
+
+            // 若不是标准 CMS JSON 接口，则使用通用 HTML 资讯/吃瓜卡片解析器
+            if (!parsedFromCustom) {
+                try {
+                    const targetPage = (kw && kw !== '吃瓜')
+                        ? `${customOrigin}/index.php/search/${encodeURIComponent(kw)}/`
+                        : customOrigin;
+                    let html = await fetchTextWithCorsFallback(targetPage);
+                    if (!html && targetPage !== customOrigin) {
+                        html = await fetchTextWithCorsFallback(customOrigin);
+                    }
+                    if (html) {
+                        const htmlCards = parseGenericHtmlArticles(html, customOrigin);
+                        htmlCards.forEach(c => {
+                            if (seenIds.has(c.vod_id)) return;
+                            seenIds.add(c.vod_id);
+                            merged.push(c);
+                        });
+                    }
+                } catch (e) {}
+            }
         }
 
         // 2. 并行从全网聚合影视/短剧/娱乐爆料引擎拉取对应吃瓜话题
@@ -4724,30 +4854,32 @@
             return;
         }
 
-        if (typeof window.renderPosterCardHtml === 'function') {
-            grid.innerHTML = merged.map(item => window.renderPosterCardHtml(item)).join('');
-        } else {
-            grid.innerHTML = merged.map(item => {
-                const safeItem = encodeURIComponent(JSON.stringify(item));
-                return `
-                    <div class="kanju-poster-card" onclick="window.openVideoPlayer('${safeItem}')">
-                        <div class="kanju-poster-wrap">
-                            <img src="${item.vod_pic || FALLBACK_BOOK_COVER}" alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${FALLBACK_BOOK_COVER}';" />
-                            <span class="kanju-score-badge">🔥 ${item.vod_score || '9.5'}</span>
-                            <span class="kanju-poster-badge">${item.vod_remarks || '24h吃瓜'}</span>
-                            <div class="kanju-play-hover"><i class="fas fa-play"></i></div>
-                        </div>
-                        <div class="kanju-poster-info">
-                            <div class="kanju-poster-title">${item.vod_name}</div>
-                            <div class="kanju-poster-meta">
-                                <span class="meta-tag">${item.vod_class || '吃瓜观察室'}</span>
-                                <span>${item.vod_year || '24h热榜'}</span>
-                            </div>
+        grid.innerHTML = merged.map(item => {
+            if (!item.article_url && typeof window.renderPosterCardHtml === 'function') {
+                return window.renderPosterCardHtml(item);
+            }
+            const safeItem = encodeURIComponent(JSON.stringify(item));
+            const clickHandler = item.article_url
+                ? `window.openChiguaHtmlArticle('${safeItem}')`
+                : `window.openVideoPlayer('${safeItem}')`;
+            return `
+                <div class="kanju-poster-card" onclick="${clickHandler}">
+                    <div class="kanju-poster-wrap">
+                        <img src="${item.vod_pic || FALLBACK_BOOK_COVER}" alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${FALLBACK_BOOK_COVER}';" />
+                        <span class="kanju-score-badge">🔥 ${item.vod_score || '9.5'}</span>
+                        <span class="kanju-poster-badge">${item.vod_remarks || '24h吃瓜'}</span>
+                        <div class="kanju-play-hover"><i class="fas fa-play"></i></div>
+                    </div>
+                    <div class="kanju-poster-info">
+                        <div class="kanju-poster-title" title="${item.vod_name}">${item.vod_name}</div>
+                        <div class="kanju-poster-meta">
+                            <span class="meta-tag">${item.vod_class || '吃瓜观察室'}</span>
+                            <span>${item.vod_year || '24h热榜'}</span>
                         </div>
                     </div>
-                `;
-            }).join('');
-        }
+                </div>
+            `;
+        }).join('');
     };
 
     async function init() {
