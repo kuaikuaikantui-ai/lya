@@ -551,9 +551,9 @@ const workerHandler = {
             });
         }
 
-        // 🎬 影视聚合检索接口 (量子/暴风/非凡 三线路自动容灾)
+        // 🎬 影视聚合检索接口 (量子/暴风/非凡/快车 多线路并发聚合与自动容灾)
         if (url.pathname === '/api/video/search') {
-            const wd = url.searchParams.get('wd') || '';
+            const wd = (url.searchParams.get('wd') || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
             if (!wd) {
                 return new Response(JSON.stringify({ code: 0, list: [] }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -563,31 +563,64 @@ const workerHandler = {
             const apis = [
                 'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',
                 'https://bfzyapi.com/api.php/provide/vod/?ac=detail',
-                'https://api.ffzyapi.com/api.php/provide/vod/?ac=detail'
+                'https://api.ffzyapi.com/api.php/provide/vod/?ac=detail',
+                'https://jszyapi.com/api.php/provide/vod/?ac=detail'
             ];
 
-            let lastErr = '检索超时';
-            for (const base of apis) {
+            const fetchOne = async (base) => {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 4500);
                 try {
                     const targetUrl = base + '&wd=' + encodeURIComponent(wd);
                     const r = await fetch(targetUrl, {
-                        headers: { 'User-Agent': 'Mozilla/5.0' }
+                        headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15' },
+                        signal: controller.signal
                     });
-                    if (r.ok) {
-                        const json = await r.json();
-                        if (json && json.list && json.list.length > 0) {
-                            return new Response(JSON.stringify(json), {
-                                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                            });
-                        }
-                    }
+                    if (!r.ok) return [];
+                    const json = await r.json();
+                    return (json && Array.isArray(json.list)) ? json.list : [];
                 } catch(e) {
-                    lastErr = e.message;
+                    return [];
+                } finally {
+                    clearTimeout(timer);
                 }
-            }
+            };
 
-            return new Response(JSON.stringify({ code: -1, msg: lastErr, list: [] }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            const settled = await Promise.allSettled(apis.map(fetchOne));
+            const mergedMap = new Map();
+
+            settled.forEach(res => {
+                if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+                    res.value.forEach(item => {
+                        if (!item || !item.vod_name || !item.vod_play_url) return;
+                        const key = item.vod_name.trim();
+                        if (!mergedMap.has(key)) {
+                            mergedMap.set(key, { ...item });
+                        } else {
+                            const existing = mergedMap.get(key);
+                            const existingFroms = (existing.vod_play_from || '').split('$$$').filter(Boolean);
+                            const newFroms = (item.vod_play_from || '').split('$$$').filter(Boolean);
+                            const newUrls = (item.vod_play_url || '').split('$$$').filter(Boolean);
+                            newFroms.forEach((nf, idx) => {
+                                if (!existingFroms.includes(nf) && newUrls[idx]) {
+                                    existing.vod_play_from = (existing.vod_play_from ? existing.vod_play_from + '$$$' : '') + nf;
+                                    existing.vod_play_url = (existing.vod_play_url ? existing.vod_play_url + '$$$' : '') + newUrls[idx];
+                                }
+                            });
+                            if (!existing.vod_pic && item.vod_pic) existing.vod_pic = item.vod_pic;
+                        }
+                    });
+                }
+            });
+
+            const combinedList = Array.from(mergedMap.values());
+            return new Response(JSON.stringify({
+                code: 0,
+                msg: 'ok',
+                total: combinedList.length,
+                list: combinedList
+            }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
             });
         }
 

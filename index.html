@@ -924,15 +924,17 @@
             50% { opacity: 0.4; transform: scale(0.85); }
         }
 
-        /* 视频播放器 4K 超清画质增强 & GPU 边缘色彩锐化增强 */
-        #dplayerContainer video {
-            transform: translateZ(0);
-            backface-visibility: hidden;
-            -webkit-font-smoothing: antialiased;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: high-quality;
-            filter: contrast(106%) saturate(108%) brightness(101%);
-            transition: filter 0.3s ease;
+        /* 视频播放器 4K 超清画质增强 & GPU 边缘色彩锐化增强 (仅PC端开启，避免手机硬解黑屏) */
+        @media (min-width: 769px) and (hover: hover) {
+            #dplayerContainer video {
+                transform: translateZ(0);
+                backface-visibility: hidden;
+                -webkit-font-smoothing: antialiased;
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: high-quality;
+                filter: contrast(106%) saturate(108%) brightness(101%);
+                transition: filter 0.3s ease;
+            }
         }
         #dplayerContainer.hq-enhanced-off video {
             filter: none !important;
@@ -1490,14 +1492,48 @@
         .palette-btn.daylight { background: #ffffff; }
         .palette-btn.slate { background: #1e2330; }
 
+        /* GooseHyperGlass WebGL 液态玻璃原生组件容器适配 */
+        .goose-lg-nav-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 30;
+        }
+        .goose-lg-main {
+            width: min(440px, 95vw);
+            height: 76px;
+            display: block;
+            border-radius: 38px;
+        }
+        .goose-lg-sub {
+            width: min(400px, 92vw);
+            height: 68px;
+            display: block;
+            border-radius: 34px;
+        }
+        body.use-goose-webgl #mainTabNav {
+            display: none !important;
+        }
+        body:not(.use-goose-webgl) #lgMainTabNav {
+            display: none !important;
+        }
+        body.use-goose-webgl #historySubNav {
+            display: none !important;
+        }
+        body:not(.use-goose-webgl) #lgHistorySubNav {
+            display: none !important;
+        }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/swarmcloud-hls@latest/dist/p2p-engine.min.js"></script>
-    <script>if (!window.P2PEngineHls && !window.P2pEngineHls) document.write('<script src="p2p-engine.min.js"><\/script>');</script>
+    <script src="p2p-engine.min.js"></script>
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
     <script src="video.js"></script>
+    <script src="liquid-glass.js" onerror="var s=document.createElement('script');s.src='https://glass.goose.cc.cd/liquid-glass.js';document.head.appendChild(s);"></script>
 </head>
-<body>
+<body class="use-goose-webgl">
 
 <header>
     <div class="brand" onclick="switchNav('history'); switchHistoryTab('shelf');">
@@ -1506,14 +1542,15 @@
         <span class="badge" id="sourceVerTag">昂哥构建</span>
     </div>
     <div class="header-actions">
+        <button class="btn theme-toggle-btn" id="glassEngineBtn" onclick="toggleGlassEngine()" title="切换 GooseHyperGlass WebGL 液态玻璃 / 极光追光模式"><i class="fas fa-droplet" style="color:#38bdf8;"></i> <span id="glassEngineLabel">WebGL水滴</span></button>
         <button class="btn theme-toggle-btn" id="themeToggleBtn" onclick="toggleDarkLightMode()" title="切换日间/夜间模式"><i class="fas fa-sun" id="themeIcon"></i> <span id="themeLabel">日间</span></button>
-        
     </div>
 </header>
 
 <main>
-    <!-- 顶部 VisionOS 纯透明液态玻璃分段导航 (滑动透镜指示器) -->
+    <!-- 顶部液态玻璃分段导航：支持 GooseHyperGlass WebGL 真三维水滴折射引擎 & CSS 极光透镜双引擎 -->
     <div class="tab-nav-container">
+        <liquid-glass id="lgMainTabNav" class="goose-lg-main" mode="single-bottom-tabs" dark dpr="2"></liquid-glass>
         <div class="tab-nav" id="mainTabNav">
             <div class="tab-glider" id="tabGlider"></div>
             <button class="tab-nav-btn active" id="navHistoryBtn" onclick="switchNav('history')">
@@ -1534,6 +1571,7 @@
     <!-- 第1页：最近观看与书架（分设：影视记录 / 我的书架 / 小说记录 / 漫画记录 四大纯透液态导航） -->
     <section id="historySection">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; flex-wrap:wrap; gap:10px;">
+            <liquid-glass id="lgHistorySubNav" class="goose-lg-sub" mode="single-bottom-tabs" dark dpr="2"></liquid-glass>
             <div class="history-subnav" id="historySubNav">
                 <div class="subnav-glider" id="subnavGlider"></div>
                 <button class="history-subnav-btn active" id="histTabVideo" onclick="switchHistoryTab('video')">
@@ -1970,85 +2008,6 @@
 
 </main>
 
-
-<!-- 播放器专属设置面板抽屉 (对齐原站设置交互) -->
-<div class="drawer-overlay" id="settingsDrawerOverlay" onclick="window.toggleSettingsDrawer()"></div>
-<div class="player-settings-drawer" id="playerSettingsDrawer">
-    <div class="drawer-header">
-        <div style="font-weight:700; font-size:15px; display:flex; align-items:center; gap:8px;">
-            <i class="fas fa-sliders" style="color:var(--accent);"></i>
-            <span>播放器偏好设置</span>
-        </div>
-        <button class="btn" style="padding:4px 8px;" onclick="window.toggleSettingsDrawer()">✕</button>
-    </div>
-    <div class="drawer-body">
-        <!-- 1. 真实 WebRTC P2P 加速 -->
-        <div class="setting-card">
-            <div class="setting-info">
-                <div class="setting-title">
-                    <i class="fas fa-bolt" style="color:#f59e0b;"></i>
-                    <span>WebRTC P2P 边缘加速</span>
-                </div>
-                <div class="setting-desc">点对点网络分片加速，降低卡顿并分担带宽</div>
-                <div id="p2pDetailsText" style="font-size:10px; color:var(--accent); margin-top:2px;">正在连接 P2P 种子网络...</div>
-            </div>
-            <div class="glass-switch active" id="p2pSwitch" onclick="window.toggleP2pFeature()"></div>
-        </div>
-
-        <!-- 2. GPU 4K 画质增强 -->
-        <div class="setting-card">
-            <div class="setting-info">
-                <div class="setting-title">
-                    <i class="fas fa-wand-magic-sparkles" style="color:var(--accent);"></i>
-                    <span>GPU 4K 超清画质增强</span>
-                </div>
-                <div class="setting-desc">原站同款色彩 HDR 优化与边缘对比度锐化</div>
-            </div>
-            <div class="glass-switch active" id="hqSwitch" onclick="window.toggleVideoHqEnhance()"></div>
-        </div>
-
-        <!-- 3. 智能跳过片头 -->
-        <div class="setting-card">
-            <div class="setting-info">
-                <div class="setting-title">
-                    <i class="fas fa-forward" style="color:#38bdf8;"></i>
-                    <span>智能自动跳过片头</span>
-                </div>
-                <div class="setting-desc" id="skipIntroDescText">根据原站社区众包时间戳自动跳跃</div>
-            </div>
-            <div class="glass-switch active" id="skipIntroSwitch" onclick="window.toggleAutoSkipIntro()"></div>
-        </div>
-
-        <!-- 4. 实时流式弹幕 -->
-        <div class="setting-card">
-            <div class="setting-info">
-                <div class="setting-title">
-                    <i class="fas fa-comment-dots" style="color:#a855f7;"></i>
-                    <span>原站剧友实时弹幕</span>
-                </div>
-                <div class="setting-desc">展示原站弹幕流，字幕区智能避让</div>
-            </div>
-            <div class="glass-switch active" id="danmakuSwitch" onclick="window.toggleDanmaku()"></div>
-        </div>
-
-        <!-- 5. 自动无缝连播下一集 -->
-        <div class="setting-card">
-            <div class="setting-info">
-                <div class="setting-title">
-                    <i class="fas fa-forward-step" style="color:#10b981;"></i>
-                    <span>自动连播下一集</span>
-                </div>
-                <div class="setting-desc">本集正片播放完毕后自动无缝切入下一集</div>
-            </div>
-            <div class="glass-switch active" id="autoNextSwitch" onclick="window.toggleAutoNext()"></div>
-        </div>
-
-        <div style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px 0;">
-            <i class="fas fa-shield-halved"></i> 配置自动实时同步保存至本地
-        </div>
-    </div>
-</div>
-
 <div class="modal-overlay" id="apiConfigModal">
     <div class="modal-card">
         <div class="modal-head">
@@ -2180,6 +2139,115 @@
         });
     }
 
+    // GooseHyperGlass WebGL 液态玻璃原生组件初始化与双引擎切换
+    const MAIN_NAV_KEYS = ['history', 'novel', 'manga', 'video'];
+    const HIST_SUB_KEYS = ['video', 'shelf', 'novel', 'manga'];
+    let isSyncingLgNav = false;
+
+    function initGooseHyperGlass() {
+        const savedEngine = localStorage.getItem('openhappy_glass_engine');
+        const useWebGL = savedEngine !== 'css'; // 默认开启 GooseHyperGlass WebGL 模式供体验
+        document.body.classList.toggle('use-goose-webgl', useWebGL);
+        updateGlassEngineBtn(useWebGL);
+
+        const configureLgElements = () => {
+            const isLight = document.body.classList.contains('light-mode');
+            const lgMain = document.getElementById('lgMainTabNav');
+            if (lgMain && typeof lgMain.setTabs === 'function') {
+                if (isLight) lgMain.removeAttribute('dark');
+                else lgMain.setAttribute('dark', '');
+
+                lgMain.setTabs([[
+                    {
+                        label: '最近观看',
+                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>`
+                    },
+                    {
+                        label: '小说专区',
+                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></svg>`
+                    },
+                    {
+                        label: '漫画专区',
+                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`
+                    },
+                    {
+                        label: '影视专区',
+                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>`
+                    }
+                ]]);
+
+                if (!lgMain.__boundStateChange) {
+                    lgMain.__boundStateChange = true;
+                    lgMain.addEventListener('lg-statechange', (e) => {
+                        if (isSyncingLgNav) return;
+                        const idx = e.detail?.selectedTab;
+                        if (typeof idx === 'number' && MAIN_NAV_KEYS[idx] && MAIN_NAV_KEYS[idx] !== previousView) {
+                            switchNav(MAIN_NAV_KEYS[idx]);
+                        }
+                    });
+                }
+            }
+
+            const lgSub = document.getElementById('lgHistorySubNav');
+            if (lgSub && typeof lgSub.setTabs === 'function') {
+                if (isLight) lgSub.removeAttribute('dark');
+                else lgSub.setAttribute('dark', '');
+
+                lgSub.setTabs([[
+                    {
+                        label: '影视记录',
+                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg>`
+                    },
+                    {
+                        label: '我的书架',
+                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>`
+                    },
+                    {
+                        label: '小说记录',
+                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>`
+                    },
+                    {
+                        label: '漫画记录',
+                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z"/></svg>`
+                    }
+                ]]);
+
+                if (!lgSub.__boundStateChange) {
+                    lgSub.__boundStateChange = true;
+                    lgSub.addEventListener('lg-statechange', (e) => {
+                        if (isSyncingLgNav) return;
+                        const idx = e.detail?.selectedTab;
+                        if (typeof idx === 'number' && HIST_SUB_KEYS[idx] && HIST_SUB_KEYS[idx] !== currentHistoryTab) {
+                            switchHistoryTab(HIST_SUB_KEYS[idx]);
+                        }
+                    });
+                }
+            }
+        };
+
+        if (window.customElements && window.customElements.whenDefined) {
+            window.customElements.whenDefined('liquid-glass').then(configureLgElements).catch(() => {});
+        }
+        setTimeout(configureLgElements, 150);
+    }
+
+    function toggleGlassEngine() {
+        const useWebGL = document.body.classList.toggle('use-goose-webgl');
+        localStorage.setItem('openhappy_glass_engine', useWebGL ? 'webgl' : 'css');
+        updateGlassEngineBtn(useWebGL);
+        if (!useWebGL) {
+            setTimeout(() => {
+                updateTabGlider(previousView || 'history');
+                updateSubnavGlider(currentHistoryTab || 'video');
+            }, 30);
+        }
+    }
+
+    function updateGlassEngineBtn(useWebGL) {
+        const lbl = document.getElementById('glassEngineLabel');
+        if (lbl) lbl.innerText = useWebGL ? 'WebGL水滴' : '极光透镜';
+    }
+
     // 日间 / 夜间模式全局控制
     function initTheme() {
         const saved = localStorage.getItem('openhappy_theme');
@@ -2192,6 +2260,13 @@
         const isLight = document.body.classList.toggle('light-mode');
         localStorage.setItem('openhappy_theme', isLight ? 'light' : 'dark');
         updateThemeBtn(isLight);
+        ['lgMainTabNav', 'lgHistorySubNav'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (isLight) el.removeAttribute('dark');
+                else el.setAttribute('dark', '');
+            }
+        });
     }
 
     function updateThemeBtn(isLight) {
@@ -2847,6 +2922,14 @@
 
         if (tab === 'shelf') renderShelfHistory();
         updateSubnavGlider(tab);
+
+        const lgSub = document.getElementById('lgHistorySubNav');
+        const subIdx = HIST_SUB_KEYS.indexOf(tab);
+        if (lgSub && typeof lgSub.setState === 'function' && subIdx !== -1) {
+            isSyncingLgNav = true;
+            try { lgSub.setState({ selectedTab: subIdx }); } catch(e) {}
+            isSyncingLgNav = false;
+        }
     };
 
     window.clearCurrentHistoryTab = function() {
@@ -2930,6 +3013,15 @@
 
         previousView = nav;
         updateTabGlider(nav);
+
+        const lgMain = document.getElementById('lgMainTabNav');
+        const mainIdx = MAIN_NAV_KEYS.indexOf(nav);
+        if (lgMain && typeof lgMain.setState === 'function' && mainIdx !== -1) {
+            isSyncingLgNav = true;
+            try { lgMain.setState({ selectedTab: mainIdx }); } catch(e) {}
+            isSyncingLgNav = false;
+        }
+
         if (isHistory) renderHistoryModule();
         if (isNovel && (!document.getElementById('novelResultsGrid').innerHTML || document.getElementById('novelResultsGrid').children.length === 0)) {
             doNovelSearch('剑来');
@@ -3422,6 +3514,7 @@
         initTheme();
         setNovelTheme(currentNovelTheme);
         initLiquidGlassMouseFollower();
+        initGooseHyperGlass();
         setTimeout(() => {
             updateTabGlider('history');
             updateSubnavGlider(currentHistoryTab);

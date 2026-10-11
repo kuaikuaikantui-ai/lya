@@ -621,11 +621,11 @@
             if (vEpList) vEpList.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;"><i class="fas fa-spinner fa-spin"></i> 正在全网秒级调取超清播放线路...</div>';
 
             try {
-                // 构造多级精准搜索关键词：完整标题、去除季数副标题的名、纯剧名
-                const rawName = item.vod_name;
-                const cleanName1 = rawName.replace(/\s+第.*季/g, '').replace(/第.*季/g, '').trim();
-                const cleanName2 = rawName.split(' ')[0].trim();
-                const candidateQueries = [...new Set([rawName, cleanName1, cleanName2])].filter(Boolean);
+                // 构造多级精准搜索关键词：清洗零宽字符、完整标题、去除季数副标题、冒号/空格切分主剧名
+                const rawName = (item.vod_name || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
+                const cleanName1 = rawName.replace(/\s+第.*季/g, '').replace(/第.*季/g, '').replace(/[0-9]+$/g, '').trim();
+                const cleanName2 = cleanName1.split(/[\s:：·~～\-]/)[0].trim();
+                const candidateQueries = [...new Set([rawName, cleanName1, cleanName2])].filter(q => q && q.length >= 1);
 
                 let matched = null;
                 for (const q of candidateQueries) {
@@ -638,7 +638,8 @@
                                 it.vod_name === rawName || 
                                 it.vod_name === cleanName1 || 
                                 it.vod_name.startsWith(cleanName1) || 
-                                it.vod_name.includes(cleanName1)
+                                it.vod_name.includes(cleanName1) ||
+                                (cleanName2.length >= 2 && it.vod_name.includes(cleanName2))
                             ) || searchData.list[0];
                             if (matched && matched.vod_play_url) break;
                         }
@@ -752,7 +753,7 @@
     };
 
     // 切换播放线路
-    window.switchPlayGroup = function(groupIdx) {
+    window.switchPlayGroup = function(groupIdx, targetEpIdx = 0) {
         window.currentGroupIdx = groupIdx;
         document.querySelectorAll('#videoPlaySourceTabs .source-route-btn').forEach(b => b.classList.remove('active'));
         const activeBtn = document.getElementById('sourceRouteBtn_' + groupIdx);
@@ -765,7 +766,7 @@
             }
         }
         window.renderVideoEpisodes(groupIdx);
-        window.playVideoEpisode(0);
+        window.playVideoEpisode(targetEpIdx);
     };
 
     // 渲染剧集列表
@@ -786,7 +787,7 @@
         `).join('');
     };
 
-    // 播放指定集数 (连接原站真实海量弹幕源)
+    // 播放指定集数 (全平台兼容：iOS原生硬解 + Android/PC自适应HLS + 断线自动切源容灾)
     window.playVideoEpisode = function(idx) {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
@@ -808,6 +809,14 @@
         const container = document.getElementById('dplayerContainer');
         if (!container) return;
 
+        if (window.currentP2pEngine) {
+            try { window.currentP2pEngine.destroy(); } catch(e){}
+            window.currentP2pEngine = null;
+        }
+        if (window.currentHlsInstance) {
+            try { window.currentHlsInstance.destroy(); } catch(e){}
+            window.currentHlsInstance = null;
+        }
         if (window.dpInstance) {
             try { window.dpInstance.destroy(); } catch(e){}
             window.dpInstance = null;
@@ -818,13 +827,17 @@
         const videoTitle = window.currentVideo.vod_name || '';
         const kanjuCardId = window.currentVideo.kanju_id || (String(window.currentVideo.vod_id).startsWith('av_') ? window.currentVideo.vod_id : '');
 
+        const ua = navigator.userAgent || '';
+        const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isMobile = isIOS || /Android|Mobile|Adr|MicroMessenger|UCBrowser|Quark|baiduboxapp/i.test(ua);
+
         window.dpInstance = new DPlayer({
             container: container,
-            autoplay: true,
-            theme: '#2dd4c0',
+            autoplay: !isMobile,
+            theme: '#38bdf8',
             loop: false,
             lang: 'zh-cn',
-            screenshot: true,
+            screenshot: !isMobile,
             hotkey: true,
             preload: 'auto',
             volume: 0.8,
@@ -834,24 +847,49 @@
                 type: isHls ? 'customHls' : 'auto',
                 customType: {
                     customHls: function (video, player) {
+                        // 移动端关键内联播放属性：防止 iOS / 微信 / 夸克 / UC 强制劫持或黑屏拦截
+                        video.setAttribute('playsinline', 'true');
+                        video.setAttribute('webkit-playsinline', 'true');
+                        video.setAttribute('x5-playsinline', 'true');
+                        video.setAttribute('x5-video-player-type', 'h5-page');
+
+                        // 1. iOS / iPadOS 优先走苹果系统底层原生 HLS 硬件解码 (避开 ManagedMediaSource 与 WebRTC 冲突)
+                        if (isIOS && video.canPlayType('application/vnd.apple.mpegurl')) {
+                            video.src = videoUrl;
+                            video.addEventListener('loadedmetadata', function () {
+                                video.play().catch(function () {});
+                            }, { once: true });
+                            video.addEventListener('error', function () {
+                                const totalGroups = (window.currentVideo && window.currentVideo.groups) ? window.currentVideo.groups.length : 0;
+                                if (totalGroups > 1 && (window._autoSwitchCount || 0) < totalGroups - 1) {
+                                    window._autoSwitchCount = (window._autoSwitchCount || 0) + 1;
+                                    const nextGroup = (window.currentGroupIdx + 1) % totalGroups;
+                                    window.switchPlayGroup(nextGroup, idx);
+                                }
+                            }, { once: true });
+                            return;
+                        }
+
+                        // 2. Android 与 PC 走 Hls.js 引擎 (关闭导致手机断流的 lowLatencyMode)
                         if (window.Hls && window.Hls.isSupported()) {
                             const hls = new window.Hls({
-                                enableWorker: true,
-                                lowLatencyMode: true,
-                                startLevel: -1,             // 自动探测并从最高分辨率切入
-                                capLevelToPlayerSize: false,// 禁止因屏幕/容器尺寸限制下调分辨率
-                                maxBufferLength: 30,
-                                maxMaxBufferLength: 60,
-                                backBufferLength: 30
+                                enableWorker: !isMobile,
+                                lowLatencyMode: false,
+                                startLevel: -1,
+                                capLevelToPlayerSize: isMobile,
+                                maxBufferLength: isMobile ? 20 : 30,
+                                maxMaxBufferLength: isMobile ? 40 : 60,
+                                backBufferLength: isMobile ? 15 : 30,
+                                manifestLoadingTimeOut: 10000,
+                                manifestLoadingMaxRetry: 2,
+                                levelLoadingTimeOut: 10000,
+                                fragLoadingTimeOut: 15000
                             });
 
-                            // WebRTC P2P 智能加速引擎 (兼容 SwarmCloud / CDNBye HlsjsEngine)
+                            // 仅在桌面端启用 WebRTC P2P 加速引擎，避免手机 4G/5G NAT 阻塞分片加载
                             const P2pEngineClass = window.P2PEngineHls || window.P2pEngineHls;
-                            if (P2pEngineClass && typeof P2pEngineClass.isSupported === 'function' && P2pEngineClass.isSupported()) {
+                            if (!isMobile && P2pEngineClass && typeof P2pEngineClass.isSupported === 'function' && P2pEngineClass.isSupported()) {
                                 try {
-                                    if (window.currentP2pEngine) {
-                                        try { window.currentP2pEngine.destroy(); } catch(e){}
-                                    }
                                     let p2pEngine = null;
                                     if (P2pEngineClass.HlsjsEngine) {
                                         p2pEngine = new P2pEngineClass.HlsjsEngine(hls, {
@@ -910,21 +948,60 @@
                                 } catch(e) {
                                     console.warn('[P2P Engine] 挂载跳过，走原生超清线路:', e);
                                 }
+                            } else if (isMobile) {
+                                const liveText = document.getElementById('p2pLiveText');
+                                if (liveText) liveText.innerText = '移动直连超清';
                             }
 
-                            hls.loadSource(video.src);
+                            hls.loadSource(videoUrl);
                             hls.attachMedia(video);
                             hls.on(window.Hls.Events.MANIFEST_PARSED, function (event, data) {
-                                // 核心画质锁定：如果有多个画质等级（如480P/720P/1080P/4K），强制锁定到最高层级
-                                if (data && data.levels && data.levels.length > 0) {
+                                window._autoSwitchCount = 0;
+                                if (!isMobile && data && data.levels && data.levels.length > 0) {
                                     const highestLevel = data.levels.length - 1;
                                     hls.currentLevel = highestLevel;
-                                    console.log(`[OpenHappy HQ] 自动锁定最高画质: ${data.levels[highestLevel].height || 'Max'}P, 比特率: ${data.levels[highestLevel].bitrate || 'Auto'}`);
+                                }
+                                video.play().catch(function () {});
+                            });
+
+                            // 错误自愈与移动端原生回退 / 自动换线容灾
+                            let mediaErrorRecovered = false;
+                            hls.on(window.Hls.Events.ERROR, function (event, data) {
+                                if (!data || !data.fatal) return;
+                                if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR && !mediaErrorRecovered) {
+                                    mediaErrorRecovered = true;
+                                    hls.recoverMediaError();
+                                    return;
+                                }
+                                // 如果移动端原生支持 m3u8，立即回退至手机浏览器原生解码
+                                if (isMobile && video.canPlayType('application/vnd.apple.mpegurl')) {
+                                    try { hls.destroy(); } catch(e) {}
+                                    window.currentHlsInstance = null;
+                                    video.src = videoUrl;
+                                    video.play().catch(function () {});
+                                    return;
+                                }
+                                // 若当前线路节点不通，自动切换到下一条备用线路
+                                const totalGroups = (window.currentVideo && window.currentVideo.groups) ? window.currentVideo.groups.length : 0;
+                                if (totalGroups > 1 && (window._autoSwitchCount || 0) < totalGroups - 1) {
+                                    window._autoSwitchCount = (window._autoSwitchCount || 0) + 1;
+                                    const nextGroup = (window.currentGroupIdx + 1) % totalGroups;
+                                    if (window.dpInstance && window.dpInstance.notice) {
+                                        window.dpInstance.notice('当前线路繁忙，已自动为您切换备用超清线路...', 3000);
+                                    }
+                                    setTimeout(function () {
+                                        window.switchPlayGroup(nextGroup, idx);
+                                    }, 300);
                                 }
                             });
-                            // 保持对 hls 实例的引用，便于画质控制
+
                             window.currentHlsInstance = hls;
                         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                            video.src = videoUrl;
+                            video.addEventListener('loadedmetadata', function () {
+                                video.play().catch(function () {});
+                            }, { once: true });
+                        } else {
                             video.src = videoUrl;
                         }
                     }
