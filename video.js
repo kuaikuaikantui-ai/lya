@@ -514,6 +514,7 @@
         const input = document.getElementById('videoSearchInput');
         const wd = input ? input.value.trim() : '';
         if (!wd) return;
+        if (window.checkSecretUnlockKeyword && window.checkSecretUnlockKeyword(wd, input)) return;
 
         const searchBlock = document.getElementById('videoSearchResultBlock');
         if (searchBlock) searchBlock.style.display = 'block';
