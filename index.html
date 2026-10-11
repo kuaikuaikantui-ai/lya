@@ -2624,18 +2624,28 @@
                 </div>
             </div>
 
-            <!-- 自定义吃瓜源地址配置栏 (默认折叠，支持接入任意吃瓜站点/RSS/JSON源) -->
+            <!-- 自定义吃瓜源地址配置栏 (默认折叠，支持接入导航页自动解析多条线路或单站点地址) -->
             <div id="chiguaCustomSourceBox" style="display:none; margin-bottom:14px; padding:12px; border-radius:14px; background:rgba(15,23,42,0.5); border:1px solid rgba(244,63,94,0.28);">
                 <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                    <span><i class="fas fa-satellite-dish" style="color:#fb7185;"></i> 绑定自定义吃瓜站点 / 订阅源地址（仅保存在本地浏览器）：</span>
-                    <span id="chiguaSourceStatus" style="color:#fb7185; font-weight:600;">当前：内置聚合源 + 自定义源</span>
+                    <span><i class="fas fa-satellite-dish" style="color:#fb7185;"></i> 绑定吃瓜导航页或站点地址（支持自动解析多条线路、随机优选与一键切线）：</span>
+                    <span id="chiguaSourceStatus" style="color:#fb7185; font-weight:600;">当前：内置聚合源</span>
                 </div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <input type="text" id="chiguaOriginInput" class="search-input" style="flex:1; min-width:220px; padding:8px 12px; font-size:13px;" placeholder="输入自定义吃瓜站点地址，例如 https://..." />
-                    <button class="btn primary" style="padding:8px 16px; font-size:12px;" onclick="saveChiguaCustomOrigin()"><i class="fas fa-check"></i> 保存并加载</button>
+                    <input type="text" id="chiguaOriginInput" class="search-input" style="flex:1; min-width:220px; padding:8px 12px; font-size:13px;" placeholder="输入吃瓜导航页或站点地址，自动提取多条线路并随机优选..." />
+                    <button class="btn primary" style="padding:8px 16px; font-size:12px;" onclick="saveChiguaCustomOrigin()"><i class="fas fa-bolt"></i> 解析线路并加载</button>
+                    <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="pickRandomChiguaLine()"><i class="fas fa-shuffle"></i> 随机换线</button>
                     <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="openChiguaExternalFrame()"><i class="fas fa-compass"></i> 沙箱直连</button>
                     <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="clearChiguaCustomOrigin()"><i class="fas fa-rotate-left"></i> 恢复默认</button>
                 </div>
+            </div>
+
+            <!-- 多线路自动优选与手动切换栏 (当导航页解析出多条吃瓜线路时自动展示) -->
+            <div id="chiguaLineSwitcherBar" style="display:none; margin-bottom:12px; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 12px; border-radius:12px; background:rgba(244,63,94,0.08); border:1px solid rgba(244,63,94,0.25);">
+                <span style="font-size:12px; font-weight:700; color:#fb7185;"><i class="fas fa-network-wired"></i> 吃瓜线路切换：</span>
+                <div id="chiguaLineButtons" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;"></div>
+                <button class="btn" style="font-size:11px; padding:4px 10px; margin-left:auto; border-color:rgba(244,63,94,0.4); color:#fb7185;" onclick="pickRandomChiguaLine()">
+                    <i class="fas fa-dice"></i> 随机切换线路
+                </button>
             </div>
 
             <div class="kanju-search-row">
@@ -4552,30 +4562,184 @@
         box.style.display = (box.style.display === 'none') ? 'block' : 'none';
     };
 
-    window.saveChiguaCustomOrigin = function() {
-        const input = document.getElementById('chiguaOriginInput');
-        const val = (input ? input.value : '').trim().replace(/\/+$/, '');
-        if (val) {
-            localStorage.setItem('openhappy_chigua_origin', val);
-            const st = document.getElementById('chiguaSourceStatus');
-            if (st) st.innerText = '已绑定自定义吃瓜源：' + val;
-            window.loadChiguaCategory('热门吃瓜');
+    function getSavedChiguaLines() {
+        try {
+            return JSON.parse(localStorage.getItem('openhappy_chigua_lines') || '[]');
+        } catch (e) {
+            return [];
         }
+    }
+
+    function renderChiguaLineSwitcher() {
+        const bar = document.getElementById('chiguaLineSwitcherBar');
+        const btnWrap = document.getElementById('chiguaLineButtons');
+        const st = document.getElementById('chiguaSourceStatus');
+        const lines = getSavedChiguaLines();
+        const activeOrigin = (localStorage.getItem('openhappy_chigua_origin') || '').trim().replace(/\/+$/, '');
+
+        if (st) {
+            st.innerText = activeOrigin ? ('当前优选线路：' + activeOrigin) : '当前：内置聚合源';
+        }
+        if (!bar || !btnWrap) return;
+        if (!lines || lines.length === 0) {
+            bar.style.display = 'none';
+            return;
+        }
+        bar.style.display = 'flex';
+        btnWrap.innerHTML = lines.map((item, idx) => {
+            const cleanUrl = (item.url || '').replace(/\/+$/, '');
+            const isActive = cleanUrl === activeOrigin;
+            const style = isActive
+                ? 'font-size:11px; padding:4px 10px; background:rgba(244,63,94,0.22); border-color:#f43f5e; color:#fb7185; font-weight:700;'
+                : 'font-size:11px; padding:4px 10px;';
+            return `<button class="btn" style="${style}" onclick="selectChiguaLine('${cleanUrl}')" title="${cleanUrl}">${item.label || ('线路' + (idx + 1))}</button>`;
+        }).join('');
+    }
+    window.renderChiguaLineSwitcher = renderChiguaLineSwitcher;
+
+    window.selectChiguaLine = function(lineUrl) {
+        if (!lineUrl) return;
+        const clean = lineUrl.trim().replace(/\/+$/, '');
+        localStorage.setItem('openhappy_chigua_origin', clean);
+        renderChiguaLineSwitcher();
+        const wrap = document.getElementById('chiguaIframeWrap');
+        const frame = document.getElementById('chiguaSandboxFrame');
+        if (wrap && wrap.style.display !== 'none' && frame) {
+            frame.src = clean;
+        }
+        window.loadChiguaCategory('热门吃瓜');
+    };
+
+    window.pickRandomChiguaLine = function() {
+        const lines = getSavedChiguaLines();
+        if (!lines || lines.length === 0) {
+            window.saveChiguaCustomOrigin(true);
+            return;
+        }
+        const cur = (localStorage.getItem('openhappy_chigua_origin') || '').trim().replace(/\/+$/, '');
+        const candidates = lines.length > 1 ? lines.filter(l => (l.url || '').replace(/\/+$/, '') !== cur) : lines;
+        const chosen = candidates[Math.floor(Math.random() * candidates.length)] || lines[0];
+        if (chosen && chosen.url) {
+            window.selectChiguaLine(chosen.url);
+        }
+    };
+
+    // 从导航发布页自动提取多条吃瓜线路（兼容动态词库随机子域名导航页与常规多线路导航页）
+    function extractPortalMirrorLines(html, portalOrigin) {
+        const discovered = [];
+        const seen = new Set();
+        const cnNums = ['一', '二', '三', '四', '五', '六'];
+
+        // 1. 解析动态词库拼接子域名模式 (如 words = "abandon,ability,...".split(",") + ".xxx.cc" + fixedLineFour)
+        const wordsMatch = html.match(/words\s*=\s*["']([a-z,]{30,})["']\.split/i);
+        const suffixMatches = [...html.matchAll(/words\.random\(\)\s*\+\s*["'](\.[a-z0-9.-]+\.[a-z]{2,})["']/gi)];
+        if (wordsMatch && suffixMatches.length > 0) {
+            const wordPool = wordsMatch[1].split(',').filter(Boolean);
+            const primarySuffix = suffixMatches[0][1];
+            for (let i = 0; i < 3; i++) {
+                const randWord = wordPool[Math.floor(Math.random() * wordPool.length)] || 'basic';
+                const u = `https://${randWord}${primarySuffix}`;
+                if (!seen.has(u)) {
+                    seen.add(u);
+                    discovered.push({ label: `线路${cnNums[discovered.length] || (discovered.length + 1)}`, url: u });
+                }
+            }
+            if (suffixMatches[1]) {
+                const backupSuffix = suffixMatches[1][1];
+                const randWord = wordPool[Math.floor(Math.random() * wordPool.length)] || 'basic';
+                const u = `https://${randWord}${backupSuffix}`;
+                if (!seen.has(u)) {
+                    seen.add(u);
+                    discovered.push({ label: `备用线路`, url: u });
+                }
+            }
+        }
+
+        const fixedMatch = html.match(/fixedLineFour\s*=\s*["']([^"']+)["']/i);
+        if (fixedMatch && fixedMatch[1]) {
+            const cleanFixed = fixedMatch[1].replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+            if (cleanFixed.includes('.')) {
+                const u = `https://${cleanFixed}`;
+                if (!seen.has(u)) {
+                    seen.add(u);
+                    discovered.push({ label: `线路四`, url: u });
+                }
+            }
+        }
+
+        // 2. 解析常规静态 HTML 导航页中的多线路外链 (<a href="https://...">)
+        if (discovered.length === 0) {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const portalHost = (() => { try { return new URL(portalOrigin).hostname; } catch(e) { return ''; } })();
+            doc.querySelectorAll('.list a[href], #list-wrap a[href], a[href^="http"]').forEach(a => {
+                const href = (a.getAttribute('href') || '').trim();
+                if (!/^https?:\/\//i.test(href)) return;
+                try {
+                    const uObj = new URL(href);
+                    if (uObj.hostname === portalHost) return;
+                    if (/google|cloudflare|twitter|t\.me|qq\.com|github/i.test(uObj.hostname)) return;
+                    const originUrl = uObj.origin;
+                    if (!seen.has(originUrl)) {
+                        seen.add(originUrl);
+                        const titleText = (a.textContent || '').replace(/\s+/g, ' ').trim();
+                        discovered.push({
+                            label: (titleText && titleText.length <= 14) ? titleText : `线路${cnNums[discovered.length] || (discovered.length + 1)}`,
+                            url: originUrl
+                        });
+                    }
+                } catch (e) {}
+            });
+        }
+
+        return discovered.slice(0, 8);
+    }
+
+    window.saveChiguaCustomOrigin = async function(forceRandom = false) {
+        const input = document.getElementById('chiguaOriginInput');
+        let val = (input && input.value.trim()) ? input.value.trim() : (localStorage.getItem('openhappy_chigua_portal') || localStorage.getItem('openhappy_chigua_origin') || '').trim();
+        if (!val) return;
+        if (!/^https?:\/\//i.test(val)) val = 'https://' + val;
+        val = val.replace(/\/+$/, '');
+        localStorage.setItem('openhappy_chigua_portal', val);
+
+        const st = document.getElementById('chiguaSourceStatus');
+        if (st) st.innerText = '正在探测导航页与可用吃瓜线路...';
+
+        try {
+            const html = await fetchTextWithCorsFallback(val);
+            if (html) {
+                const lines = extractPortalMirrorLines(html, val);
+                if (lines.length > 0) {
+                    localStorage.setItem('openhappy_chigua_lines', JSON.stringify(lines));
+                    const picked = lines[Math.floor(Math.random() * lines.length)];
+                    localStorage.setItem('openhappy_chigua_origin', picked.url);
+                    renderChiguaLineSwitcher();
+                    window.loadChiguaCategory('热门吃瓜');
+                    return;
+                }
+            }
+        } catch (e) {}
+
+        // 若该地址本身就是单个吃瓜源站点，直接绑定并加载
+        localStorage.setItem('openhappy_chigua_origin', val);
+        renderChiguaLineSwitcher();
+        window.loadChiguaCategory('热门吃瓜');
     };
 
     window.clearChiguaCustomOrigin = function() {
         localStorage.removeItem('openhappy_chigua_origin');
+        localStorage.removeItem('openhappy_chigua_portal');
+        localStorage.removeItem('openhappy_chigua_lines');
         const input = document.getElementById('chiguaOriginInput');
         if (input) input.value = '';
-        const st = document.getElementById('chiguaSourceStatus');
-        if (st) st.innerText = '当前：内置聚合源';
+        renderChiguaLineSwitcher();
         closeChiguaExternalFrame();
         window.loadChiguaCategory('热门吃瓜');
     };
 
     window.openChiguaExternalFrame = function() {
         const input = document.getElementById('chiguaOriginInput');
-        let origin = (input && input.value.trim()) ? input.value.trim() : (localStorage.getItem('openhappy_chigua_origin') || '').trim();
+        let origin = (localStorage.getItem('openhappy_chigua_origin') || (input && input.value.trim()) || '').trim();
         if (!origin) {
             const box = document.getElementById('chiguaCustomSourceBox');
             if (box) box.style.display = 'block';
@@ -4611,6 +4775,7 @@
 
     let chiguaInitialized = false;
     window.initChiguaFeed = function() {
+        renderChiguaLineSwitcher();
         if (!chiguaInitialized) {
             chiguaInitialized = true;
             window.loadChiguaCategory('热门吃瓜');
