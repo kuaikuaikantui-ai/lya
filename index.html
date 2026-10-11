@@ -126,17 +126,20 @@
         .brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             font-size: 17px;
             font-weight: 700;
             color: #fff;
             letter-spacing: -0.3px;
             cursor: pointer;
             text-decoration: none;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
         .brand i {
             color: var(--accent);
             filter: drop-shadow(0 0 8px var(--accent-glow));
+            flex-shrink: 0;
         }
 
         .badge {
@@ -148,6 +151,9 @@
             border: 1px solid var(--accent);
             border-radius: 20px;
             backdrop-filter: blur(4px);
+            white-space: nowrap;
+            flex-shrink: 0;
+            line-height: 1.4;
         }
 
         .header-actions { display: flex; gap: 8px; align-items: center; }
@@ -1863,29 +1869,87 @@
         .palette-btn.daylight { background: #ffffff; }
         .palette-btn.slate { background: #1e2330; }
 
+        /* 网站底部开源与免责声明 (Open-Source Disclaimer Footer) */
+        .site-disclaimer-footer {
+            margin-top: 36px;
+            padding: 18px 22px;
+            background: var(--glass-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            box-shadow: var(--glass-shadow);
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+        .site-disclaimer-footer .disclaimer-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--glass-border);
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 12.5px;
+        }
+        .site-disclaimer-footer p {
+            margin: 4px 0;
+        }
+        body.light-mode .site-disclaimer-footer {
+            background: rgba(255, 255, 255, 0.84) !important;
+            border-color: rgba(15, 23, 42, 0.09) !important;
+            box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -6px rgba(15, 23, 42, 0.06) !important;
+            color: #475569 !important;
+        }
+        body.light-mode .site-disclaimer-footer .disclaimer-head {
+            color: #0f172a !important;
+            border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+        }
+        body.reading-mode .site-disclaimer-footer {
+            display: none !important;
+        }
+
         /* ============================================================================
            多端分辨率智能适配：PC端顶部菜单/主导航/子导航全部吸附至左侧边栏，零遮挡主视线
            ============================================================================ */
         @media (min-width: 1024px) {
-            /* 1. PC端：顶部品牌栏与日夜间切换吸附至左上侧边栏 */
+            /* 1. PC端：顶部品牌栏与日夜间切换吸附至左上侧边栏 (加宽至224px并锁定单行不折行、不重叠) */
             header {
                 position: fixed;
                 top: 18px;
                 left: 18px;
-                width: 210px;
+                width: 224px;
                 flex-direction: column;
                 align-items: stretch;
-                gap: 10px;
-                padding: 14px 16px;
+                gap: 9px;
+                padding: 12px 14px;
                 border-radius: 22px;
                 border: 1px solid var(--glass-border);
                 box-shadow: var(--glass-highlight), 0 12px 30px -8px rgba(0, 0, 0, 0.45);
                 z-index: 100;
+                box-sizing: border-box;
             }
             header .brand {
-                justify-content: space-between;
-                font-size: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                flex-wrap: nowrap;
+                white-space: nowrap;
+                gap: 6px;
+                font-size: 15px;
                 width: 100%;
+                min-width: 0;
+            }
+            header .brand .badge {
+                margin-left: auto;
+                font-size: 10px;
+                padding: 2px 7px;
+                white-space: nowrap;
+                flex-shrink: 0;
             }
             header .header-actions {
                 width: 100%;
@@ -1893,17 +1957,17 @@
             header .header-actions .theme-toggle-btn {
                 width: 100%;
                 justify-content: center;
-                padding: 7px 12px;
-                font-size: 12.5px;
+                padding: 6px 12px;
+                font-size: 12px;
                 border-radius: 14px;
             }
 
             /* 2. PC端：主导航栏（我的/小说/漫画/影视）改为左侧竖向极光透镜导航栏，不再横挡屏幕上方 */
             .tab-nav-container {
                 position: fixed;
-                top: 124px;
+                top: 120px;
                 left: 18px;
-                width: 210px;
+                width: 224px;
                 margin: 0;
                 z-index: 95;
                 display: block;
@@ -1948,10 +2012,10 @@
             }
             .my-sidebar-wrap {
                 position: fixed;
-                top: 344px;
+                top: 340px;
                 left: 18px;
-                width: 210px;
-                max-height: calc(100vh - 360px);
+                width: 224px;
+                max-height: calc(100vh - 356px);
                 overflow-y: auto;
                 scrollbar-width: none;
                 z-index: 90;
@@ -1962,21 +2026,21 @@
 
             /* 4. PC端：主内容区右侧全屏铺开，顶部 0 遮挡，视野通透 */
             main {
-                max-width: 1660px;
-                padding: 20px 32px 52px 248px;
+                max-width: 1680px;
+                padding: 20px 32px 52px 262px;
                 margin: 0 auto;
             }
             body.reading-mode main {
-                max-width: 1200px;
-                padding: 16px 32px 48px 248px;
+                max-width: 1220px;
+                padding: 16px 32px 48px 262px;
             }
 
             /* 5. PC端：阅读器菜单同样吸附至左侧边栏，呼出时绝不遮挡正文与漫画主视线 */
             .reader-floating-header {
                 left: 18px !important;
                 top: 18px !important;
-                width: 210px !important;
-                max-width: 210px !important;
+                width: 224px !important;
+                max-width: 224px !important;
                 transform: translateX(0) translateY(0) !important;
                 padding: 14px !important;
                 border-radius: 22px !important;
@@ -2006,7 +2070,7 @@
             .reader-floating-header .format-panel {
                 left: 0;
                 right: auto;
-                min-width: 186px;
+                min-width: 196px;
             }
 
             .video-grid {
@@ -2693,6 +2757,17 @@
         </div>
     </section>
 
+    <!-- 网站底部：开源技术研究与免责声明 -->
+    <footer class="site-disclaimer-footer">
+        <div class="disclaimer-head">
+            <span><i class="fas fa-scale-balanced" style="color:var(--accent); margin-right:6px;"></i>开源技术研究与免责声明 (Open-Source Disclaimer)</span>
+            <span class="badge" style="font-size:10px;">MIT / 仅供个人学习交流</span>
+        </div>
+        <p>1. <strong>项目性质</strong>：本站（OpenHappy）为纯前端界面交互与多源聚合检索的开源技术交流与个人学习研究项目，完全免费开源，不提供任何商业化收费或盈利服务。</p>
+        <p>2. <strong>内容来源</strong>：站内呈现的所有小说、漫画及影视数据均由公开第三方站点接口实时检索聚合，本站服务器不存储、不制作、不上传任何视听与图文文件。</p>
+        <p>3. <strong>版权与合规</strong>：相关作品版权归原作者及原合法版权方所有。请勿将本项目用于任何商业或非法用途，体验后请于 24 小时内清理浏览器缓存并支持正版内容；若任何聚合链接无意侵犯了您的合法权益，请联系对应源站或于开源仓库反馈以及时断开索引。</p>
+    </footer>
+
 </main>
 
 <div class="modal-overlay" id="apiConfigModal">
@@ -2731,6 +2806,32 @@
         }).catch(() => {});
     }
 
+    // PC端左侧三段式边栏动态防重叠对齐 (根据 header 与主导航实际渲染高度自动留出 14px 间距)
+    function syncPcLeftSidebarLayout() {
+        const headerEl = document.querySelector('header');
+        const navContainer = document.querySelector('.tab-nav-container');
+        const subSidebar = document.querySelector('.my-sidebar-wrap');
+        if (!headerEl || !navContainer) return;
+        if (window.innerWidth >= 1024 && !document.body.classList.contains('reading-mode')) {
+            const hRect = headerEl.getBoundingClientRect();
+            const navTop = Math.max(116, Math.round(hRect.bottom + 14));
+            navContainer.style.top = navTop + 'px';
+            const nRect = navContainer.getBoundingClientRect();
+            if (subSidebar) {
+                const subTop = Math.max(330, Math.round(nRect.bottom + 14));
+                subSidebar.style.top = subTop + 'px';
+                subSidebar.style.maxHeight = `calc(100vh - ${subTop + 18}px)`;
+            }
+        } else {
+            navContainer.style.top = '';
+            if (subSidebar) {
+                subSidebar.style.top = '';
+                subSidebar.style.maxHeight = '';
+            }
+        }
+    }
+    window.syncPcLeftSidebarLayout = syncPcLeftSidebarLayout;
+
     // 通用极光透镜位移函数 (支持横向、多行与 PC 左侧竖向边栏自适应 2D 丝滑跟随，纯 CSS 硬件加速零卡顿)
     function moveGliderToButton(container, glider, btn) {
         if (!container || !glider || !btn) return;
@@ -2748,6 +2849,7 @@
 
     // 1. 顶部四大主导航滑块更新
     function updateTabGlider(nav) {
+        syncPcLeftSidebarLayout();
         const glider = document.getElementById('tabGlider');
         const container = document.getElementById('mainTabNav');
         if (!glider || !container) return;
@@ -2759,6 +2861,7 @@
 
     // 2. 下方四合一子导航滑块更新 (影视记录 / 我的书架 / 小说记录 / 漫画记录)
     function updateSubnavGlider(tab) {
+        syncPcLeftSidebarLayout();
         const glider = document.getElementById('subnavGlider');
         const container = document.getElementById('historySubNav');
         if (!glider || !container) return;
@@ -2804,6 +2907,7 @@
 
     window.bindLiquidGlassNav = bindLiquidGlassNav;
     function initLiquidGlassMouseFollower() {
+        syncPcLeftSidebarLayout();
         // 顶部四大导航绑定
         bindLiquidGlassNav('mainTabNav', 'tabGlider', '.tab-nav-btn', () => {
             return document.querySelector('#mainTabNav .tab-nav-btn.active');
@@ -2814,6 +2918,7 @@
         });
 
         window.addEventListener('resize', () => {
+            syncPcLeftSidebarLayout();
             const activeMain = document.querySelector('#mainTabNav .tab-nav-btn.active');
             if (activeMain) moveGliderToButton(document.getElementById('mainTabNav'), document.getElementById('tabGlider'), activeMain);
             const activeSub = document.querySelector('#historySubNav .history-subnav-btn.active');
