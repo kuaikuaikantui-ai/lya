@@ -630,7 +630,7 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // 渲染播放线路标签 (人性化多线路聚合展示，杜绝 FEIFAN 等占位符)
+    // 渲染播放线路标签 (纯透明 Liquid Glass + 鼠标折射光斑与透镜框随动)
     window.renderVideoSourceTabs = function(groups) {
         const tabsBox = document.getElementById('videoPlaySourceTabs');
         if (!tabsBox) return;
@@ -639,24 +639,46 @@
             return;
         }
 
-        tabsBox.innerHTML = groups.map((g, idx) => {
+        tabsBox.className = 'source-route-nav';
+        const btnsHtml = groups.map((g, idx) => {
             const displayName = formatFriendlyLineName(g.name, idx);
             const isAct = idx === window.currentGroupIdx;
             return `
-                <button class="btn ${isAct ? 'primary' : ''}" style="padding:6px 12px; font-size:12px; font-weight:${isAct ? '600' : 'normal'}; border-radius:6px; margin:2px;" onclick="window.switchPlayGroup(${idx})">
-                    <i class="fas fa-play-circle"></i> ${displayName}
+                <button class="source-route-btn ${isAct ? 'active' : ''}" id="sourceRouteBtn_${idx}" onclick="window.switchPlayGroup(${idx})">
+                    <i class="fas fa-play-circle"></i> <span>${displayName}</span>
                 </button>
             `;
         }).join('');
+
+        tabsBox.innerHTML = '<div class="source-route-glider" id="sourceRouteGlider"></div>' + btnsHtml;
+
+        // 绑定鼠标跟随光效与液态玻璃选中框透镜随动
+        if (typeof window.bindLiquidGlassNav === 'function') {
+            window.bindLiquidGlassNav('videoPlaySourceTabs', 'sourceRouteGlider', '.source-route-btn', () => {
+                return document.querySelector('#videoPlaySourceTabs .source-route-btn.active');
+            });
+        }
+        setTimeout(() => {
+            const activeBtn = document.getElementById('sourceRouteBtn_' + (window.currentGroupIdx || 0));
+            const glider = document.getElementById('sourceRouteGlider');
+            if (activeBtn && glider && typeof window.moveGliderToButton === 'function') {
+                window.moveGliderToButton(tabsBox, glider, activeBtn);
+            }
+        }, 30);
     };
 
     // 切换播放线路
     window.switchPlayGroup = function(groupIdx) {
         window.currentGroupIdx = groupIdx;
-        document.querySelectorAll('#videoPlaySourceTabs button').forEach(b => b.classList.remove('primary'));
+        document.querySelectorAll('#videoPlaySourceTabs .source-route-btn').forEach(b => b.classList.remove('active'));
+        const activeBtn = document.getElementById('sourceRouteBtn_' + groupIdx);
         const tabsBox = document.getElementById('videoPlaySourceTabs');
-        if (tabsBox && tabsBox.children[groupIdx]) {
-            tabsBox.children[groupIdx].classList.add('primary');
+        const glider = document.getElementById('sourceRouteGlider');
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            if (tabsBox && glider && typeof window.moveGliderToButton === 'function') {
+                window.moveGliderToButton(tabsBox, glider, activeBtn);
+            }
         }
         window.renderVideoEpisodes(groupIdx);
         window.playVideoEpisode(0);

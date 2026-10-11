@@ -154,39 +154,69 @@
         .header-actions { display: flex; gap: 8px; align-items: center; }
 
         button.btn {
-            background: rgba(255, 255, 255, 0.06);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.035);
+            backdrop-filter: blur(24px) saturate(200%);
+            -webkit-backdrop-filter: blur(24px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-top-color: rgba(255, 255, 255, 0.35);
             color: var(--text-main);
-            padding: 7px 15px;
-            border-radius: 12px;
+            padding: 8px 18px;
+            border-radius: 28px;
             font-size: 13px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.28s cubic-bezier(0.34, 1.35, 0.64, 1);
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
-            box-shadow: var(--glass-highlight), 0 2px 8px rgba(0,0,0,0.25);
+            box-shadow: 
+                inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35),
+                inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25),
+                0 6px 16px -4px rgba(0, 0, 0, 0.35);
+            position: relative;
+            overflow: hidden;
         }
         button.btn:hover {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: var(--glass-border-light);
-            box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.3), 0 4px 14px rgba(0, 0, 0, 0.35);
-            transform: translateY(-1px);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.12) 100%);
+            border-color: rgba(255, 255, 255, 0.45);
+            border-top-color: rgba(255, 255, 255, 0.75);
+            box-shadow: 
+                inset 0 1.5px 2.5px 0 rgba(255, 255, 255, 0.7),
+                inset 0 -1px 2px 0 rgba(0, 0, 0, 0.25),
+                0 8px 22px rgba(0, 0, 0, 0.4),
+                0 0 18px rgba(56, 189, 248, 0.25);
+            transform: translateY(-1px) scale(1.02);
         }
-        button.btn:active { transform: scale(0.97); }
+        button.btn:active { transform: scale(0.96); }
+        /* 纯透明真液态玻璃主按钮 (搜全网 / 搜小说 / 搜漫画) */
         button.btn.primary {
-            background: linear-gradient(180deg, rgba(56, 189, 248, 0.9) 0%, rgba(37, 99, 235, 0.9) 100%);
-            color: #ffffff;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(56, 189, 248, 0.1) 50%, rgba(255, 255, 255, 0.14) 100%) !important;
+            backdrop-filter: blur(24px) brightness(1.2) saturate(210%) !important;
+            -webkit-backdrop-filter: blur(24px) brightness(1.2) saturate(210%) !important;
+            color: #ffffff !important;
             font-weight: 600;
-            border: 1px solid rgba(147, 197, 253, 0.4);
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 4px 18px rgba(37, 99, 235, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.45) !important;
+            border-top-color: rgba(255, 255, 255, 0.8) !important;
+            border-radius: 30px;
+            padding: 9px 22px;
+            text-shadow: 0 0 14px rgba(255, 255, 255, 0.75), 0 0 8px rgba(56, 189, 248, 0.6);
+            box-shadow: 
+                inset 0 1.5px 3px 0 rgba(255, 255, 255, 0.85),
+                inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
+                0 8px 24px rgba(0, 0, 0, 0.4),
+                0 0 24px rgba(56, 189, 248, 0.38) !important;
         }
         button.btn.primary:hover {
-            background: linear-gradient(180deg, rgba(56, 189, 248, 1) 0%, rgba(37, 99, 235, 1) 100%);
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 6px 22px rgba(37, 99, 235, 0.5);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0%, rgba(56, 189, 248, 0.18) 50%, rgba(255, 255, 255, 0.2) 100%) !important;
+            border-color: rgba(255, 255, 255, 0.65) !important;
+            border-top-color: #ffffff !important;
+            box-shadow: 
+                inset 0 2px 4px 0 rgba(255, 255, 255, 0.95),
+                inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
+                0 10px 28px rgba(0, 0, 0, 0.45),
+                0 0 32px rgba(56, 189, 248, 0.55) !important;
+            transform: translateY(-1.5px) scale(1.04);
         }
 
         main {
@@ -457,28 +487,41 @@
             padding: 4px;
         }
         .chap-btn {
-            background: var(--glass-card);
-            border: 1px solid var(--glass-border);
-            color: var(--text-main);
-            padding: 8px 10px;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(18px) saturate(180%);
+            -webkit-backdrop-filter: blur(18px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: rgba(241, 245, 249, 0.78);
+            padding: 8px 12px;
+            border-radius: 20px;
             font-size: 12px;
             text-align: center;
             cursor: pointer;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            transition: all 0.2s;
+            transition: all 0.25s cubic-bezier(0.34, 1.35, 0.64, 1);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 4px 12px rgba(0, 0, 0, 0.2);
         }
         .chap-btn:hover {
-            border-color: var(--accent);
-            background: var(--glass-card-hover);
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.04) 100%);
+            border-color: rgba(255, 255, 255, 0.38);
+            transform: translateY(-1px) scale(1.02);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 6px 16px rgba(0, 0, 0, 0.3), 0 0 14px rgba(56, 189, 248, 0.22);
         }
         .chap-btn.read-active {
-            border-color: var(--accent);
-            background: var(--accent-glow);
-            color: var(--accent);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(56, 189, 248, 0.1) 50%, rgba(255, 255, 255, 0.12) 100%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.48) !important;
+            border-top-color: rgba(255, 255, 255, 0.8) !important;
+            color: #ffffff !important;
             font-weight: 600;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.7), 0 0 6px rgba(56, 189, 248, 0.5);
+            box-shadow: 
+                inset 0 1.5px 3px 0 rgba(255, 255, 255, 0.8),
+                inset 0 -1px 2px 0 rgba(0, 0, 0, 0.25),
+                0 6px 18px rgba(0, 0, 0, 0.35),
+                0 0 20px rgba(56, 189, 248, 0.35) !important;
         }
 
         /* 影视海报网格与卡片 */
@@ -1163,9 +1206,128 @@
         body.light-mode .history-subnav-btn {
             color: #64748b !important;
         }
-        body.light-mode .history-subnav-btn.active {
+        body.light-mode .history-subnav-btn.active,
+        body.light-mode .source-route-btn.active {
             color: #0f172a !important;
             text-shadow: none !important;
+        }
+        body.light-mode button.btn.primary {
+            color: #0f172a !important;
+            text-shadow: none !important;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(224, 242, 254, 0.65) 100%) !important;
+            border-color: rgba(37, 99, 235, 0.35) !important;
+            box-shadow: inset 0 1px 2px #fff, 0 4px 16px rgba(37, 99, 235, 0.15) !important;
+        }
+        body.light-mode .chap-btn.read-active {
+            color: #0f172a !important;
+            text-shadow: none !important;
+            background: rgba(255, 255, 255, 0.9) !important;
+            border-color: rgba(37, 99, 235, 0.35) !important;
+        }
+
+        /* 播放源线路切换：同款纯透明液态玻璃导航栏 (鼠标光斑 + 选中框透镜跟随鼠标) */
+        .source-route-nav {
+            display: inline-flex;
+            position: relative;
+            flex-wrap: wrap;
+            gap: 2px;
+            background: rgba(255, 255, 255, 0.03) !important;
+            backdrop-filter: blur(28px) saturate(220%) !important;
+            -webkit-backdrop-filter: blur(28px) saturate(220%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.16) !important;
+            box-shadow: 
+                inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.32),
+                inset 0 -1px 2px 0 rgba(0, 0, 0, 0.35),
+                0 12px 30px -8px rgba(0, 0, 0, 0.5) !important;
+            padding: 4px !important;
+            border-radius: 30px !important;
+            overflow: hidden;
+            max-width: 100%;
+            --mouse-x: -200px;
+            --mouse-y: -200px;
+        }
+        .source-route-nav::before {
+            content: '';
+            position: absolute;
+            left: var(--mouse-x, -200px);
+            top: var(--mouse-y, -200px);
+            width: 150px;
+            height: 150px;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.28) 0%, rgba(56, 189, 248, 0.15) 35%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            mix-blend-mode: overlay;
+            z-index: 3;
+        }
+        .source-route-nav:hover::before {
+            opacity: 1;
+        }
+        .source-route-btn {
+            background: transparent !important;
+            border: none !important;
+            outline: none;
+            color: rgba(241, 245, 249, 0.62) !important;
+            font-size: 12.5px !important;
+            font-weight: 500 !important;
+            padding: 7px 15px !important;
+            border-radius: 24px !important;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            z-index: 4;
+            position: relative;
+            transition: color 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .source-route-btn:hover {
+            color: #ffffff !important;
+            transform: scale(1.03) !important;
+        }
+        .source-route-btn.active {
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            text-shadow: 0 0 14px rgba(255, 255, 255, 0.75), 0 0 8px rgba(56, 189, 248, 0.55) !important;
+            background: transparent !important;
+            border: none !important;
+        }
+        .source-route-glider {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            height: 32px;
+            width: 96px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.12) 100%) !important;
+            backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
+            -webkit-backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.42) !important;
+            border-top-color: rgba(255, 255, 255, 0.75) !important;
+            border-radius: 24px !important;
+            box-shadow: 
+                inset 0 1.5px 3px 0 rgba(255, 255, 255, 0.8),
+                inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
+                0 6px 18px rgba(0, 0, 0, 0.35),
+                0 0 22px rgba(56, 189, 248, 0.35) !important;
+            z-index: 2;
+            pointer-events: none;
+            transition: left 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), top 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), width 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), height 0.36s cubic-bezier(0.34, 1.35, 0.64, 1);
+        }
+        body.light-mode .source-route-nav {
+            background: rgba(255, 255, 255, 0.65) !important;
+            border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        body.light-mode .source-route-btn {
+            color: #64748b !important;
+        }
+        body.light-mode .source-route-glider {
+            background: rgba(255, 255, 255, 0.88) !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            box-shadow: inset 0 1px 2px #fff, 0 4px 16px rgba(0, 0, 0, 0.1) !important;
         }
         body.light-mode .search-input {
             background: rgba(255, 255, 255, 0.8) !important;
@@ -1771,7 +1933,7 @@
         <div style="margin-top:14px;">
             <div style="margin-bottom:10px;">
                 <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;"><i class="fas fa-random"></i> 切换播放源线路:</div>
-                <div id="videoPlaySourceTabs" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+                <div id="videoPlaySourceTabs" class="source-route-nav"></div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <h4 style="font-size:14px; font-weight:600;"><i class="fas fa-list-ol"></i> 剧集选集</h4>
@@ -1921,17 +2083,23 @@
 
     // 拟真苹果流体骨架光渲染器
     
-    // 通用液态玻璃透镜定位器 (支持鼠标悬停跟随 + 移出回弹锁定)
+    // 通用液态玻璃透镜定位器 (支持鼠标悬停跟随 + 移出回弹锁定 + 多行自适应)
     function moveGliderToButton(container, glider, btn) {
         if (!container || !glider || !btn) return;
         const navRect = container.getBoundingClientRect();
         const btnRect = btn.getBoundingClientRect();
         if (navRect.width === 0 || btnRect.width === 0) return;
         const leftOffset = btnRect.left - navRect.left;
+        const topOffset = btnRect.top - navRect.top;
         glider.style.left = leftOffset + 'px';
         glider.style.width = btnRect.width + 'px';
+        if (glider.classList.contains('source-route-glider')) {
+            glider.style.top = topOffset + 'px';
+            glider.style.height = btnRect.height + 'px';
+        }
         glider.style.transform = 'none';
     }
+    window.moveGliderToButton = moveGliderToButton;
 
     // 1. 顶部四大主导航滑块更新
     function updateTabGlider(nav) {
@@ -1989,6 +2157,7 @@
         });
     }
 
+    window.bindLiquidGlassNav = bindLiquidGlassNav;
     function initLiquidGlassMouseFollower() {
         // 顶部四大导航绑定
         bindLiquidGlassNav('mainTabNav', 'tabGlider', '.tab-nav-btn', () => {
