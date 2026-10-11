@@ -1869,45 +1869,33 @@
         .palette-btn.daylight { background: #ffffff; }
         .palette-btn.slate { background: #1e2330; }
 
-        /* 网站底部开源与免责声明 (Open-Source Disclaimer Footer) */
+        /* 网站底部无框极简免责声明 */
         .site-disclaimer-footer {
-            margin-top: 36px;
-            padding: 18px 22px;
-            background: var(--glass-card);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--glass-border);
-            border-radius: 18px;
-            box-shadow: var(--glass-shadow);
+            margin-top: 32px;
+            padding: 12px 10px 4px;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            text-align: center;
             color: var(--text-muted);
-            font-size: 12px;
-            line-height: 1.7;
+            font-size: 11.5px;
+            line-height: 1.6;
+            opacity: 0.72;
+            transition: opacity 0.2s ease;
         }
-        .site-disclaimer-footer .disclaimer-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--glass-border);
-            color: var(--text-main);
-            font-weight: 600;
-            font-size: 12.5px;
+        .site-disclaimer-footer:hover {
+            opacity: 0.95;
         }
-        .site-disclaimer-footer p {
-            margin: 4px 0;
+        .site-disclaimer-footer a {
+            color: var(--accent);
+            text-decoration: none;
+            cursor: pointer;
+            margin-left: 6px;
         }
         body.light-mode .site-disclaimer-footer {
-            background: rgba(255, 255, 255, 0.84) !important;
-            border-color: rgba(15, 23, 42, 0.09) !important;
-            box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -6px rgba(15, 23, 42, 0.06) !important;
-            color: #475569 !important;
-        }
-        body.light-mode .site-disclaimer-footer .disclaimer-head {
-            color: #0f172a !important;
-            border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+            color: #64748b !important;
         }
         body.reading-mode .site-disclaimer-footer {
             display: none !important;
@@ -2757,18 +2745,33 @@
         </div>
     </section>
 
-    <!-- 网站底部：开源技术研究与免责声明 -->
+    <!-- 网站最底部：无框极简开源免责声明 -->
     <footer class="site-disclaimer-footer">
-        <div class="disclaimer-head">
-            <span><i class="fas fa-scale-balanced" style="color:var(--accent); margin-right:6px;"></i>开源技术研究与免责声明 (Open-Source Disclaimer)</span>
-            <span class="badge" style="font-size:10px;">MIT / 仅供个人学习交流</span>
-        </div>
-        <p>1. <strong>项目性质</strong>：本站（OpenHappy）为纯前端界面交互与多源聚合检索的开源技术交流与个人学习研究项目，完全免费开源，不提供任何商业化收费或盈利服务。</p>
-        <p>2. <strong>内容来源</strong>：站内呈现的所有小说、漫画及影视数据均由公开第三方站点接口实时检索聚合，本站服务器不存储、不制作、不上传任何视听与图文文件。</p>
-        <p>3. <strong>版权与合规</strong>：相关作品版权归原作者及原合法版权方所有。请勿将本项目用于任何商业或非法用途，体验后请于 24 小时内清理浏览器缓存并支持正版内容；若任何聚合链接无意侵犯了您的合法权益，请联系对应源站或于开源仓库反馈以及时断开索引。</p>
+        开源技术学习交流项目 · 站内内容均由第三方公开接口实时聚合，本站不存储任何文件 · 请于 24 小时内清理缓存并支持正版
+        <a onclick="openDisclaimerModal()">[免责声明]</a>
     </footer>
 
 </main>
+
+<!-- 首次访问弹窗提示：点击“我已知晓”方可继续访问 -->
+<div class="modal-overlay" id="disclaimerModal" style="z-index: 999;">
+    <div class="modal-card" style="max-width: 420px;">
+        <div class="modal-head">
+            <span style="font-weight: 700; display:flex; align-items:center; gap:7px;">
+                <i class="fas fa-scale-balanced" style="color:var(--accent);"></i> 开源项目与免责声明
+            </span>
+            <span class="badge" style="font-size:10px;">访问须知</span>
+        </div>
+        <div style="padding: 18px 20px; font-size: 13px; color: var(--text-muted); line-height: 1.7;">
+            <p style="margin: 0 0 10px 0;">1. 本站（<strong>OpenHappy</strong>）为开源技术交流与个人学习研究项目，完全免费开源，不提供任何商业化收费服务。</p>
+            <p style="margin: 0 0 10px 0;">2. 站内小说、漫画及影视内容均由公开第三方接口实时检索聚合，<strong>本站不存储、不上传任何视听与图文文件</strong>。</p>
+            <p style="margin: 0 0 16px 0;">3. 作品版权归原作者及合法版权方所有。请勿用于商业或非法用途，体验后请于 24 小时内清理缓存并支持正版。</p>
+            <button class="btn primary" style="width: 100%; padding: 10px 18px; font-size: 13.5px;" onclick="acceptDisclaimer()">
+                <i class="fas fa-check-circle"></i> 我已知晓，继续访问
+            </button>
+        </div>
+    </div>
+</div>
 
 <div class="modal-overlay" id="apiConfigModal">
     <div class="modal-card">
@@ -2805,6 +2808,25 @@
             for (let reg of regs) reg.unregister();
         }).catch(() => {});
     }
+
+    // 进站免责声明弹窗控制：未确认前自动弹出，点击“我已知晓”后继续访问
+    function checkEntryDisclaimer() {
+        const ack = localStorage.getItem('openhappy_disclaimer_ack_v1');
+        const modal = document.getElementById('disclaimerModal');
+        if (!ack && modal) {
+            modal.classList.add('open');
+        }
+    }
+    window.openDisclaimerModal = function() {
+        const modal = document.getElementById('disclaimerModal');
+        if (modal) modal.classList.add('open');
+    };
+    window.acceptDisclaimer = function() {
+        localStorage.setItem('openhappy_disclaimer_ack_v1', '1');
+        const modal = document.getElementById('disclaimerModal');
+        if (modal) modal.classList.remove('open');
+    };
+    checkEntryDisclaimer();
 
     // PC端左侧三段式边栏动态防重叠对齐 (根据 header 与主导航实际渲染高度自动留出 14px 间距)
     function syncPcLeftSidebarLayout() {
