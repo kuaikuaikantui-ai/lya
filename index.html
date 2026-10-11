@@ -1390,7 +1390,7 @@
             animation: none !important;
         }
         #dplayerContainer .dplayer-setting-box {
-            background: rgba(12, 16, 26, 0.86) !important;
+            background: rgba(12, 16, 26, 0.9) !important;
             backdrop-filter: blur(28px) saturate(210%) !important;
             -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
             border: 1px solid rgba(255, 255, 255, 0.22) !important;
@@ -1398,34 +1398,41 @@
             border-radius: 14px !important;
             box-shadow:
                 inset 0 1px 1.5px rgba(255, 255, 255, 0.35),
-                0 12px 32px rgba(0, 0, 0, 0.7) !important;
+                0 12px 32px rgba(0, 0, 0, 0.75) !important;
             bottom: 44px !important;
-            right: 8px !important;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            right: 0px !important;
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+            z-index: 60 !important;
         }
         #dplayerContainer .dplayer-setting-box.dplayer-setting-box-open {
             height: auto !important;
-            max-height: calc(100% - 54px) !important;
+            max-height: 310px !important;
             width: 196px !important;
             overflow-y: auto !important;
             padding: 6px 0 !important;
             scrollbar-width: thin;
         }
+        #dplayerContainer .dplayer-setting-box.dplayer-setting-box-open.dplayer-setting-box-narrow {
+            width: 88px !important;
+        }
         #dplayerContainer .dplayer-setting-item {
-            height: 32px !important;
-            padding: 0 14px !important;
+            height: 30px !important;
+            padding: 5px 12px !important;
+            position: relative !important;
+            transition: background 0.18s ease !important;
+        }
+        #dplayerContainer .dplayer-setting-item.dp-custom-action-row {
             display: flex !important;
             align-items: center !important;
             justify-content: space-between !important;
-            transition: background 0.18s ease !important;
         }
         #dplayerContainer .dplayer-setting-item:hover {
-            background: rgba(255, 255, 255, 0.1) !important;
+            background: rgba(255, 255, 255, 0.12) !important;
         }
         #dplayerContainer .dp-custom-setting-divider {
             height: 1px;
             margin: 4px 12px;
-            background: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.14);
         }
 
         /* ============================================================================
@@ -1659,14 +1666,17 @@
                 display: none !important;
             }
             #dplayerContainer .dplayer-setting-box.dplayer-setting-box-open {
-                width: 176px !important;
-                max-height: calc(100% - 44px) !important;
+                width: 180px !important;
+                max-height: 165px !important;
                 bottom: 38px !important;
-                right: 6px !important;
+                right: 0px !important;
+            }
+            #dplayerContainer.dplayer-fulled .dplayer-setting-box.dplayer-setting-box-open {
+                max-height: 280px !important;
             }
             #dplayerContainer .dplayer-setting-item {
-                height: 29px !important;
-                padding: 0 11px !important;
+                height: 28px !important;
+                padding: 4px 10px !important;
                 font-size: 11.5px !important;
             }
             #videoEpisodesList.catalog-grid {
