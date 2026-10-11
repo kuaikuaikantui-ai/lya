@@ -4562,7 +4562,42 @@
         box.style.display = (box.style.display === 'none') ? 'block' : 'none';
     };
 
+    const INVALID_CHIGUA_HOST_RE = /telegram\.me|telegram\.org|t\.me|twitter\.com|x\.com|google\.|cloudflare|qq\.com|github\.|facebook\.|instagram\.|youtube\.|hl365\.com|apple\.com|android\.com/i;
+
+    function isInvalidChiguaUrl(u) {
+        if (!u || typeof u !== 'string') return true;
+        return INVALID_CHIGUA_HOST_RE.test(u);
+    }
+
+    function sanitizeChiguaStorage() {
+        const curOrigin = (localStorage.getItem('openhappy_chigua_origin') || '').trim();
+        const curPortal = (localStorage.getItem('openhappy_chigua_portal') || '').trim();
+        if (curOrigin && isInvalidChiguaUrl(curOrigin)) {
+            if (curPortal && !isInvalidChiguaUrl(curPortal)) {
+                localStorage.setItem('openhappy_chigua_origin', curPortal);
+            } else {
+                localStorage.removeItem('openhappy_chigua_origin');
+            }
+        }
+        try {
+            const rawLines = JSON.parse(localStorage.getItem('openhappy_chigua_lines') || '[]');
+            if (Array.isArray(rawLines) && rawLines.length > 0) {
+                const cleanLines = rawLines.filter(l => l && l.url && !isInvalidChiguaUrl(l.url));
+                if (cleanLines.length !== rawLines.length) {
+                    if (cleanLines.length > 0) {
+                        localStorage.setItem('openhappy_chigua_lines', JSON.stringify(cleanLines));
+                    } else {
+                        localStorage.removeItem('openhappy_chigua_lines');
+                    }
+                }
+            }
+        } catch (e) {
+            localStorage.removeItem('openhappy_chigua_lines');
+        }
+    }
+
     function getSavedChiguaLines() {
+        sanitizeChiguaStorage();
         try {
             return JSON.parse(localStorage.getItem('openhappy_chigua_lines') || '[]');
         } catch (e) {
@@ -4571,12 +4606,17 @@
     }
 
     function renderChiguaLineSwitcher() {
+        sanitizeChiguaStorage();
         const bar = document.getElementById('chiguaLineSwitcherBar');
         const btnWrap = document.getElementById('chiguaLineButtons');
         const st = document.getElementById('chiguaSourceStatus');
+        const input = document.getElementById('chiguaOriginInput');
         const lines = getSavedChiguaLines();
         const activeOrigin = (localStorage.getItem('openhappy_chigua_origin') || '').trim().replace(/\/+$/, '');
 
+        if (input && activeOrigin && isInvalidChiguaUrl(input.value)) {
+            input.value = activeOrigin;
+        }
         if (st) {
             st.innerText = activeOrigin ? ('当前优选线路：' + activeOrigin) : '当前：内置聚合源';
         }
@@ -4598,7 +4638,7 @@
     window.renderChiguaLineSwitcher = renderChiguaLineSwitcher;
 
     window.selectChiguaLine = function(lineUrl) {
-        if (!lineUrl) return;
+        if (!lineUrl || isInvalidChiguaUrl(lineUrl)) return;
         const clean = lineUrl.trim().replace(/\/+$/, '');
         localStorage.setItem('openhappy_chigua_origin', clean);
         renderChiguaLineSwitcher();
@@ -4624,7 +4664,7 @@
         }
     };
 
-    // 从导航发布页自动提取多条吃瓜线路（兼容动态词库随机子域名导航页与常规多线路导航页）
+    // 从导航发布页自动提取多条吃瓜线路（仅当页面为导航页时提取，绝不提取社交软件外链）
     function extractPortalMirrorLines(html, portalOrigin) {
         const discovered = [];
         const seen = new Set();
@@ -4667,17 +4707,17 @@
             }
         }
 
-        // 2. 解析常规静态 HTML 导航页中的多线路外链 (<a href="https://...">)
+        // 2. 仅从专门的导航列表容器 (.list a / #list-wrap a) 中提取静态外链，绝不扫描全站 footer 社交链接
         if (discovered.length === 0) {
             const doc = new DOMParser().parseFromString(html, 'text/html');
             const portalHost = (() => { try { return new URL(portalOrigin).hostname; } catch(e) { return ''; } })();
-            doc.querySelectorAll('.list a[href], #list-wrap a[href], a[href^="http"]').forEach(a => {
+            doc.querySelectorAll('#list-wrap a[href], .list a[href]').forEach(a => {
                 const href = (a.getAttribute('href') || '').trim();
                 if (!/^https?:\/\//i.test(href)) return;
                 try {
                     const uObj = new URL(href);
                     if (uObj.hostname === portalHost) return;
-                    if (/google|cloudflare|twitter|t\.me|qq\.com|github/i.test(uObj.hostname)) return;
+                    if (isInvalidChiguaUrl(uObj.hostname)) return;
                     const originUrl = uObj.origin;
                     if (!seen.has(originUrl)) {
                         seen.add(originUrl);
@@ -4695,19 +4735,31 @@
     }
 
     window.saveChiguaCustomOrigin = async function(forceRandom = false) {
+        sanitizeChiguaStorage();
         const input = document.getElementById('chiguaOriginInput');
         let val = (input && input.value.trim()) ? input.value.trim() : (localStorage.getItem('openhappy_chigua_portal') || localStorage.getItem('openhappy_chigua_origin') || '').trim();
-        if (!val) return;
+        if (!val || isInvalidChiguaUrl(val)) return;
         if (!/^https?:\/\//i.test(val)) val = 'https://' + val;
         val = val.replace(/\/+$/, '');
         localStorage.setItem('openhappy_chigua_portal', val);
 
         const st = document.getElementById('chiguaSourceStatus');
-        if (st) st.innerText = '正在探测导航页与可用吃瓜线路...';
+        if (st) st.innerText = '正在连接并解析吃瓜站点...';
 
         try {
             const html = await fetchTextWithCorsFallback(val);
             if (html) {
+                // 优先判断该地址本身是否已经是包含吃瓜文章列表的主站（若已是主站则直接绑定，绝不当作导航页乱跳外链）
+                const directArticles = parseGenericHtmlArticles(html, val);
+                if (directArticles.length >= 2) {
+                    localStorage.removeItem('openhappy_chigua_lines');
+                    localStorage.setItem('openhappy_chigua_origin', val);
+                    renderChiguaLineSwitcher();
+                    window.loadChiguaCategory('热门吃瓜');
+                    return;
+                }
+
+                // 若该地址是导航发布页，则提取其中的多条吃瓜线路并随机优选一条
                 const lines = extractPortalMirrorLines(html, val);
                 if (lines.length > 0) {
                     localStorage.setItem('openhappy_chigua_lines', JSON.stringify(lines));
@@ -4720,7 +4772,8 @@
             }
         } catch (e) {}
 
-        // 若该地址本身就是单个吃瓜源站点，直接绑定并加载
+        // 直接作为吃瓜主站保存并加载
+        localStorage.removeItem('openhappy_chigua_lines');
         localStorage.setItem('openhappy_chigua_origin', val);
         renderChiguaLineSwitcher();
         window.loadChiguaCategory('热门吃瓜');
@@ -4803,10 +4856,11 @@
         window.loadChiguaFeedByKeywords(kws, `${catName} · 24小时吃瓜观察室`);
     };
 
-    // 高速并发多通道网页抓取器（同时支持 Edge 服务端 /api/proxy 与多节点 CORS 穿透，最快响应优先）
+    // 高速并发多通道网页抓取器（通过 Edge 服务端 /api/proxy 与 CORS 代理穿透，绝不直接跨域请求触发浏览器红字报错）
     async function fetchTextWithCorsFallback(targetUrl) {
+        if (!targetUrl || isInvalidChiguaUrl(targetUrl)) return '';
         const tryEdgeProxy = async () => {
-            const r = await fetch('/api/proxy?url=' + encodeURIComponent(targetUrl), { signal: AbortSignal.timeout(5500) });
+            const r = await fetch('/api/proxy?url=' + encodeURIComponent(targetUrl), { signal: AbortSignal.timeout(6000) });
             if (!r.ok) throw new Error('edge proxy ' + r.status);
             const txt = await r.text();
             if (!txt || txt.length < 120 || txt.includes('"code":-1')) throw new Error('empty');
@@ -4826,16 +4880,9 @@
             if (!txt || txt.length < 120) throw new Error('empty');
             return txt;
         };
-        const tryDirect = async () => {
-            const r = await window.__rawFetch(targetUrl, { signal: AbortSignal.timeout(4000) });
-            if (!r.ok) throw new Error('direct ' + r.status);
-            const txt = await r.text();
-            if (!txt || txt.length < 120) throw new Error('empty');
-            return txt;
-        };
 
         try {
-            return await Promise.any([tryEdgeProxy(), tryAllOriginsJson(), tryCodetabs(), tryDirect()]);
+            return await Promise.any([tryEdgeProxy(), tryAllOriginsJson(), tryCodetabs()]);
         } catch (e) {
             return '';
         }
@@ -5016,6 +5063,7 @@
     };
 
     window.loadChiguaFeedByKeywords = async function(keywords, sectionTitle) {
+        sanitizeChiguaStorage();
         const grid = document.getElementById('chiguaGrid');
         const titleEl = document.getElementById('chiguaFeedTitle');
         const badgeEl = document.getElementById('chiguaCountBadge');
@@ -5033,11 +5081,10 @@
 
         // 1. 若用户在本地绑定了吃瓜源，优先拉取并解析该吃瓜源的文章列表与视频
         const customOrigin = (localStorage.getItem('openhappy_chigua_origin') || '').trim().replace(/\/+$/, '');
-        if (customOrigin) {
+        if (customOrigin && !isInvalidChiguaUrl(customOrigin)) {
             const kw = keywords[0] || '';
-            let parsedFromCustom = false;
 
-            // 优先使用通用 HTML 吃瓜/Typecho 卡片解析器拉取源站实时帖子
+            // 使用通用 HTML 吃瓜/Typecho 卡片解析器拉取源站实时帖子
             try {
                 const isDefaultHot = (!kw || kw === '吃瓜' || sectionTitle.includes('热门吃瓜'));
                 const targetPage = isDefaultHot
@@ -5056,41 +5103,10 @@
                     htmlCards.forEach(c => {
                         if (seenIds.has(c.article_url || c.vod_id)) return;
                         seenIds.add(c.article_url || c.vod_id);
-                        parsedFromCustom = true;
                         merged.push(c);
                     });
                 }
             } catch (e) {}
-
-            // 兼容标准 MacCMS JSON 接口
-            if (!parsedFromCustom) {
-                try {
-                    const apiUrl = customOrigin.includes('?')
-                        ? `${customOrigin}&wd=${encodeURIComponent(kw)}`
-                        : `${customOrigin}/api.php/provide/vod/?ac=detail&wd=${encodeURIComponent(kw)}`;
-                    const r = await window.__rawFetch(apiUrl, { signal: AbortSignal.timeout(3500) });
-                    if (r.ok) {
-                        const d = await r.json();
-                        const list = d.list || d.data || [];
-                        list.forEach(item => {
-                            const id = 'custom_' + (item.vod_id || item.id || item.vod_name);
-                            if (seenIds.has(id)) return;
-                            seenIds.add(id);
-                            parsedFromCustom = true;
-                            merged.push({
-                                vod_id: item.vod_id || item.id || id,
-                                vod_name: item.vod_name || item.title || '吃瓜爆料',
-                                vod_pic: item.vod_pic || item.pic || item.thumb || '',
-                                vod_remarks: item.vod_remarks || '吃瓜爆料',
-                                vod_score: item.vod_score || '9.6',
-                                vod_class: item.type_name || item.vod_class || '深夜吃瓜',
-                                vod_year: item.vod_year || '2026',
-                                vod_play_url: item.vod_play_url || ''
-                            });
-                        });
-                    }
-                } catch (e) {}
-            }
         }
 
         // 2. 若未绑定自定义源或自定义源暂无结果，从聚合搜索补充吃瓜话题
