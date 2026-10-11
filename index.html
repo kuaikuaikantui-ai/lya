@@ -699,18 +699,52 @@
         .kanju-poster-card:hover .kanju-poster-wrap img {
             transform: scale(1.05);
         }
+        .kanju-score-badge {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: rgba(0, 0, 0, 0.72);
+            color: #fbbf24;
+            font-size: 9.5px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 6px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(251, 191, 36, 0.35);
+            z-index: 2;
+        }
         .kanju-poster-badge {
             position: absolute;
             top: 6px;
             right: 6px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.72);
             color: var(--accent);
             font-size: 9px;
             font-weight: 600;
             padding: 2px 6px;
             border-radius: 6px;
             backdrop-filter: blur(4px);
-            border: 1px solid rgba(45, 212, 192, 0.3);
+            border: 1px solid rgba(56, 189, 248, 0.32);
+            max-width: 65%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            z-index: 2;
+        }
+        .kanju-play-hover {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            color: #fff;
+            font-size: 22px;
+        }
+        .kanju-poster-card:hover .kanju-play-hover {
+            opacity: 1;
         }
         .kanju-poster-info {
             padding: 8px;
@@ -1797,6 +1831,7 @@
     <script src="p2p-engine.min.js"></script>
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
+    <script src="recommend_data.js"></script>
     <script src="video.js"></script>
 </head>
 <body>
@@ -1913,11 +1948,11 @@
         </div>
     </section>
 
-    <!-- 第2页：小说独立专区 (独立搜索框、独立小说源、热门推荐) -->
+    <!-- 第2页：小说独立专区 (独立搜索框、独立小说源、原生带图推荐书城) -->
     <section id="novelSection" style="display: none;">
         <div class="search-box">
             <div class="search-row">
-                <input type="text" id="novelSearchInput" class="search-input" placeholder="输入小说书名、主角名搜索 (如: 剑来, 宿命之环, 凡人修仙)..." value="" onkeydown="if(event.key==='Enter')doNovelSearch()" />
+                <input type="text" id="novelSearchInput" class="search-input" placeholder="输入小说书名、主角名搜索 (如: 剑来, 十日终焉, 凡人修仙传)..." value="" onkeydown="if(event.key==='Enter')doNovelSearch()" />
                 <button class="btn primary" onclick="doNovelSearch()"><i class="fas fa-search"></i> 搜小说</button>
             </div>
             <div class="filter-row">
@@ -1945,25 +1980,49 @@
                 <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热搜小说:</span>
                 <div class="kanju-suggestion-chips">
                     <button class="kanju-chip" onclick="quickSearchNovel('剑来')">剑来</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('宿命之环')">宿命之环</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('道诡异仙')">道诡异仙</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('赤心巡天')">赤心巡天</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('诡秘之主')">诡秘之主</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('凡人修仙传')">凡人修仙传</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('十日终焉')">十日终焉</button>
                     <button class="kanju-chip" onclick="quickSearchNovel('雪中悍刀行')">雪中悍刀行</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('万相之王')">万相之王</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('庆余年')">庆余年</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('凡人修仙传')">凡人修仙传</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('仙逆')">仙逆</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('一念永恒')">一念永恒</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('圣墟')">圣墟</button>
+                    <button class="kanju-chip" onclick="quickSearchNovel('长相思')">长相思</button>
+                </div>
+            </div>
+            <div class="kanju-suggestion-row">
+                <span class="kanju-suggestion-label"><i class="fas fa-compass" style="color:var(--accent);"></i> 热门题材:</span>
+                <div class="kanju-suggestion-chips">
+                    <button class="kanju-chip sub" onclick="quickSearchNovel('修仙')">仙侠修真</button>
+                    <button class="kanju-chip sub" onclick="quickSearchNovel('斩神')">热血高武</button>
+                    <button class="kanju-chip sub" onclick="quickSearchNovel('悬疑')">悬疑脑洞</button>
+                    <button class="kanju-chip sub" onclick="quickSearchNovel('赘婿')">都市逆袭</button>
+                    <button class="kanju-chip sub" onclick="quickSearchNovel('重生')">权谋古言</button>
                 </div>
             </div>
         </div>
 
-        <div id="novelResultsGrid" class="grid-list"></div>
+        <!-- 小说搜索结果区 (搜索时展示，带封面图卡片) -->
+        <div id="novelSearchResultBlock" style="display:none; margin-bottom: 28px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0 12px 0;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <h4 id="novelSearchTitle" style="font-size:16px; font-weight:600;"><i class="fas fa-search" style="color:var(--accent);"></i> 小说搜索结果</h4>
+                    <button class="btn" style="font-size:11px; padding:4px 12px;" onclick="window.clearNovelSearch()"><i class="fas fa-times"></i> 返回书城推荐广场</button>
+                </div>
+                <span id="novelSearchCountBadge" class="badge" style="font-size:11px; padding:4px 12px;">全网书库</span>
+            </div>
+            <div id="novelResultsGrid" class="video-grid"></div>
+        </div>
+
+        <!-- 原生站点带图小说推荐广场 -->
+        <div id="novelRecommendSectionsContainer"></div>
     </section>
 
-    <!-- 第3页：漫画独立专区 (独立搜索框、独立漫画源、热门推荐) -->
+    <!-- 第3页：漫画独立专区 (独立搜索框、独立漫画源、原生带图推荐漫城) -->
     <section id="mangaSection" style="display: none;">
         <div class="search-box">
             <div class="search-row">
-                <input type="text" id="mangaSearchInput" class="search-input" placeholder="输入漫画作品名 (如: 秘密教学, 鬼灭之刃, 咒术回战)..." value="" onkeydown="if(event.key==='Enter')doMangaSearch()" />
+                <input type="text" id="mangaSearchInput" class="search-input" placeholder="输入漫画作品名 (如: 秘密教学, 一人之下, 咒术回战)..." value="" onkeydown="if(event.key==='Enter')doMangaSearch()" />
                 <button class="btn primary" onclick="doMangaSearch()"><i class="fas fa-search"></i> 搜漫画</button>
             </div>
             <div class="filter-row">
@@ -1983,18 +2042,41 @@
                 <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热门漫画:</span>
                 <div class="kanju-suggestion-chips">
                     <button class="kanju-chip" onclick="quickSearchManga('秘密教学')">秘密教学</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('健身教练')">健身教练</button>
                     <button class="kanju-chip" onclick="quickSearchManga('重考生')">重考生</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('鬼灭之刃')">鬼灭之刃</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('咒术回战')">咒术回战</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('继母的朋友们')">继母的朋友们</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('社团学姐')">社团学姐</button>
                     <button class="kanju-chip" onclick="quickSearchManga('一人之下')">一人之下</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('妖神记')">妖神记</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('狐妖小红娘')">狐妖小红娘</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('咒术回战')">咒术回战</button>
                     <button class="kanju-chip" onclick="quickSearchManga('海贼王')">海贼王</button>
+                </div>
+            </div>
+            <div class="kanju-suggestion-row">
+                <span class="kanju-suggestion-label"><i class="fas fa-compass" style="color:var(--accent);"></i> 漫城分类:</span>
+                <div class="kanju-suggestion-chips">
+                    <button class="kanju-chip sub" onclick="quickSearchManga('学姐')">人气韩漫</button>
+                    <button class="kanju-chip sub" onclick="quickSearchManga('修仙')">国漫修仙</button>
+                    <button class="kanju-chip sub" onclick="quickSearchManga('恋爱')">恋爱甜宠</button>
+                    <button class="kanju-chip sub" onclick="quickSearchManga('女神')">都市校园</button>
+                    <button class="kanju-chip sub" onclick="quickSearchManga('3D')">3D全彩</button>
                 </div>
             </div>
         </div>
 
-        <div id="mangaResultsGrid" class="grid-list"></div>
+        <!-- 漫画搜索结果区 (搜索时展示，带封面图卡片) -->
+        <div id="mangaSearchResultBlock" style="display:none; margin-bottom: 28px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0 12px 0;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <h4 id="mangaSearchTitle" style="font-size:16px; font-weight:600;"><i class="fas fa-search" style="color:var(--accent);"></i> 漫画搜索结果</h4>
+                    <button class="btn" style="font-size:11px; padding:4px 12px;" onclick="window.clearMangaSearch()"><i class="fas fa-times"></i> 返回漫城推荐广场</button>
+                </div>
+                <span id="mangaSearchCountBadge" class="badge" style="font-size:11px; padding:4px 12px;">全网漫库</span>
+            </div>
+            <div id="mangaResultsGrid" class="video-grid"></div>
+        </div>
+
+        <!-- 原生站点带图漫画推荐广场 -->
+        <div id="mangaRecommendSectionsContainer"></div>
     </section>
 
     <!-- 第4页：影视独立专区 (kanju3 精品热播与全网片源检索) -->
@@ -3092,13 +3174,12 @@
 
         if (isHistory) {
             renderHistoryModule();
-            setTimeout(() => updateSubnavGlider(currentHistoryTab), 20);
         }
-        if (isNovel && (!document.getElementById('novelResultsGrid').innerHTML || document.getElementById('novelResultsGrid').children.length === 0)) {
-            doNovelSearch('剑来');
+        if (isNovel) {
+            renderNovelRecommendPlaza();
         }
-        if (isManga && (!document.getElementById('mangaResultsGrid').innerHTML || document.getElementById('mangaResultsGrid').children.length === 0)) {
-            doMangaSearch('秘密教学');
+        if (isManga) {
+            renderMangaRecommendPlaza();
         }
         if (isVideo) {
             if (typeof window.loadVideoFeed === 'function') {
@@ -3107,6 +3188,125 @@
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+
+    // 通用小说/漫画带封面海报卡片渲染器 (与影视专区同款高颜值海报卡片)
+    const FALLBACK_BOOK_COVER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='420' viewBox='0 0 300 420'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%231e293b'/%3E%3Cstop offset='100%25' stop-color='%230f172a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='420' fill='url(%23bg)'/%3E%3Ccircle cx='150' cy='180' r='44' fill='rgba(56,189,248,0.12)'/%3E%3Cpath d='M132 165h36v32h-36z' fill='none' stroke='%2338bdf8' stroke-width='3'/%3E%3Ctext x='150' y='255' text-anchor='middle' fill='%2394a3b8' font-size='15' font-family='sans-serif'%3EOpenHappy%20精品馆%3C/text%3E%3C/svg%3E";
+
+    function renderBookPosterCard(rawItem, defaultTab = '小说', defaultSource = '七猫') {
+        const cleanSource = ((rawItem.source || defaultSource) + '').replace(/^svip_/, '');
+        const tab = rawItem.tab || defaultTab;
+        const item = {
+            ...rawItem,
+            tab,
+            source: cleanSource
+        };
+        const rawPic = (item.thumb_url || item.cover || item.pic || '').trim();
+        const pic = rawPic ? rawPic.replace(/^http:\/\//i, 'https://') : FALLBACK_BOOK_COVER;
+        const rawScore = (item.score || '').toString().replace(/分/g, '').trim();
+        const score = (rawScore && rawScore !== '0' && rawScore !== '0.0') ? rawScore : (tab === '漫画' ? '9.4' : '9.5');
+        const rightBadge = item.word_number
+            ? `${cleanSource} · ${item.word_number.replace(/\s+/g, '')}`
+            : (item.last_chapter ? item.last_chapter.trim() : cleanSource);
+        const cat = (item.category || item.tags || (tab === '漫画' ? '全彩漫画' : '精品小说')).split(',')[0] || cleanSource;
+        const author = item.author || (tab === '漫画' ? '人气画师' : '网络作家');
+        const encoded = encodeURIComponent(JSON.stringify(item));
+
+        return `
+            <div class="kanju-poster-card" onclick="loadBookDetail('${encoded}')" title="点击阅读《${item.book_name}》">
+                <div class="kanju-poster-wrap">
+                    <img src="${pic}" alt="${item.book_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${FALLBACK_BOOK_COVER}';" />
+                    <span class="kanju-score-badge">★ ${score}</span>
+                    <span class="kanju-poster-badge">${rightBadge}</span>
+                    <div class="kanju-play-hover"><i class="fas fa-book-open"></i></div>
+                </div>
+                <div class="kanju-poster-info">
+                    <div class="kanju-poster-title" title="${item.book_name}">${item.book_name}</div>
+                    <div class="kanju-poster-meta">
+                        <span class="meta-tag" style="max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${author}</span>
+                        <span style="max-width:42%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${cat}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 渲染小说专区原生带图推荐广场
+    window.renderNovelRecommendPlaza = function() {
+        const container = document.getElementById('novelRecommendSectionsContainer');
+        if (!container) return;
+        if (container.children.length > 0) return;
+        const sections = window.NOVEL_RECOMMEND_SECTIONS || [];
+        if (sections.length === 0) return;
+
+        container.innerHTML = sections.map(sec => {
+            const cards = sec.cards || [];
+            if (cards.length === 0) return '';
+            const cardsHtml = cards.map(c => renderBookPosterCard(c, '小说', c.source || '七猫')).join('');
+            return `
+                <div class="kanju-section-block" style="margin-bottom: 30px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
+                        <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
+                            <h4 style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:7px; color:var(--text-main);">
+                                <i class="fas ${sec.icon || 'fa-book-open'}" style="color:${sec.color || '#38bdf8'};"></i>
+                                <span>${sec.title}</span>
+                            </h4>
+                            <span style="font-size:12px; color:var(--text-muted);">${sec.subtitle || ''}</span>
+                        </div>
+                        <span style="font-size:11px; color:var(--text-muted); background:rgba(255,255,255,0.04); padding:3px 10px; border-radius:14px; border:1px solid rgba(255,255,255,0.1);">共 ${cards.length} 本</span>
+                    </div>
+                    <div class="video-grid">${cardsHtml}</div>
+                </div>
+            `;
+        }).join('');
+    };
+
+    // 渲染漫画专区原生带图推荐广场
+    window.renderMangaRecommendPlaza = function() {
+        const container = document.getElementById('mangaRecommendSectionsContainer');
+        if (!container) return;
+        if (container.children.length > 0) return;
+        const sections = window.MANGA_RECOMMEND_SECTIONS || [];
+        if (sections.length === 0) return;
+
+        container.innerHTML = sections.map(sec => {
+            const cards = sec.cards || [];
+            if (cards.length === 0) return '';
+            const cardsHtml = cards.map(c => renderBookPosterCard(c, '漫画', c.source || '新新漫画')).join('');
+            return `
+                <div class="kanju-section-block" style="margin-bottom: 30px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
+                        <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
+                            <h4 style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:7px; color:var(--text-main);">
+                                <i class="fas ${sec.icon || 'fa-images'}" style="color:${sec.color || '#ec4899'};"></i>
+                                <span>${sec.title}</span>
+                            </h4>
+                            <span style="font-size:12px; color:var(--text-muted);">${sec.subtitle || ''}</span>
+                        </div>
+                        <span style="font-size:11px; color:var(--text-muted); background:rgba(255,255,255,0.04); padding:3px 10px; border-radius:14px; border:1px solid rgba(255,255,255,0.1);">共 ${cards.length} 部</span>
+                    </div>
+                    <div class="video-grid">${cardsHtml}</div>
+                </div>
+            `;
+        }).join('');
+    };
+
+    window.clearNovelSearch = function() {
+        const searchBlock = document.getElementById('novelSearchResultBlock');
+        const plaza = document.getElementById('novelRecommendSectionsContainer');
+        const input = document.getElementById('novelSearchInput');
+        if (input) input.value = '';
+        if (searchBlock) searchBlock.style.display = 'none';
+        if (plaza) plaza.style.display = 'block';
+    };
+
+    window.clearMangaSearch = function() {
+        const searchBlock = document.getElementById('mangaSearchResultBlock');
+        const plaza = document.getElementById('mangaRecommendSectionsContainer');
+        const input = document.getElementById('mangaSearchInput');
+        if (input) input.value = '';
+        if (searchBlock) searchBlock.style.display = 'none';
+        if (plaza) plaza.style.display = 'block';
+    };
 
     // ==========================================
     // 独立小说专区搜索系统
@@ -3123,10 +3323,18 @@
         const sourceSelect = document.getElementById('novelSourceSelect');
         const source = sourceSelect ? sourceSelect.value : '七猫';
         const grid = document.getElementById('novelResultsGrid');
+        const searchBlock = document.getElementById('novelSearchResultBlock');
+        const plaza = document.getElementById('novelRecommendSectionsContainer');
+        const titleEl = document.getElementById('novelSearchTitle');
+        const countEl = document.getElementById('novelSearchCountBadge');
         if (!title || !grid) return;
 
+        if (searchBlock) searchBlock.style.display = 'block';
+        if (plaza) plaza.style.display = 'none';
+        if (titleEl) titleEl.innerHTML = `<i class="fas fa-search" style="color:var(--accent);"></i> 「${title}」搜索结果`;
+
         const isAll = (source === 'ALL');
-        if (typeof window.renderSkeletonGrid === 'function') { window.renderSkeletonGrid(grid, 6, false); } else { grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索小说《${title}》...</div>`; }
+        if (typeof window.renderSkeletonGrid === 'function') { window.renderSkeletonGrid(grid, 8, true); } else { grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索小说《${title}》...</div>`; }
 
         try {
             const res = await fetch(`/api/search?title=${encodeURIComponent(title)}&tab=${encodeURIComponent('小说')}&source=${encodeURIComponent(source)}`);
@@ -3147,6 +3355,7 @@
 
             list.forEach(item => {
                 item.tab = '小说';
+                item.source = ((item.source || source) + '').replace(/^svip_/, '');
                 const name = (item.book_name || '').trim();
                 const dedupeKey = isAll ? (name + '_' + (item.author || '') + '_' + (item.source || '')) : (name + '_' + (item.author || ''));
                 if (seen.has(dedupeKey)) return;
@@ -3163,6 +3372,7 @@
 
             let finalList = [...exactMatches, ...prefixMatches, ...containsMatches];
             if (finalList.length === 0) finalList = list;
+            if (countEl) countEl.textContent = `共 ${finalList.length} 本`;
 
             if (finalList.length === 0) {
                 grid.innerHTML = `
@@ -3173,18 +3383,7 @@
                 return;
             }
 
-            grid.innerHTML = finalList.map(item => `
-                <div class="card" onclick="loadBookDetail('${encodeURIComponent(JSON.stringify(item))}')">
-                    <div>
-                        <div class="card-title">${item.book_name}</div>
-                        <div class="card-sub">${item.abstract ? cleanAdContent(item.abstract).slice(0, 68) + '...' : '暂无详细小说简介'}</div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                        <span class="card-sub"><i class="fas fa-pen-nib"></i> ${item.author || '网络作者'}</span>
-                        <span class="card-tag">${item.source || source}</span>
-                    </div>
-                </div>
-            `).join('');
+            grid.innerHTML = finalList.map(item => renderBookPosterCard(item, '小说', source === 'ALL' ? '七猫' : source)).join('');
         } catch(e) {
             grid.innerHTML = `<div style="color:red; padding:30px; text-align:center; grid-column:1/-1;">小说搜索失败: ${e.message}</div>`;
         }
@@ -3205,7 +3404,15 @@
         const sourceSelect = document.getElementById('mangaSourceSelect');
         const source = sourceSelect ? sourceSelect.value : '新新漫画';
         const grid = document.getElementById('mangaResultsGrid');
+        const searchBlock = document.getElementById('mangaSearchResultBlock');
+        const plaza = document.getElementById('mangaRecommendSectionsContainer');
+        const titleEl = document.getElementById('mangaSearchTitle');
+        const countEl = document.getElementById('mangaSearchCountBadge');
         if (!title || !grid) return;
+
+        if (searchBlock) searchBlock.style.display = 'block';
+        if (plaza) plaza.style.display = 'none';
+        if (titleEl) titleEl.innerHTML = `<i class="fas fa-search" style="color:var(--accent);"></i> 「${title}」搜索结果`;
 
         const isAll = (source === 'ALL');
         if (typeof window.renderSkeletonGrid === 'function') { window.renderSkeletonGrid(grid, 8, true); } else { grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在检索漫画《${title}》原画资源...</div>`; }
@@ -3229,6 +3436,7 @@
 
             list.forEach(item => {
                 item.tab = '漫画';
+                item.source = ((item.source || source) + '').replace(/^svip_/, '');
                 const name = (item.book_name || '').trim();
                 const dedupeKey = isAll ? (name + '_' + (item.author || '') + '_' + (item.source || '')) : (name + '_' + (item.author || ''));
                 if (seen.has(dedupeKey)) return;
@@ -3245,6 +3453,7 @@
 
             let finalList = [...exactMatches, ...prefixMatches, ...containsMatches];
             if (finalList.length === 0) finalList = list;
+            if (countEl) countEl.textContent = `共 ${finalList.length} 部`;
 
             if (finalList.length === 0) {
                 grid.innerHTML = `
@@ -3255,18 +3464,7 @@
                 return;
             }
 
-            grid.innerHTML = finalList.map(item => `
-                <div class="card" onclick="loadBookDetail('${encodeURIComponent(JSON.stringify(item))}')">
-                    <div>
-                        <div class="card-title"><i class="fas fa-images" style="color:var(--accent); margin-right:4px;"></i>${item.book_name}</div>
-                        <div class="card-sub">${item.abstract ? cleanAdContent(item.abstract).slice(0, 68) + '...' : '暂无详细漫画简介'}</div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                        <span class="card-sub">${item.author || '连载原著'}</span>
-                        <span class="card-tag">${item.source || source}</span>
-                    </div>
-                </div>
-            `).join('');
+            grid.innerHTML = finalList.map(item => renderBookPosterCard(item, '漫画', source === 'ALL' ? '新新漫画' : source)).join('');
         } catch(e) {
             grid.innerHTML = `<div style="color:red; padding:30px; text-align:center; grid-column:1/-1;">漫画检索失败: ${e.message}</div>`;
         }
@@ -3278,10 +3476,11 @@
     async function loadBookDetail(encodedItem, autoReadIndex = null) {
         const book = JSON.parse(decodeURIComponent(encodedItem));
         const activeTab = book.tab || (previousView === 'manga' ? '漫画' : '小说');
-        currentBookInfo = { ...book, tab: activeTab };
+        const cleanSource = ((book.source || (activeTab === '漫画' ? '新新漫画' : '七猫')) + '').replace(/^svip_/, '');
+        currentBookInfo = { ...book, tab: activeTab, source: cleanSource };
 
         document.getElementById('detailBookTitle').innerText = book.book_name;
-        document.getElementById('detailSourceTag').innerText = book.source || '优质源';
+        document.getElementById('detailSourceTag').innerText = cleanSource || '优质源';
         document.getElementById('detailAuthorTag').innerText = book.author ? '作者: ' + book.author : '';
         document.getElementById('detailIntro').innerText = cleanAdContent(book.abstract) || '无详细简介';
 
