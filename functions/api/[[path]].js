@@ -334,12 +334,28 @@ const workerHandler = {
                         is_dynamic: true
                     }));
 
+                    const allSections = sections.map(s => ({
+                        title: s.title || '热门推荐',
+                        subtitle: s.subtitle || '',
+                        cards: (s.cards || []).map((c, idx) => ({
+                            vod_id: c.id,
+                            vod_name: c.title,
+                            vod_pic: c.poster_url || c.backdrop_url || '',
+                            vod_remarks: c.remarks || (c.year ? c.year + '年' : '全网热播'),
+                            type_name: (c.genres && c.genres[0]) || (c.content_kind === 'movie' ? '电影' : '热播剧'),
+                            vod_year: String(c.year || '2026'),
+                            vod_actor: (c.actors || []).slice(0, 4).join(', '),
+                            vod_score: (9.0 + (idx % 5) * 0.1).toFixed(1),
+                            is_dynamic: true
+                        }))
+                    }));
                     return new Response(JSON.stringify({
                         code: 0,
-                        section_title: curSec.title || '今日热门推荐',
+                        section_title: curSec.title || '大家都在看',
                         section_subtitle: curSec.subtitle || '',
                         section_index: secIdx % sections.length,
                         total_sections: sections.length,
+                        sections: allSections,
                         list: cards
                     }), {
                         headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }

@@ -1595,7 +1595,7 @@
     <section id="novelSection" style="display: none;">
         <div class="search-box">
             <div class="search-row">
-                <input type="text" id="novelSearchInput" class="search-input" placeholder="输入小说书名、主角名搜索 (如: 剑来, 宿命之环, 凡人修仙)..." value="剑来" onkeydown="if(event.key==='Enter')doNovelSearch()" />
+                <input type="text" id="novelSearchInput" class="search-input" placeholder="输入小说书名、主角名搜索 (如: 剑来, 宿命之环, 凡人修仙)..." value="" onkeydown="if(event.key==='Enter')doNovelSearch()" />
                 <button class="btn primary" onclick="doNovelSearch()"><i class="fas fa-search"></i> 搜小说</button>
             </div>
             <div class="filter-row">
@@ -1641,7 +1641,7 @@
     <section id="mangaSection" style="display: none;">
         <div class="search-box">
             <div class="search-row">
-                <input type="text" id="mangaSearchInput" class="search-input" placeholder="输入漫画作品名 (如: 秘密教学, 鬼灭之刃, 咒术回战)..." value="秘密教学" onkeydown="if(event.key==='Enter')doMangaSearch()" />
+                <input type="text" id="mangaSearchInput" class="search-input" placeholder="输入漫画作品名 (如: 秘密教学, 鬼灭之刃, 咒术回战)..." value="" onkeydown="if(event.key==='Enter')doMangaSearch()" />
                 <button class="btn primary" onclick="doMangaSearch()"><i class="fas fa-search"></i> 搜漫画</button>
             </div>
             <div class="filter-row">
@@ -1715,16 +1715,20 @@
             </div>
         </div>
 
-        <!-- 列表头 -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0 12px 0;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <h4 id="videoFeedTitle" style="font-size:15px; font-weight:600;"><i class="fas fa-fire" style="color:#f59e0b;"></i> 今日热门推荐</h4>
-                <button class="btn" style="font-size:11px; padding:3px 10px; border-radius:14px;" onclick="window.refreshVideoFeed()" title="点击换一批推荐片单"><i class="fas fa-sync-alt" id="refreshFeedIcon"></i> 换一批</button>
+        <!-- 搜索结果独立展示区 (仅在搜索时展现) -->
+        <div id="videoSearchResultBlock" style="display:none; margin-bottom: 28px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0 12px 0;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h4 id="videoFeedTitle" style="font-size:16px; font-weight:600;"><i class="fas fa-search" style="color:var(--accent);"></i> 搜索结果</h4>
+                    <button class="btn" style="font-size:11px; padding:4px 12px;" onclick="window.clearVideoSearch()"><i class="fas fa-times"></i> 返回全部剧集广场</button>
+                </div>
+                <span id="videoCountBadge" style="font-size:11px; color:var(--accent); background:rgba(56,189,248,0.12); padding:4px 12px; border-radius:20px; border:1px solid rgba(56,189,248,0.3);">全网聚合</span>
             </div>
-            <span id="videoCountBadge" style="font-size:11px; color:var(--accent); background:rgba(45,212,192,0.1); padding:3px 10px; border-radius:12px; border:1px solid rgba(45,212,192,0.25);">实时更新</span>
+            <div id="videoGrid" class="video-grid"></div>
         </div>
 
-        <div id="videoGrid" class="video-grid"></div>
+        <!-- 原站完整 8 大板块瀑布流 (大家都在看 / 韩剧在追 / 日剧上新 / 美剧续看 / 国产新剧 / 高分电影 / 电影热播 / 院线热映) -->
+        <div id="videoAllSectionsContainer"></div>
     </section>
 
     <!-- 书籍/漫画详情视图 -->
@@ -2928,10 +2932,10 @@
         updateTabGlider(nav);
         if (isHistory) renderHistoryModule();
         if (isNovel && (!document.getElementById('novelResultsGrid').innerHTML || document.getElementById('novelResultsGrid').children.length === 0)) {
-            doNovelSearch();
+            doNovelSearch('剑来');
         }
         if (isManga && (!document.getElementById('mangaResultsGrid').innerHTML || document.getElementById('mangaResultsGrid').children.length === 0)) {
-            doMangaSearch();
+            doMangaSearch('秘密教学');
         }
         if (isVideo) {
             if (typeof window.loadVideoFeed === 'function') {
@@ -2950,9 +2954,9 @@
         doNovelSearch();
     };
 
-    window.doNovelSearch = async function() {
+    window.doNovelSearch = async function(fallbackKw = '') {
         const input = document.getElementById('novelSearchInput');
-        const title = input ? input.value.trim() : '';
+        const title = (input && input.value.trim()) ? input.value.trim() : fallbackKw;
         const sourceSelect = document.getElementById('novelSourceSelect');
         const source = sourceSelect ? sourceSelect.value : '七猫';
         const grid = document.getElementById('novelResultsGrid');
@@ -3032,9 +3036,9 @@
         doMangaSearch();
     };
 
-    window.doMangaSearch = async function() {
+    window.doMangaSearch = async function(fallbackKw = '') {
         const input = document.getElementById('mangaSearchInput');
-        const title = input ? input.value.trim() : '';
+        const title = (input && input.value.trim()) ? input.value.trim() : fallbackKw;
         const sourceSelect = document.getElementById('mangaSourceSelect');
         const source = sourceSelect ? sourceSelect.value : '新新漫画';
         const grid = document.getElementById('mangaResultsGrid');
