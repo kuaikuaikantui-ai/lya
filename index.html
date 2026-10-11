@@ -2606,90 +2606,115 @@
 
     <!-- 第5页：隐藏“吃瓜”专区（任意搜索框搜索“我已成年”解锁开关与专属标签） -->
     <section id="chiguaSection" style="display:none;">
-        <div class="kanju-hero-box" style="border-color: rgba(244, 63, 94, 0.28);">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+        <!-- 吃瓜列表主视图 -->
+        <div id="chiguaListView">
+            <div class="kanju-hero-box" style="border-color: rgba(244, 63, 94, 0.28);">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <span id="chiguaHeroSiteTitle" style="display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px; background:rgba(244,63,94,0.16); border:1px solid rgba(244,63,94,0.4); color:#fb7185; font-size:12px; font-weight:700;">
+                            <i class="fas fa-fire-flame-curved"></i> 黑料不打烊 - 吃瓜黑料、八卦爆料，24小时不打烊 | 深夜吃瓜观察室
+                        </span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="btn" style="font-size:12px; padding:5px 12px;" onclick="toggleChiguaSourceBox()">
+                            <i class="fas fa-link"></i> 吃瓜源设置
+                        </button>
+                        <button class="btn" style="font-size:12px; padding:5px 12px; border-color:rgba(244,63,94,0.35); color:#fb7185;" onclick="toggleChiguaMode()">
+                            <i class="fas fa-eye-slash"></i> 隐藏吃瓜标签
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 吃瓜源地址配置栏 (默认内置 active.ymmqlqkl.cc，支持导航页多线路解析与切线) -->
+                <div id="chiguaCustomSourceBox" style="display:none; margin-bottom:14px; padding:12px; border-radius:14px; background:rgba(15,23,42,0.5); border:1px solid rgba(244,63,94,0.28);">
+                    <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                        <span><i class="fas fa-satellite-dish" style="color:#fb7185;"></i> 绑定吃瓜站点或导航页地址（支持自动解析多条线路与随机切线）：</span>
+                        <span id="chiguaSourceStatus" style="color:#fb7185; font-weight:600;">当前：https://active.ymmqlqkl.cc</span>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <input type="text" id="chiguaOriginInput" class="search-input" style="flex:1; min-width:220px; padding:8px 12px; font-size:13px;" value="https://active.ymmqlqkl.cc" placeholder="输入吃瓜站点或导航页地址..." />
+                        <button class="btn primary" style="padding:8px 16px; font-size:12px;" onclick="saveChiguaCustomOrigin()"><i class="fas fa-bolt"></i> 解析并加载</button>
+                        <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="pickRandomChiguaLine()"><i class="fas fa-shuffle"></i> 随机换线</button>
+                        <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="clearChiguaCustomOrigin()"><i class="fas fa-rotate-left"></i> 恢复默认源</button>
+                    </div>
+                </div>
+
+                <!-- 多线路自动优选与手动切换栏 (当导航页解析出多条吃瓜线路时自动展示) -->
+                <div id="chiguaLineSwitcherBar" style="display:none; margin-bottom:12px; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 12px; border-radius:12px; background:rgba(244,63,94,0.08); border:1px solid rgba(244,63,94,0.25);">
+                    <span style="font-size:12px; font-weight:700; color:#fb7185;"><i class="fas fa-network-wired"></i> 吃瓜线路切换：</span>
+                    <div id="chiguaLineButtons" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;"></div>
+                    <button class="btn" style="font-size:11px; padding:4px 10px; margin-left:auto; border-color:rgba(244,63,94,0.4); color:#fb7185;" onclick="pickRandomChiguaLine()">
+                        <i class="fas fa-dice"></i> 随机切换线路
+                    </button>
+                </div>
+
+                <div class="kanju-search-row">
+                    <div class="kanju-search-input-wrap">
+                        <i class="fas fa-fire" style="color:#fb7185;"></i>
+                        <input type="text" id="chiguaSearchInput" placeholder="输入你想搜索的吃瓜关键词..." onkeydown="if(event.key==='Enter') window.doChiguaSearch()" />
+                    </div>
+                    <button class="kanju-search-btn" style="background:linear-gradient(135deg, #f43f5e, #e11d48);" onclick="window.doChiguaSearch()">
+                        <i class="fas fa-bolt"></i> 立即吃瓜
+                    </button>
+                </div>
+
+                <!-- 原站完整分类导航栏 -->
+                <div class="kanju-hot-chips" id="chiguaCategoryChips"></div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px; background:rgba(244,63,94,0.16); border:1px solid rgba(244,63,94,0.4); color:#fb7185; font-size:12px; font-weight:700;">
-                        <i class="fas fa-fire-flame-curved"></i> 24小时不打烊 · 深夜吃瓜观察室
-                    </span>
-                    <span style="font-size:12px; color:var(--text-muted);">吃瓜爆料 · 娱乐八卦 · 热门话题聚合</span>
+                    <h4 id="chiguaFeedTitle" style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-fire-flame-curved" style="color:#f43f5e;"></i> <span>黑料不打烊 - 吃瓜黑料24小时不打烊</span>
+                    </h4>
                 </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <button class="btn" style="font-size:12px; padding:5px 12px;" onclick="toggleChiguaSourceBox()">
-                        <i class="fas fa-link"></i> 自定义吃瓜源
-                    </button>
-                    <button class="btn" style="font-size:12px; padding:5px 12px; border-color:rgba(244,63,94,0.35); color:#fb7185;" onclick="toggleChiguaMode()">
-                        <i class="fas fa-eye-slash"></i> 隐藏吃瓜标签
-                    </button>
-                </div>
+                <span id="chiguaCountBadge" style="font-size:11px; color:#fb7185; background:rgba(244,63,94,0.12); padding:4px 12px; border-radius:20px; border:1px solid rgba(244,63,94,0.3);">实时更新</span>
             </div>
 
-            <!-- 自定义吃瓜源地址配置栏 (默认折叠，支持接入导航页自动解析多条线路或单站点地址) -->
-            <div id="chiguaCustomSourceBox" style="display:none; margin-bottom:14px; padding:12px; border-radius:14px; background:rgba(15,23,42,0.5); border:1px solid rgba(244,63,94,0.28);">
-                <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                    <span><i class="fas fa-satellite-dish" style="color:#fb7185;"></i> 绑定吃瓜导航页或站点地址（支持自动解析多条线路、随机优选与一键切线）：</span>
-                    <span id="chiguaSourceStatus" style="color:#fb7185; font-weight:600;">当前：内置聚合源</span>
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <input type="text" id="chiguaOriginInput" class="search-input" style="flex:1; min-width:220px; padding:8px 12px; font-size:13px;" placeholder="输入吃瓜导航页或站点地址，自动提取多条线路并随机优选..." />
-                    <button class="btn primary" style="padding:8px 16px; font-size:12px;" onclick="saveChiguaCustomOrigin()"><i class="fas fa-bolt"></i> 解析线路并加载</button>
-                    <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="pickRandomChiguaLine()"><i class="fas fa-shuffle"></i> 随机换线</button>
-                    <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="openChiguaExternalFrame()"><i class="fas fa-compass"></i> 沙箱直连</button>
-                    <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="clearChiguaCustomOrigin()"><i class="fas fa-rotate-left"></i> 恢复默认</button>
-                </div>
-            </div>
+            <div id="chiguaGrid" class="video-grid"></div>
 
-            <!-- 多线路自动优选与手动切换栏 (当导航页解析出多条吃瓜线路时自动展示) -->
-            <div id="chiguaLineSwitcherBar" style="display:none; margin-bottom:12px; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 12px; border-radius:12px; background:rgba(244,63,94,0.08); border:1px solid rgba(244,63,94,0.25);">
-                <span style="font-size:12px; font-weight:700; color:#fb7185;"><i class="fas fa-network-wired"></i> 吃瓜线路切换：</span>
-                <div id="chiguaLineButtons" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;"></div>
-                <button class="btn" style="font-size:11px; padding:4px 10px; margin-left:auto; border-color:rgba(244,63,94,0.4); color:#fb7185;" onclick="pickRandomChiguaLine()">
-                    <i class="fas fa-dice"></i> 随机切换线路
+            <div id="chiguaLoadMoreWrap" style="display:none; text-align:center; margin: 22px 0 10px;">
+                <button class="btn primary" id="chiguaLoadMoreBtn" style="padding:10px 28px; font-size:13px; background:linear-gradient(135deg, #f43f5e, #e11d48); border:none;" onclick="window.loadMoreChiguaPage()">
+                    <i class="fas fa-angles-down"></i> 加载下一页吃瓜
                 </button>
             </div>
-
-            <div class="kanju-search-row">
-                <div class="kanju-search-input-wrap">
-                    <i class="fas fa-fire" style="color:#fb7185;"></i>
-                    <input type="text" id="chiguaSearchInput" placeholder="搜吃瓜热点、娱乐八卦、网红爆料..." onkeydown="if(event.key==='Enter') window.doChiguaSearch()" />
-                </div>
-                <button class="kanju-search-btn" style="background:linear-gradient(135deg, #f43f5e, #e11d48);" onclick="window.doChiguaSearch()">
-                    <i class="fas fa-bolt"></i> 立即吃瓜
-                </button>
-            </div>
-
-            <div class="kanju-hot-chips" id="chiguaCategoryChips">
-                <button class="kanju-chip" style="border-color:rgba(244,63,94,0.45); color:#fb7185;" onclick="window.loadChiguaCategory('热门吃瓜', this)">🔥 热门吃瓜</button>
-                <button class="kanju-chip" onclick="window.loadChiguaCategory('娱乐爆料', this)">🍉 娱乐爆料</button>
-                <button class="kanju-chip" onclick="window.loadChiguaCategory('网红八卦', this)">📸 网红八卦</button>
-                <button class="kanju-chip" onclick="window.loadChiguaCategory('明星绯闻', this)">🌟 明星绯闻</button>
-                <button class="kanju-chip" onclick="window.loadChiguaCategory('狗血抓马', this)">🎭 反转大瓜</button>
-                <button class="kanju-chip" onclick="window.loadChiguaCategory('豪门恩怨', this)">🥂 豪门秘闻</button>
-                <button class="kanju-chip" onclick="window.loadChiguaCategory('悬疑奇案', this)">🕵️ 深夜观察室</button>
-            </div>
         </div>
 
-        <!-- 沙箱内嵌浏览容器 (当用户开启自定义站点直连时可用) -->
-        <div id="chiguaIframeWrap" style="display:none; margin-bottom:24px; border-radius:18px; overflow:hidden; border:1px solid rgba(244,63,94,0.3); background:#0b0f19;">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:rgba(15,23,42,0.9); border-bottom:1px solid rgba(255,255,255,0.08);">
-                <span style="font-size:13px; font-weight:600; color:#fb7185;"><i class="fas fa-globe"></i> 吃瓜站点直连视图</span>
-                <div style="display:flex; gap:8px;">
-                    <button class="btn" style="font-size:11px; padding:4px 10px;" onclick="closeChiguaExternalFrame()"><i class="fas fa-times"></i> 关闭直连视图</button>
+        <!-- 吃瓜原生纯享详情视图（仅保留原站标题 + 视频播放 + 实拍图片流，自动剔除一切文字与广告） -->
+        <div id="chiguaDetailView" style="display:none;">
+            <div class="view-header" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+                    <button class="btn" onclick="window.closeChiguaDetail()"><i class="fas fa-arrow-left"></i> 返回列表</button>
+                    <h3 id="chiguaDetailTitle" style="font-size:15px; font-weight:700; line-height:1.4; color:var(--text-main); margin:0; word-break:break-word;">正在加载...</h3>
+                </div>
+                <span id="chiguaDetailBadge" class="badge" style="background:rgba(244,63,94,0.16); color:#fb7185; border-color:rgba(244,63,94,0.4); flex-shrink:0;">24h热瓜</span>
+            </div>
+
+            <div id="chiguaDetailLoading" style="display:none; text-align:center; padding:48px 20px; color:var(--text-muted); font-size:13px;">
+                <i class="fas fa-spinner fa-spin" style="color:#fb7185; font-size:20px; margin-bottom:10px; display:block;"></i>
+                正在提取并解密原站高清视频与实拍图集...
+            </div>
+
+            <!-- 原生视频播放区（含多段视频选集切换） -->
+            <div id="chiguaVideoBlock" style="display:none; margin-bottom:22px;">
+                <div id="chiguaVideoTabsWrap" style="display:none; margin-bottom:10px;">
+                    <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;"><i class="fas fa-film" style="color:#fb7185;"></i> 吃瓜视频选集：</div>
+                    <div id="chiguaVideoTabs" class="catalog-grid" style="grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:8px;"></div>
+                </div>
+                <div style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:18px; overflow:hidden; box-shadow:0 14px 45px rgba(0,0,0,0.75); border:1px solid rgba(244,63,94,0.28);">
+                    <div id="chiguaDplayer" style="width:100%; height:100%;"></div>
                 </div>
             </div>
-            <iframe id="chiguaSandboxFrame" style="width:100%; height:72vh; border:none; background:#0b0f19;" referrerpolicy="no-referrer"></iframe>
-        </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <h4 id="chiguaFeedTitle" style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;">
-                    <i class="fas fa-fire-flame-curved" style="color:#f43f5e;"></i> <span>今日吃瓜热榜 · 24小时实时聚合</span>
-                </h4>
+            <!-- 原生实拍图片瀑布流（自动 AES 解密渲染，无多余文字） -->
+            <div id="chiguaGalleryBlock" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:8px 14px; border-radius:12px; background:rgba(244,63,94,0.1); border:1px solid rgba(244,63,94,0.25);">
+                    <span style="font-size:13px; font-weight:700; color:#fb7185;"><i class="fas fa-images"></i> 吃瓜实拍图集</span>
+                    <span id="chiguaGalleryCount" style="font-size:12px; color:var(--text-muted);">共 0 张</span>
+                </div>
+                <div id="chiguaImageStream" style="display:flex; flex-direction:column; align-items:center; gap:12px; max-width:860px; margin:0 auto;"></div>
             </div>
-            <span id="chiguaCountBadge" style="font-size:11px; color:#fb7185; background:rgba(244,63,94,0.12); padding:4px 12px; border-radius:20px; border:1px solid rgba(244,63,94,0.3);">实时更新</span>
         </div>
-
-        <div id="chiguaGrid" class="video-grid"></div>
     </section>
 
     <!-- 书籍/漫画详情视图 -->
@@ -3832,6 +3857,9 @@
         if (!isVideo && window.dpInstance) {
             try { window.dpInstance.pause(); } catch(e){}
         }
+        if (!isChigua && window._chiguaDpInstance) {
+            try { window._chiguaDpInstance.pause(); } catch(e){}
+        }
 
         previousView = nav;
         updateTabGlider(nav);
@@ -4816,23 +4844,124 @@
         if (frame) frame.src = 'about:blank';
     };
 
-    const CHIGUA_CATEGORY_KEYWORDS = {
-        '热门吃瓜': ['吃瓜', '八卦', '爆料', '反转', '绯闻'],
-        '娱乐爆料': ['娱乐圈', '明星', '经纪人', '塌房', '顶流'],
-        '网红八卦': ['网红', '主播', '直播', '榜一大哥', '人设'],
-        '明星绯闻': ['绯闻', '恋情', '狗仔', '热搜', '国民'],
-        '狗血抓马': ['抓马', '修罗场', '手撕', '反转', '前任'],
-        '豪门恩怨': ['豪门', '千金', '联姻', '继承人', '名媛'],
-        '悬疑奇案': ['奇案', '悬疑', '真相', '幕后', '秘闻']
-    };
+    // 原站真实分类（名称 → slug 路径，用于拉取原站首页与分类页文章列表）
+    const CHIGUA_CATEGORIES = [
+        { name: '首页最新', slug: '', icon: '🏠' },
+        { name: '今日看料', slug: '24hcg', icon: '🔥' },
+        { name: '每日热瓜', slug: 'mrrg', icon: '🍉' },
+        { name: '热门吃瓜', slug: 'rgtj', icon: '⚡' },
+        { name: '黑料大事', slug: 'hlda', icon: '📢' },
+        { name: '每日大赛', slug: 'mrds', icon: '🏆' },
+        { name: '反差女神', slug: 'fcns', icon: '💃' },
+        { name: '学院热瓜', slug: 'xyrg', icon: '🎓' },
+        { name: '网红吃瓜', slug: 'whhl', icon: '📱' },
+        { name: '明星吃瓜', slug: 'mxbg', icon: '⭐' },
+        { name: '海角乱伦', slug: 'llsq', icon: '🌊' },
+        { name: '探花大全', slug: 'thdq', icon: '🌸' },
+        { name: '撸友看片', slug: 'lydt', icon: '🎬' },
+        { name: '网黄专辑', slug: 'whzj', icon: '📹' },
+        { name: '原创投稿', slug: 'qgzq', icon: '✍️' }
+    ];
+    const CHIGUA_CATEGORY_KEYWORDS = {};
+    CHIGUA_CATEGORIES.forEach(c => { CHIGUA_CATEGORY_KEYWORDS[c.name] = [c.name]; });
+
+    // 吃瓜分页状态
+    let _chiguaCurrentPage = 1;
+    let _chiguaCurrentSlug = '';
+    let _chiguaCurrentCatName = '首页最新';
+    let _chiguaLoading = false;
+
+    // AES-128-CBC 解密密钥/IV（来自原站 zzz.js 逆向）
+    const _CG_AES_KEY_STR = 'f5d965df75336270';
+    const _CG_AES_IV_STR  = '97b60394abc2fbe1';
+    let _cgAesKey = null;
+    const _cgDecryptedUrlCache = new Map();
+
+    async function _getCgAesKey() {
+        if (_cgAesKey) return _cgAesKey;
+        const raw = new TextEncoder().encode(_CG_AES_KEY_STR);
+        _cgAesKey = await crypto.subtle.importKey('raw', raw, { name: 'AES-CBC' }, false, ['decrypt']);
+        return _cgAesKey;
+    }
+
+    // 通用吃瓜加密图片解密器（自动识别明文图片与 AES-128-CBC 密文图片并缓存 Blob URL）
+    async function _decryptChiguaImageUrl(url) {
+        if (!url) return '';
+        if (_cgDecryptedUrlCache.has(url)) return _cgDecryptedUrlCache.get(url);
+        const resp = await window.__rawFetch(url);
+        if (!resp.ok) throw new Error('img fetch ' + resp.status);
+        const encBuf = await resp.arrayBuffer();
+        const head = new Uint8Array(encBuf, 0, Math.min(4, encBuf.byteLength));
+        const isPlainJpeg = head[0] === 0xFF && head[1] === 0xD8;
+        const isPlainPng  = head[0] === 0x89 && head[1] === 0x50;
+        const isPlainGif  = head[0] === 0x47 && head[1] === 0x49;
+        const isPlainWebp = head[0] === 0x52 && head[1] === 0x49;
+        let outBlob;
+        if (isPlainJpeg || isPlainPng || isPlainGif || isPlainWebp) {
+            outBlob = new Blob([encBuf]);
+        } else {
+            const aesKey = await _getCgAesKey();
+            const iv = new TextEncoder().encode(_CG_AES_IV_STR);
+            const decBuf = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, aesKey, encBuf);
+            outBlob = new Blob([decBuf], { type: 'image/jpeg' });
+        }
+        const objUrl = URL.createObjectURL(outBlob);
+        _cgDecryptedUrlCache.set(url, objUrl);
+        return objUrl;
+    }
+
+    // 异步解密列表卡片上的加密封面图
+    function hydrateChiguaEncryptedImages(container) {
+        if (!container) return;
+        container.querySelectorAll('img[data-cg-enc]:not([data-cg-hydrated])').forEach(img => {
+            img.setAttribute('data-cg-hydrated', '1');
+            const encUrl = img.getAttribute('data-cg-enc');
+            if (!encUrl) return;
+            _decryptChiguaImageUrl(encUrl).then(objUrl => {
+                if (objUrl) img.src = objUrl;
+            }).catch(() => {});
+        });
+    }
+
+    // 吃瓜 DPlayer 实例（详情页视频播放）
+    let _chiguaDpInstance = null;
+    let _chiguaHlsInstance = null;
 
     let chiguaInitialized = false;
     window.initChiguaFeed = function() {
         renderChiguaLineSwitcher();
+        const chipsEl = document.getElementById('chiguaCategoryChips');
+        if (chipsEl && chipsEl.children.length === 0) {
+            chipsEl.innerHTML = CHIGUA_CATEGORIES.map((cat, i) => {
+                const active = i === 0 ? 'style="border-color:rgba(244,63,94,0.45); color:#fb7185;"' : '';
+                return `<button class="kanju-chip" data-cg-cat="${cat.name}" ${active} onclick="window.loadChiguaCategory('${cat.name}', this, '${cat.slug}')">${cat.icon} ${cat.name}</button>`;
+            }).join('');
+        }
         if (!chiguaInitialized) {
             chiguaInitialized = true;
-            window.loadChiguaCategory('热门吃瓜');
+            window.loadChiguaCategory(CHIGUA_CATEGORIES[0].name, null, CHIGUA_CATEGORIES[0].slug);
         }
+    };
+
+    // 关闭吃瓜详情，返回列表
+    window.closeChiguaDetail = function() {
+        if (_chiguaHlsInstance) { try { _chiguaHlsInstance.destroy(); } catch(e){} _chiguaHlsInstance = null; }
+        if (_chiguaDpInstance) { try { _chiguaDpInstance.destroy(); } catch(e){} _chiguaDpInstance = null; }
+        window._chiguaDpInstance = null;
+        document.getElementById('chiguaDplayer').innerHTML = '';
+        document.getElementById('chiguaImageStream').innerHTML = '';
+        document.getElementById('chiguaDetailView').style.display = 'none';
+        document.getElementById('chiguaVideoBlock').style.display = 'none';
+        document.getElementById('chiguaGalleryBlock').style.display = 'none';
+        document.getElementById('chiguaListView').style.display = 'block';
+        document.getElementById('chiguaSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    // 加载下一页吃瓜
+    window.loadMoreChiguaPage = function() {
+        if (_chiguaLoading) return;
+        _chiguaCurrentPage++;
+        _loadChiguaCategoryPage(_chiguaCurrentSlug, _chiguaCurrentCatName, _chiguaCurrentPage, true);
     };
 
     window.doChiguaSearch = function() {
@@ -4840,21 +4969,122 @@
         const wd = input ? input.value.trim() : '';
         if (!wd) return;
         if (window.checkSecretUnlockKeyword && window.checkSecretUnlockKeyword(wd, input)) return;
+        window.closeChiguaDetail();
         window.loadChiguaFeedByKeywords([wd], `「${wd}」吃瓜爆料检索结果`);
     };
 
-    window.loadChiguaCategory = function(catName, btnEl) {
-        if (btnEl) {
-            document.querySelectorAll('#chiguaCategoryChips .kanju-chip').forEach(b => {
-                b.style.borderColor = '';
-                b.style.color = '';
-            });
-            btnEl.style.borderColor = 'rgba(244,63,94,0.45)';
-            btnEl.style.color = '#fb7185';
+    window.loadChiguaCategory = function(catName, btnEl, slug) {
+        const matchedCat = CHIGUA_CATEGORIES.find(c => c.name === catName);
+        const resolvedSlug = (slug !== undefined) ? slug : (matchedCat ? matchedCat.slug : '');
+        const resolvedName = matchedCat ? matchedCat.name : (catName || '首页最新');
+
+        document.querySelectorAll('#chiguaCategoryChips .kanju-chip').forEach(b => {
+            const isTarget = btnEl ? (b === btnEl) : (b.getAttribute('data-cg-cat') === resolvedName);
+            b.style.borderColor = isTarget ? 'rgba(244,63,94,0.45)' : '';
+            b.style.color = isTarget ? '#fb7185' : '';
+        });
+
+        if (document.getElementById('chiguaDetailView').style.display !== 'none') {
+            window.closeChiguaDetail();
         }
-        const kws = CHIGUA_CATEGORY_KEYWORDS[catName] || [catName];
-        window.loadChiguaFeedByKeywords(kws, `${catName} · 24小时吃瓜观察室`);
+
+        _chiguaCurrentPage = 1;
+        _chiguaCurrentSlug = resolvedSlug;
+        _chiguaCurrentCatName = resolvedName;
+        _loadChiguaCategoryPage(resolvedSlug, resolvedName, 1, false);
     };
+
+    // 从原站首页或分类页直接拉取文章列表（支持翻页 + 原站标题同步 + 封面解密）
+    async function _loadChiguaCategoryPage(slug, catName, page, append) {
+        if (_chiguaLoading) return;
+        _chiguaLoading = true;
+        sanitizeChiguaStorage();
+        const grid = document.getElementById('chiguaGrid');
+        const titleEl = document.getElementById('chiguaFeedTitle');
+        const badgeEl = document.getElementById('chiguaCountBadge');
+        const loadMoreWrap = document.getElementById('chiguaLoadMoreWrap');
+        const loadMoreBtn = document.getElementById('chiguaLoadMoreBtn');
+        if (!grid) { _chiguaLoading = false; return; }
+
+        if (titleEl) {
+            titleEl.innerHTML = `<i class="fas fa-fire-flame-curved" style="color:#f43f5e;"></i> <span>${catName} · 黑料不打烊</span>`;
+        }
+        if (!append && typeof window.renderSkeletonGrid === 'function') {
+            window.renderSkeletonGrid(grid, 8, true);
+        }
+        if (loadMoreBtn) loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+
+        const customOrigin = (localStorage.getItem('openhappy_chigua_origin') || 'https://active.ymmqlqkl.cc').trim().replace(/\/+$/, '');
+        let pageUrl;
+        if (!slug) {
+            pageUrl = page > 1 ? `${customOrigin}/page/${page}/` : `${customOrigin}/`;
+        } else {
+            pageUrl = page > 1 ? `${customOrigin}/category/${slug}/${page}/` : `${customOrigin}/category/${slug}/`;
+        }
+
+        try {
+            let html = await fetchTextWithCorsFallback(pageUrl);
+            if (!html && slug && page > 1) {
+                html = await fetchTextWithCorsFallback(`${customOrigin}/category/${slug}/page/${page}/`);
+            }
+            if (html) {
+                // 同步原站标题到顶部横幅
+                const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+                const heroTitleEl = document.getElementById('chiguaHeroSiteTitle');
+                if (titleMatch && titleMatch[1] && heroTitleEl) {
+                    const cleanSiteTitle = titleMatch[1].replace(/\s+/g, ' ').trim();
+                    if (cleanSiteTitle.length >= 4) {
+                        heroTitleEl.innerHTML = `<i class="fas fa-fire-flame-curved"></i> ${cleanSiteTitle}`;
+                    }
+                }
+
+                const items = parseGenericHtmlArticles(html, customOrigin);
+                if (badgeEl) badgeEl.innerText = append ? `已加载第 ${page} 页` : `共 ${items.length} 条吃瓜`;
+
+                if (items.length === 0 && !append) {
+                    grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">该分类暂无吃瓜内容，请尝试切换其他分类</div>`;
+                    if (loadMoreWrap) loadMoreWrap.style.display = 'none';
+                } else {
+                    const cardsHtml = items.map(item => {
+                        const safeItem = encodeURIComponent(JSON.stringify(item));
+                        const clickHandler = `window.openChiguaHtmlArticle('${safeItem}')`;
+                        const fallbackImg = item.poster_fallback || FALLBACK_BOOK_COVER;
+                        const encAttr = item.enc_pic ? `data-cg-enc="${item.enc_pic}"` : '';
+                        return `
+                            <div class="kanju-poster-card" onclick="${clickHandler}">
+                                <div class="kanju-poster-wrap">
+                                    <img src="${item.vod_pic || fallbackImg}" ${encAttr} alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallbackImg}';" />
+                                    <span class="kanju-score-badge">🔥 ${item.vod_score || '9.7'}</span>
+                                    <span class="kanju-poster-badge">${item.vod_remarks || '24h吃瓜'}</span>
+                                    <div class="kanju-play-hover"><i class="fas fa-play"></i></div>
+                                </div>
+                                <div class="kanju-poster-info">
+                                    <div class="kanju-poster-title" title="${item.vod_name}">${item.vod_name}</div>
+                                    <div class="kanju-poster-meta">
+                                        <span class="meta-tag">${item.vod_class || catName}</span>
+                                        <span>${item.vod_year || '24h热榜'}</span>
+                                    </div>
+                                </div>
+                            </div>`;
+                    }).join('');
+
+                    if (append) {
+                        grid.insertAdjacentHTML('beforeend', cardsHtml);
+                    } else {
+                        grid.innerHTML = cardsHtml;
+                    }
+                    hydrateChiguaEncryptedImages(grid);
+                    if (loadMoreWrap) loadMoreWrap.style.display = items.length >= 4 ? 'block' : 'none';
+                }
+            } else {
+                if (!append) grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">无法连接吃瓜源，请检查网络或切换线路</div>`;
+            }
+        } catch(e) {
+            if (!append) grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">加载失败: ${e.message}</div>`;
+        }
+        if (loadMoreBtn) loadMoreBtn.innerHTML = '<i class="fas fa-angles-down"></i> 加载下一页吃瓜';
+        _chiguaLoading = false;
+    }
 
     // 高速并发多通道网页抓取器（通过 Edge 服务端 /api/proxy 与 CORS 代理穿透，绝不直接跨域请求触发浏览器红字报错）
     async function fetchTextWithCorsFallback(targetUrl) {
@@ -4971,20 +5201,41 @@
                 }
             });
 
-            // 提取封面图（若为 AES 加密图则自动回退到高颜值动态标题海报）
+            // 提取封面图（支持 AES 加密图异步解密渲染，初始使用动态 SVG 海报占位防裂图）
             let pic = '';
+            let encPic = '';
             const imgEl = scopeEl.querySelector('img');
             if (imgEl) {
+                const zUrl = imgEl.getAttribute('z-image-loader-url') || imgEl.getAttribute('data-xkrkllgl') || '';
                 const rawImg = imgEl.getAttribute('data-src') || imgEl.getAttribute('data-original') || imgEl.getAttribute('src') || '';
-                if (rawImg && !imgEl.hasAttribute('data-xkrkllgl')) pic = rawImg;
+                if (zUrl) {
+                    encPic = zUrl;
+                } else if (rawImg) {
+                    if (/\/upload_|pic\./i.test(rawImg)) encPic = rawImg;
+                    else pic = rawImg;
+                }
             }
-            if (!pic) {
+            if (!encPic && !pic) {
                 const bgNode = scopeEl.querySelector('[style*="background"]') || scopeEl;
                 const styleStr = (bgNode && bgNode.getAttribute('style')) || '';
                 const m = styleStr.match(/url\(['"]?([^'")]+)['"]?\)/i);
-                if (m && m[1]) pic = m[1];
+                if (m && m[1]) {
+                    if (/\/upload_|pic\./i.test(m[1])) encPic = m[1];
+                    else pic = m[1];
+                }
+            }
+            if (!encPic && !pic) {
+                const htmlSnippet = scopeEl.innerHTML || '';
+                const bannerMatch = htmlSnippet.match(/loadBannerDirect\(\s*['"]([^'"]+)['"]/i)
+                    || htmlSnippet.match(/https?:\/\/[^'"\s<>)]+\/upload_[^'"\s<>)]+\.(?:jpe?g|png|webp|gif)/i);
+                if (bannerMatch) {
+                    encPic = bannerMatch[1] || bannerMatch[0];
+                }
             }
             const posterFallback = buildChiguaPosterSvg(title, catStr, dateStr, items.length);
+            if (encPic) {
+                try { encPic = new URL(encPic, baseOrigin).href; } catch (e) { encPic = ''; }
+            }
             if (pic) {
                 try { pic = new URL(pic, baseOrigin).href; } catch (e) { pic = posterFallback; }
             } else {
@@ -4996,6 +5247,7 @@
                 vod_id: 'cg_' + items.length + '_' + Date.now().toString(36),
                 vod_name: title,
                 vod_pic: pic,
+                enc_pic: encPic,
                 poster_fallback: posterFallback,
                 vod_remarks: dateStr,
                 vod_score: '9.7',
@@ -5014,52 +5266,235 @@
             if (typeof window.openVideoPlayer === 'function') window.openVideoPlayer(encodedItem);
             return;
         }
+
+        // 切换到详情视图并显示加载状态
+        document.getElementById('chiguaListView').style.display = 'none';
+        const detailView = document.getElementById('chiguaDetailView');
+        detailView.style.display = 'block';
+        document.getElementById('chiguaDetailTitle').textContent = item.vod_name || '正在加载...';
+        document.getElementById('chiguaDetailBadge').textContent = item.vod_class || '24h热瓜';
+        document.getElementById('chiguaDetailLoading').style.display = 'block';
+        document.getElementById('chiguaDetailLoading').innerHTML = '<i class="fas fa-spinner fa-spin" style="color:#fb7185; font-size:20px; margin-bottom:10px; display:block;"></i>正在提取并解密原站高清视频与实拍图集...';
+        document.getElementById('chiguaVideoBlock').style.display = 'none';
+        document.getElementById('chiguaGalleryBlock').style.display = 'none';
+        document.getElementById('chiguaDplayer').innerHTML = '';
+        document.getElementById('chiguaImageStream').innerHTML = '';
+        detailView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
         try {
             const rawHtml = await fetchTextWithCorsFallback(item.article_url);
-            if (rawHtml) {
-                // 还原 HTML 实体 (&quot; &amp;) 与 JSON 转义斜杠 (\/ -> /)
-                const normalized = rawHtml
-                    .replace(/&quot;/gi, '"')
-                    .replace(/&#039;/gi, "'")
-                    .replace(/&amp;/gi, '&')
-                    .replace(/\\\//g, '/');
+            if (!rawHtml) {
+                document.getElementById('chiguaDetailLoading').innerHTML = '<div style="color:#f43f5e;">⚠️ 无法加载文章内容，请返回重试或切换线路</div>';
+                return;
+            }
 
-                // 提取正文文本段落作为详情简介
-                const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
-                const contentEl = doc.querySelector('.post-content, .entry-content, article .content, article');
-                if (contentEl) {
-                    const clone = contentEl.cloneNode(true);
-                    clone.querySelectorAll('script, style').forEach(s => s.remove());
-                    const textBody = (clone.textContent || '').replace(/\s+/g, ' ').trim();
-                    if (textBody) item.vod_content = textBody.slice(0, 600);
+            const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+
+            // 提取原站文章标题
+            const titleEl = doc.querySelector('h1.post-title, [itemprop="headline"], h1');
+            if (titleEl) {
+                const artTitle = (titleEl.textContent || titleEl.getAttribute('content') || '').replace(/\s+/g, ' ').trim();
+                if (artTitle) document.getElementById('chiguaDetailTitle').textContent = artTitle;
+            }
+
+            // ========== 提取视频流（精准提取正片，过滤 pre_ads / post_ads 广告视频） ==========
+            const videoConfigs = [];
+            doc.querySelectorAll('.dplayer[data-config], .dplayer.defplay[data-config]').forEach((div, idx) => {
+                try {
+                    const cfgStr = div.getAttribute('data-config') || '';
+                    const cfg = JSON.parse(cfgStr);
+                    if (cfg && cfg.video && cfg.video.url) {
+                        videoConfigs.push({
+                            url: cfg.video.url,
+                            pic: cfg.video.pic || '',
+                            title: div.getAttribute('data-video_title') || `第${idx + 1}段视频`,
+                            id: div.getAttribute('data-video_id') || ('vid_' + idx)
+                        });
+                    }
+                } catch(e) {}
+            });
+
+            // ========== 提取正文实拍图片（严格剔除横幅广告、底部推广图标与网址引导图） ==========
+            const encryptedImages = [];
+            const seenImgUrls = new Set();
+            const articleBody = doc.querySelector('.post-content[itemprop="articleBody"], article .post-content, .entry-content') || doc;
+            articleBody.querySelectorAll('img[z-image-loader-url], img[data-xkrkllgl]').forEach((img, i) => {
+                if (img.closest('a.tjtagmanager, .horizontal-banner, .article-bottom-apps, .article-ads-btn, .top_picks, .top_picks_wrapper')) return;
+                const imgId = img.getAttribute('id') || '';
+                if (imgId.startsWith('article-') || imgId.startsWith('hot-article-')) return;
+                const altText = (img.getAttribute('alt') || '') + ' ' + (img.getAttribute('title') || '');
+                if (altText.includes('最新地址') || altText.includes('APP')) return;
+                const encUrl = (img.getAttribute('z-image-loader-url') || img.getAttribute('data-xkrkllgl') || '').trim();
+                if (!encUrl || encUrl.includes('/uploads/default/other/') || seenImgUrls.has(encUrl)) return;
+                seenImgUrls.add(encUrl);
+                const xuid = parseInt(img.getAttribute('data-xuid') || String(i + 1), 10);
+                encryptedImages.push({ url: encUrl, order: isNaN(xuid) ? (i + 1) : xuid });
+            });
+            encryptedImages.sort((a, b) => a.order - b.order);
+
+            // 隐藏加载状态
+            document.getElementById('chiguaDetailLoading').style.display = 'none';
+
+            // ========== 渲染视频播放器 ==========
+            if (videoConfigs.length > 0) {
+                const videoBlock = document.getElementById('chiguaVideoBlock');
+                videoBlock.style.display = 'block';
+
+                if (videoConfigs.length > 1) {
+                    const tabsWrap = document.getElementById('chiguaVideoTabsWrap');
+                    const tabsEl = document.getElementById('chiguaVideoTabs');
+                    tabsWrap.style.display = 'block';
+                    tabsEl.innerHTML = videoConfigs.map((vc, i) => {
+                        const cls = i === 0 ? 'chap-btn read-active' : 'chap-btn';
+                        return `<button class="${cls}" id="cgVidTab_${i}" onclick="window._playChiguaVideo(${i})">第 ${i + 1} 段视频</button>`;
+                    }).join('');
+                } else {
+                    document.getElementById('chiguaVideoTabsWrap').style.display = 'none';
                 }
 
-                // 提取页面内所有 .m3u8 或 .mp4 视频流地址（支持同一篇吃瓜帖内含多段视频自动分集）
-                const streamRegex = /https?:\/\/[^\s"'<>\\]+?\.(?:m3u8|mp4)(?:\?[^\s"'<>\\]*)?/gi;
-                const matches = [...normalized.matchAll(streamRegex)].map(m => m[0]);
-                const uniqueStreams = [...new Set(matches)];
+                window._chiguaVideoList = videoConfigs;
+                window._playChiguaVideo(0);
+            }
 
-                if (uniqueStreams.length > 0) {
-                    item.vod_play_from = '吃瓜直连专线';
-                    item.vod_play_url = uniqueStreams
-                        .map((u, idx) => (uniqueStreams.length === 1 ? `吃瓜视频$${u}` : `第${idx + 1}段视频$${u}`))
-                        .join('#');
-                    if (typeof window.openVideoPlayer === 'function') {
-                        window.openVideoPlayer(encodeURIComponent(JSON.stringify(item)));
-                        return;
+            // ========== 渲染解密图片流（仅保留实拍图，无任何多余文字） ==========
+            if (encryptedImages.length > 0) {
+                const galleryBlock = document.getElementById('chiguaGalleryBlock');
+                galleryBlock.style.display = 'block';
+                document.getElementById('chiguaGalleryCount').textContent = `共 ${encryptedImages.length} 张`;
+                const stream = document.getElementById('chiguaImageStream');
+                stream.innerHTML = '';
+
+                encryptedImages.forEach((imgInfo, idx) => {
+                    const placeholder = document.createElement('div');
+                    placeholder.style.cssText = 'width:100%; max-width:860px; min-height:200px; background:rgba(244,63,94,0.06); border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:12px; border:1px solid rgba(244,63,94,0.15);';
+                    placeholder.innerHTML = `<i class="fas fa-spinner fa-spin" style="color:#fb7185; margin-right:6px;"></i> 正在解密实拍图 (${idx + 1}/${encryptedImages.length})...`;
+                    stream.appendChild(placeholder);
+
+                    _decryptChiguaImageUrl(imgInfo.url).then(objUrl => {
+                        const img = document.createElement('img');
+                        img.src = objUrl;
+                        img.alt = `实拍图 ${idx + 1}`;
+                        img.style.cssText = 'width:100%; max-width:860px; border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,0.5); border:1px solid rgba(244,63,94,0.2); cursor:zoom-in; display:block;';
+                        img.loading = 'lazy';
+                        img.onclick = function() {
+                            if (document.fullscreenElement) { document.exitFullscreen(); }
+                            else if (this.requestFullscreen) { this.requestFullscreen().catch(()=>{}); }
+                        };
+                        placeholder.replaceWith(img);
+                    }).catch(() => {
+                        placeholder.remove();
+                    });
+                });
+            }
+
+            if (videoConfigs.length === 0 && encryptedImages.length === 0) {
+                document.getElementById('chiguaDetailLoading').style.display = 'block';
+                document.getElementById('chiguaDetailLoading').innerHTML = '<div style="color:var(--text-muted); padding:20px;">该帖暂无可提取的视频或图片内容</div>';
+            }
+
+        } catch (e) {
+            document.getElementById('chiguaDetailLoading').style.display = 'block';
+            document.getElementById('chiguaDetailLoading').innerHTML = `<div style="color:#f43f5e;">⚠️ 加载失败: ${e.message || '未知错误'}</div>`;
+        }
+    };
+
+    // 播放吃瓜视频指定分段（DPlayer + HLS.js + 加密视频封面自动解密）
+    window._playChiguaVideo = function(idx) {
+        const configs = window._chiguaVideoList;
+        if (!configs || !configs[idx]) return;
+        const vc = configs[idx];
+
+        document.querySelectorAll('#chiguaVideoTabs .chap-btn').forEach(b => b.classList.remove('read-active'));
+        const activeTab = document.getElementById('cgVidTab_' + idx);
+        if (activeTab) activeTab.classList.add('read-active');
+
+        if (_chiguaHlsInstance) { try { _chiguaHlsInstance.destroy(); } catch(e){} _chiguaHlsInstance = null; }
+        if (_chiguaDpInstance) { try { _chiguaDpInstance.destroy(); } catch(e){} _chiguaDpInstance = null; }
+        const container = document.getElementById('chiguaDplayer');
+        container.innerHTML = '';
+
+        const videoUrl = vc.url;
+        const isHls = videoUrl.includes('.m3u8');
+        const ua = navigator.userAgent || '';
+        const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isMobile = isIOS || /Android|Mobile/i.test(ua);
+
+        _chiguaDpInstance = new DPlayer({
+            container: container,
+            autoplay: !isMobile,
+            theme: '#f43f5e',
+            loop: false,
+            lang: 'zh-cn',
+            screenshot: !isMobile,
+            hotkey: true,
+            preload: 'auto',
+            volume: 0.8,
+            playbackSpeed: [0.5, 0.75, 1, 1.25, 1.5, 2],
+            video: {
+                url: videoUrl,
+                type: isHls ? 'customHls' : 'auto',
+                customType: {
+                    customHls: function(video, player) {
+                        video.setAttribute('playsinline', 'true');
+                        video.setAttribute('webkit-playsinline', 'true');
+                        video.setAttribute('x5-playsinline', 'true');
+                        video.setAttribute('x5-video-player-type', 'h5-page');
+
+                        if (vc.pic) {
+                            _decryptChiguaImageUrl(vc.pic).then(posterUrl => {
+                                if (posterUrl) video.poster = posterUrl;
+                            }).catch(() => {});
+                        }
+
+                        if (isIOS && video.canPlayType('application/vnd.apple.mpegurl')) {
+                            video.src = videoUrl;
+                            video.addEventListener('loadedmetadata', function() { video.play().catch(()=>{}); }, { once: true });
+                            return;
+                        }
+
+                        if (window.Hls && window.Hls.isSupported()) {
+                            const hls = new window.Hls({
+                                enableWorker: !isMobile,
+                                lowLatencyMode: false,
+                                startLevel: -1,
+                                capLevelToPlayerSize: isMobile,
+                                maxBufferLength: isMobile ? 20 : 30,
+                                maxMaxBufferLength: isMobile ? 40 : 60,
+                                manifestLoadingTimeOut: 10000,
+                                fragLoadingTimeOut: 15000
+                            });
+                            hls.loadSource(videoUrl);
+                            hls.attachMedia(video);
+                            hls.on(window.Hls.Events.MANIFEST_PARSED, function(event, data) {
+                                if (!isMobile && data && data.levels && data.levels.length > 0) {
+                                    hls.currentLevel = data.levels.length - 1;
+                                }
+                                video.play().catch(()=>{});
+                            });
+                            let mediaErrorRecovered = false;
+                            hls.on(window.Hls.Events.ERROR, function(event, data) {
+                                if (!data || !data.fatal) return;
+                                if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR && !mediaErrorRecovered) {
+                                    mediaErrorRecovered = true;
+                                    hls.recoverMediaError();
+                                    return;
+                                }
+                                if (isMobile && video.canPlayType('application/vnd.apple.mpegurl')) {
+                                    try { hls.destroy(); } catch(e) {}
+                                    video.src = videoUrl;
+                                    video.play().catch(()=>{});
+                                }
+                            });
+                            _chiguaHlsInstance = hls;
+                        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                            video.src = videoUrl;
+                            video.addEventListener('loadedmetadata', function() { video.play().catch(()=>{}); }, { once: true });
+                        }
                     }
                 }
             }
-        } catch (e) {}
-
-        // 若该帖为纯图文吃瓜帖（无视频流），直接在顶部沙箱视图打开
-        const wrap = document.getElementById('chiguaIframeWrap');
-        const frame = document.getElementById('chiguaSandboxFrame');
-        if (wrap && frame) {
-            wrap.style.display = 'block';
-            frame.src = item.article_url;
-            wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        });
+        window._chiguaDpInstance = _chiguaDpInstance;
     };
 
     window.loadChiguaFeedByKeywords = async function(keywords, sectionTitle) {
@@ -5067,7 +5502,9 @@
         const grid = document.getElementById('chiguaGrid');
         const titleEl = document.getElementById('chiguaFeedTitle');
         const badgeEl = document.getElementById('chiguaCountBadge');
+        const loadMoreWrap = document.getElementById('chiguaLoadMoreWrap');
         if (!grid) return;
+        if (loadMoreWrap) loadMoreWrap.style.display = 'none';
 
         if (titleEl) {
             titleEl.innerHTML = `<i class="fas fa-fire-flame-curved" style="color:#f43f5e;"></i> <span>${sectionTitle}</span>`;
@@ -5079,12 +5516,9 @@
         const merged = [];
         const seenIds = new Set();
 
-        // 1. 若用户在本地绑定了吃瓜源，优先拉取并解析该吃瓜源的文章列表与视频
-        const customOrigin = (localStorage.getItem('openhappy_chigua_origin') || '').trim().replace(/\/+$/, '');
+        const customOrigin = (localStorage.getItem('openhappy_chigua_origin') || 'https://active.ymmqlqkl.cc').trim().replace(/\/+$/, '');
         if (customOrigin && !isInvalidChiguaUrl(customOrigin)) {
             const kw = keywords[0] || '';
-
-            // 使用通用 HTML 吃瓜/Typecho 卡片解析器拉取源站实时帖子
             try {
                 const isDefaultHot = (!kw || kw === '吃瓜' || sectionTitle.includes('热门吃瓜'));
                 const targetPage = isDefaultHot
@@ -5109,7 +5543,6 @@
             } catch (e) {}
         }
 
-        // 2. 若未绑定自定义源或自定义源暂无结果，从聚合搜索补充吃瓜话题
         if (merged.length < 4) {
             try {
                 const tasks = keywords.slice(0, 3).map(async (kw) => {
@@ -5133,20 +5566,10 @@
             } catch (e) {}
         }
 
-        // 3. 补充站内热门话题与吃瓜观察室片单兜底
-        if (merged.length < 6 && Array.isArray(window.currentVideoList)) {
-            window.currentVideoList.slice(0, 12).forEach(item => {
-                const key = item.vod_id || item.vod_name;
-                if (seenIds.has(key)) return;
-                seenIds.add(key);
-                merged.push(item);
-            });
-        }
-
         if (badgeEl) badgeEl.innerText = `共 ${merged.length} 条吃瓜`;
 
         if (merged.length === 0) {
-            grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">暂无相关吃瓜爆料，可尝试切换上方吃瓜分类或点击「自定义吃瓜源」绑定外部站点</div>`;
+            grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">暂无相关吃瓜爆料，可尝试切换上方吃瓜分类或点击「吃瓜源设置」切换线路</div>`;
             return;
         }
 
@@ -5159,10 +5582,11 @@
                 ? `window.openChiguaHtmlArticle('${safeItem}')`
                 : `window.openVideoPlayer('${safeItem}')`;
             const fallbackImg = item.poster_fallback || FALLBACK_BOOK_COVER;
+            const encAttr = item.enc_pic ? `data-cg-enc="${item.enc_pic}"` : '';
             return `
                 <div class="kanju-poster-card" onclick="${clickHandler}">
                     <div class="kanju-poster-wrap">
-                        <img src="${item.vod_pic || fallbackImg}" alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallbackImg}';" />
+                        <img src="${item.vod_pic || fallbackImg}" ${encAttr} alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallbackImg}';" />
                         <span class="kanju-score-badge">🔥 ${item.vod_score || '9.7'}</span>
                         <span class="kanju-poster-badge">${item.vod_remarks || '24h吃瓜'}</span>
                         <div class="kanju-play-hover"><i class="fas fa-play"></i></div>
@@ -5177,6 +5601,7 @@
                 </div>
             `;
         }).join('');
+        hydrateChiguaEncryptedImages(grid);
     };
 
     async function init() {
