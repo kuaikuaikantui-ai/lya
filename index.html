@@ -69,6 +69,14 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
+        html {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            overscroll-behavior-x: none;
+            -webkit-text-size-adjust: 100%;
+        }
+
         body {
             background-color: var(--bg-base);
             background-image: 
@@ -81,6 +89,8 @@
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Segoe UI", Roboto, sans-serif;
             min-height: 100vh;
+            width: 100%;
+            max-width: 100%;
             display: flex;
             flex-direction: column;
             padding-bottom: constant(safe-area-inset-bottom);
@@ -88,13 +98,16 @@
             transition: background 0.3s, color 0.3s;
             position: relative;
             overflow-x: hidden;
+            overscroll-behavior-x: none;
         }
 
-        /* 真实液态折射光晕 (轻量物理流动感) */
+        /* 真实液态折射光晕 (严格限制在视口内，防止手机端产生横向滚动条与左右晃动) */
         body::before {
             content: '';
             position: fixed;
-            top: -20%; left: -20%; right: -20%; bottom: -20%;
+            inset: 0;
+            width: 100%;
+            height: 100%;
             background: 
                 radial-gradient(circle 500px at 25% 25%, rgba(56, 189, 248, 0.05), transparent 70%),
                 radial-gradient(circle 600px at 75% 35%, rgba(99, 102, 241, 0.055), transparent 70%),
@@ -102,12 +115,6 @@
             pointer-events: none;
             z-index: -1;
             filter: blur(50px);
-            animation: liquidAurora 24s ease-in-out infinite alternate;
-        }
-        @keyframes liquidAurora {
-            0% { transform: scale(1) translate(0, 0); }
-            50% { transform: scale(1.06) translate(-20px, 15px); }
-            100% { transform: scale(1) translate(15px, -20px); }
         }
 
         /* 顶部导航玻璃拟态 (默认随页面自然滚动不遮挡主视线，PC端自动吸附至左侧边栏) */
@@ -1065,38 +1072,99 @@
             border-radius: 20px;
             padding: 36px 42px;
             min-height: 75vh;
+            width: 100%;
             max-width: var(--reader-max-width, 820px);
             margin: 0 auto;
             position: relative;
+            overflow-x: hidden;
+            touch-action: pan-y;
             transition: max-width 0.25s ease, background 0.3s ease, color 0.3s ease;
         }
-        @media (max-width: 640px) {
-            .reader-wrapper {
-                padding: 22px 18px;
-                border-radius: 16px;
-            }
+        /* 漫画模式：无论 PC 还是手机，画卷区域零内边距无缝衔接、禁止横向晃动 */
+        .reader-wrapper.manga-reader-mode {
+            padding: 0 !important;
+            background: #07080c !important;
+            border: none !important;
+            box-shadow: none !important;
+            overflow-x: hidden !important;
+            touch-action: pan-y !important;
         }
         .img-stream {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 0;
             width: 100%;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            touch-action: pan-y;
         }
         .img-stream img {
-            width: 100%;
-            max-width: 800px;
+            width: 100% !important;
+            max-width: 100% !important;
             height: auto;
             display: block;
-            border-radius: 6px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            margin: 0;
+            padding: 0;
+            border-radius: 0;
+            user-select: none;
+            -webkit-user-drag: none;
+            touch-action: pan-y;
+        }
+        /* 手机/平板端进入阅读模式时：隐藏顶部导航栏，正文与漫画 100% 铺满全屏，彻底消除左右留白与晃动 */
+        @media (max-width: 1023px) {
+            body.reading-mode header,
+            body.reading-mode .tab-nav-container {
+                display: none !important;
+            }
+            body.reading-mode main {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: hidden !important;
+            }
+            body.reading-mode #readerView {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow-x: hidden !important;
+                touch-action: pan-y;
+            }
+        }
+        @media (max-width: 640px) {
+            .reader-wrapper {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-height: 100vh;
+                margin: 0 !important;
+                padding: calc(18px + env(safe-area-inset-top)) 16px 28px !important;
+                border-radius: 0 !important;
+                border-left: none !important;
+                border-right: none !important;
+                border-top: none !important;
+                box-shadow: none !important;
+            }
+            .reader-wrapper.manga-reader-mode {
+                padding: 0 !important;
+            }
+            body.reading-mode .pager {
+                padding: 14px 14px calc(18px + env(safe-area-inset-bottom));
+                margin: 0 auto;
+            }
         }
         /* 赫蹏 (Heti) + 微信读书级专业中文书籍排版流 */
         .text-stream {
             font-family: var(--reader-font-family);
             font-size: var(--reader-font-size);
             line-height: var(--reader-line-height);
-            padding: 4px 4px 18px;
+            padding: 4px 2px 18px;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
             word-break: break-word;
             overflow-wrap: break-word;
             text-align: justify;
@@ -1171,8 +1239,9 @@
         }
         @media (max-width: 640px) {
             .reader-wrapper.mode-paginated {
-                height: calc(100vh - 54px);
-                padding: 18px 16px 38px;
+                height: 100vh;
+                height: 100dvh;
+                padding: calc(16px + env(safe-area-inset-top)) 16px calc(36px + env(safe-area-inset-bottom)) !important;
             }
         }
         .reader-paginated-viewport {
@@ -1281,9 +1350,21 @@
             padding: 14px 16px;
             box-shadow: 0 14px 40px rgba(0,0,0,0.65);
             min-width: 270px;
+            max-width: calc(100vw - 24px);
             z-index: 190;
             flex-direction: column;
             gap: 12px;
+        }
+        @media (max-width: 640px) {
+            .format-panel {
+                position: fixed;
+                left: 12px;
+                right: 12px;
+                top: auto;
+                min-width: 0;
+                width: auto;
+                max-width: none;
+            }
         }
         .format-panel.show { display: flex; }
         .format-panel-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--text-main); }
@@ -4759,7 +4840,7 @@
         catalogBtns.forEach((btn, i) => btn.classList.toggle('read-active', i === idx));
 
         const container = document.getElementById('readerContainer');
-        container.classList.remove('mode-paginated');
+        container.classList.remove('mode-paginated', 'manga-reader-mode');
         container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:60px 20px;"><i class="fas fa-spinner fa-spin"></i> 正在智能排版加载正文...</div>';
 
         document.getElementById('prevBtn').disabled = (idx === 0);
@@ -4773,10 +4854,12 @@
             // 1. 漫画图片
             if (data && data.images && data.images.length > 0) {
                 _lastRenderedNovelData = null;
+                container.classList.add('manga-reader-mode');
                 const bottomPager = document.getElementById('readerBottomPager');
                 if (bottomPager) bottomPager.style.display = 'flex';
                 const isStealth = document.body.getAttribute('data-theme') === 'stealth';
                 if (isStealth) {
+                    container.classList.remove('manga-reader-mode');
                     container.innerHTML = `
                         <div class="text-stream">
                             <p class="novel-para">// [摸鱼模式已生效 - 原画转换为代码模式]</p>
@@ -4794,6 +4877,8 @@
                 }
                 window.scrollTo({ top: 0, behavior: 'auto' });
                 lastScrollTop = 0;
+                updateScrollReadingProgress();
+                prefetchNextNovelChapter(idx + 1);
                 return;
             }
 
