@@ -1057,6 +1057,11 @@
             }
         });
 
+        // 将原站同款扩展控件与偏好设置全部集成进播放器右下角控制栏 (.dplayer-icons-right & .dplayer-setting-box)
+        if (typeof window.injectBottomRightPlayerControls === 'function') {
+            window.injectBottomRightPlayerControls(dpContainer);
+        }
+
         // 绑定自动跳片头、自动连播下一集及弹幕状态同步
         setTimeout(async () => {
             if (window.dpInstance) {
@@ -1108,6 +1113,108 @@
                 }
             }
         }, 500);
+    };
+
+    // 将所有快捷按钮与偏好设置统一注入 DPlayer 右下角控制栏与右下角原生设置弹窗
+    window.injectBottomRightPlayerControls = function(dpContainer) {
+        if (!dpContainer) return;
+
+        // 1. 在右下角图标栏 (.dplayer-icons-right) 注入 P2P 状态、下一集、画中画按钮
+        const rightIcons = dpContainer.querySelector('.dplayer-icons.dplayer-icons-right');
+        const settingWrap = dpContainer.querySelector('.dplayer-setting');
+        if (rightIcons && settingWrap && !rightIcons.querySelector('.dp-custom-right-injected')) {
+            const frag = document.createDocumentFragment();
+
+            // P2P 实时状态胶囊 (仅桌面端显示，手机端自动隐藏保持清爽)
+            const p2pSpan = document.createElement('span');
+            p2pSpan.className = 'p2p-live-pill dp-custom-right-injected' + (window.isP2pEnabled === false ? ' off' : '');
+            p2pSpan.id = 'p2pLivePill';
+            p2pSpan.title = '点击切换 WebRTC P2P 加速';
+            p2pSpan.onclick = function(e) {
+                e.stopPropagation();
+                window.toggleP2pFeature();
+            };
+            p2pSpan.innerHTML = `<span class="p2p-dot"></span><span id="p2pLiveText">${window.isP2pEnabled === false ? 'P2P 已关' : 'P2P 就绪'}</span>`;
+            frag.appendChild(p2pSpan);
+
+            // 下一集按钮
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'dplayer-icon dp-custom-icon-btn';
+            nextBtn.title = '下一集';
+            nextBtn.setAttribute('aria-label', '下一集');
+            nextBtn.onclick = function(e) {
+                e.stopPropagation();
+                window.playNextEpisode();
+            };
+            nextBtn.innerHTML = '<span class="dplayer-icon-content"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></span>';
+            frag.appendChild(nextBtn);
+
+            // 画中画按钮
+            const pipBtn = document.createElement('button');
+            pipBtn.className = 'dplayer-icon dp-custom-icon-btn dp-pip-icon-btn';
+            pipBtn.title = '画中画播放';
+            pipBtn.setAttribute('aria-label', '画中画播放');
+            pipBtn.onclick = function(e) {
+                e.stopPropagation();
+                window.togglePip();
+            };
+            pipBtn.innerHTML = '<span class="dplayer-icon-content"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z"/></svg></span>';
+            frag.appendChild(pipBtn);
+
+            rightIcons.insertBefore(frag, settingWrap);
+        }
+
+        // 2. 在右下角原生设置弹窗 (.dplayer-setting-origin-panel) 内嵌原站专属偏好设置
+        const originPanel = dpContainer.querySelector('.dplayer-setting-origin-panel');
+        if (originPanel && !originPanel.querySelector('.dp-custom-setting-divider')) {
+            const divider = document.createElement('div');
+            divider.className = 'dp-custom-setting-divider';
+            originPanel.appendChild(divider);
+
+            const makeToggleRow = (id, label, isChecked, onToggle) => {
+                const row = document.createElement('div');
+                row.className = 'dplayer-setting-item dp-custom-setting-row';
+                row.innerHTML = `
+                    <span class="dplayer-label">${label}</span>
+                    <div class="dplayer-toggle">
+                        <input class="dplayer-toggle-setting-input" type="checkbox" id="${id}" ${isChecked ? 'checked' : ''}>
+                        <label for="${id}" onclick="event.stopPropagation();"></label>
+                    </div>
+                `;
+                row.onclick = function(e) {
+                    e.stopPropagation();
+                    onToggle();
+                };
+                const input = row.querySelector('input');
+                if (input) {
+                    input.onchange = function(e) {
+                        e.stopPropagation();
+                        onToggle();
+                    };
+                }
+                return row;
+            };
+
+            originPanel.appendChild(makeToggleRow('dpSkipIntroInput', '自动跳过片头', window.isAutoSkipIntro !== false, () => window.toggleAutoSkipIntro()));
+            originPanel.appendChild(makeToggleRow('dpAutoNextInput', '自动连播下集', window.isAutoNextEnabled !== false, () => window.toggleAutoNext()));
+            originPanel.appendChild(makeToggleRow('dpHqEnhanceInput', '4K画质增强', window.isVideoHqEnhanced !== false, () => window.toggleVideoHqEnhance()));
+            originPanel.appendChild(makeToggleRow('dpP2pAccelInput', 'P2P边缘加速', window.isP2pEnabled !== false, () => window.toggleP2pFeature()));
+
+            // 快捷手动跳过片头 (+85秒)
+            const skipActionRow = document.createElement('div');
+            skipActionRow.className = 'dplayer-setting-item dp-custom-setting-row dp-custom-action-row';
+            skipActionRow.innerHTML = `
+                <span class="dplayer-label" style="color:#38bdf8;font-weight:600;">快进片头 (+85秒)</span>
+                <span style="font-size:11px;color:#38bdf8;">⚡立即跳</span>
+            `;
+            skipActionRow.onclick = function(e) {
+                e.stopPropagation();
+                window.skipVideoTime(85);
+                const settingBox = dpContainer.querySelector('.dplayer-setting-box');
+                if (settingBox) settingBox.classList.remove('dplayer-setting-box-open');
+            };
+            originPanel.appendChild(skipActionRow);
+        }
     };
 
     // 实时拉取并呈现 kanju3 原站真实讨论数据
@@ -1163,18 +1270,11 @@
         }
     };
 
-    // 设置抽屉显隐控制
+    // 兼容右下角设置弹窗开关调用
     window.toggleSettingsDrawer = function() {
-        const drawer = document.getElementById('playerSettingsDrawer');
-        const overlay = document.getElementById('drawerOverlay') || document.getElementById('settingsDrawerOverlay');
-        if (!drawer) return;
-        const isOpen = drawer.classList.contains('active') || drawer.classList.contains('open');
-        if (isOpen) {
-            drawer.classList.remove('active', 'open');
-            if (overlay) overlay.classList.remove('active', 'open');
-        } else {
-            drawer.classList.add('active', 'open');
-            if (overlay) overlay.classList.add('active', 'open');
+        const settingBox = document.querySelector('#dplayerContainer .dplayer-setting-box');
+        if (settingBox) {
+            settingBox.classList.toggle('dplayer-setting-box-open');
         }
     };
 
@@ -1183,11 +1283,13 @@
     window.toggleP2pFeature = function() {
         window.isP2pEnabled = !window.isP2pEnabled;
         const sw = document.getElementById('p2pSwitch');
+        const chk = document.getElementById('dpP2pAccelInput');
         const pill = document.getElementById('p2pLiveBadge') || document.getElementById('p2pLivePill');
         const liveText = document.getElementById('p2pLiveText');
         if (sw) sw.classList.toggle('active', window.isP2pEnabled);
+        if (chk) chk.checked = window.isP2pEnabled;
         if (pill) pill.classList.toggle('off', !window.isP2pEnabled);
-        if (liveText) liveText.innerText = window.isP2pEnabled ? 'P2P 就绪' : 'P2P 已关闭';
+        if (liveText) liveText.innerText = window.isP2pEnabled ? 'P2P 就绪' : 'P2P 已关';
         
         if (window.currentP2pEngine) {
             try {
@@ -1209,6 +1311,7 @@
         window.isVideoHqEnhanced = !window.isVideoHqEnhanced;
         const container = document.getElementById('dplayerContainer');
         const sw = document.getElementById('hqSwitch');
+        const chk = document.getElementById('dpHqEnhanceInput');
         if (container) {
             if (window.isVideoHqEnhanced) {
                 container.classList.remove('hq-enhanced-off');
@@ -1217,6 +1320,7 @@
             }
         }
         if (sw) sw.classList.toggle('active', window.isVideoHqEnhanced);
+        if (chk) chk.checked = window.isVideoHqEnhanced;
         if (window.dpInstance && window.dpInstance.notice) {
             window.dpInstance.notice('GPU画质增强已' + (window.isVideoHqEnhanced ? '开启' : '关闭'), 2000);
         }
@@ -1245,7 +1349,9 @@
     window.toggleAutoSkipIntro = function() {
         window.isAutoSkipIntro = !window.isAutoSkipIntro;
         const sw = document.getElementById('skipIntroSwitch');
+        const chk = document.getElementById('dpSkipIntroInput');
         if (sw) sw.classList.toggle('active', window.isAutoSkipIntro);
+        if (chk) chk.checked = window.isAutoSkipIntro;
         if (window.dpInstance && window.dpInstance.notice) {
             window.dpInstance.notice('自动跳片头已' + (window.isAutoSkipIntro ? '开启' : '关闭'), 2000);
         }
@@ -1256,7 +1362,9 @@
     window.toggleAutoNext = function() {
         window.isAutoNextEnabled = !window.isAutoNextEnabled;
         const sw = document.getElementById('autoNextSwitch');
+        const chk = document.getElementById('dpAutoNextInput');
         if (sw) sw.classList.toggle('active', window.isAutoNextEnabled);
+        if (chk) chk.checked = window.isAutoNextEnabled;
         if (window.dpInstance && window.dpInstance.notice) {
             window.dpInstance.notice('自动连播下一集已' + (window.isAutoNextEnabled ? '开启' : '关闭'), 2000);
         }

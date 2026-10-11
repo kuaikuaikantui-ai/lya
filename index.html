@@ -1348,75 +1348,150 @@
             border-color: rgba(0, 0, 0, 0.12) !important;
         }
 
-        /* 原站同款：内嵌在播放器内部的浮岛按钮与设置抽屉 */
-        .player-invideo-topright {
-            position: absolute;
-            top: 14px;
-            right: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            z-index: 25;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .video-container:hover .player-invideo-topright,
-        .video-container.show-controls .player-invideo-topright {
-            opacity: 1;
-        }
-        .player-invideo-btn {
-            background: rgba(14, 18, 28, 0.65);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #ffffff;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .player-invideo-btn:hover {
-            background: rgba(255, 255, 255, 0.22);
-            transform: scale(1.1);
-        }
-        .player-settings-drawer {
-            position: absolute !important;
-            top: 0 !important; right: 0 !important; bottom: 0 !important;
-            width: 330px !important;
-            max-width: 85% !important;
-            background: rgba(12, 16, 26, 0.88) !important;
-            backdrop-filter: blur(40px) saturate(220%) !important;
-            -webkit-backdrop-filter: blur(40px) saturate(220%) !important;
-            border-left: 1px solid rgba(255, 255, 255, 0.15) !important;
-            box-shadow: inset 1px 0 1px 0 rgba(255, 255, 255, 0.2), -15px 0 45px rgba(0, 0, 0, 0.8) !important;
-            z-index: 45 !important;
+        /* ============================================================================
+           原站同款：右下角一体化播放器控制栏与右下角液态玻璃设置弹窗 (.dplayer-setting-box)
+           ============================================================================ */
+        #dplayerContainer .dplayer-icons.dplayer-icons-right {
             display: flex !important;
-            flex-direction: column !important;
-            transform: translateX(100%) !important;
-            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            align-items: center !important;
+            gap: 2px !important;
         }
-        .player-settings-drawer.open,
-        .player-settings-drawer.active {
-            transform: translateX(0) !important;
+        #dplayerContainer .dp-custom-icon-btn {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: rgba(255, 255, 255, 0.88) !important;
+            opacity: 0.9;
+            transition: transform 0.2s ease, opacity 0.2s ease !important;
         }
-        .drawer-overlay {
-            position: absolute !important; inset: 0 !important;
-            background: rgba(0, 0, 0, 0.5) !important;
-            backdrop-filter: blur(4px) !important;
-            z-index: 40 !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-            transition: opacity 0.3s ease !important;
+        #dplayerContainer .dp-custom-icon-btn:hover {
+            opacity: 1;
+            transform: scale(1.12);
         }
-        .drawer-overlay.open,
-        .drawer-overlay.active {
-            opacity: 1 !important;
-            pointer-events: auto !important;
+        #dplayerContainer .p2p-live-pill {
+            cursor: pointer;
+            margin-right: 4px;
+            padding: 2px 8px !important;
+            font-size: 10.5px !important;
+            height: 22px;
+            line-height: 1;
+            white-space: nowrap;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+        #dplayerContainer .p2p-live-pill.off {
+            background: rgba(255, 255, 255, 0.08) !important;
+            color: rgba(255, 255, 255, 0.55) !important;
+            border-color: rgba(255, 255, 255, 0.15) !important;
+        }
+        #dplayerContainer .p2p-live-pill.off .p2p-dot {
+            background: #94a3b8 !important;
+            box-shadow: none !important;
+            animation: none !important;
+        }
+        #dplayerContainer .dplayer-setting-box {
+            background: rgba(12, 16, 26, 0.86) !important;
+            backdrop-filter: blur(28px) saturate(210%) !important;
+            -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.22) !important;
+            border-top-color: rgba(255, 255, 255, 0.45) !important;
+            border-radius: 14px !important;
+            box-shadow:
+                inset 0 1px 1.5px rgba(255, 255, 255, 0.35),
+                0 12px 32px rgba(0, 0, 0, 0.7) !important;
+            bottom: 44px !important;
+            right: 8px !important;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        #dplayerContainer .dplayer-setting-box.dplayer-setting-box-open {
+            height: auto !important;
+            max-height: calc(100% - 54px) !important;
+            width: 196px !important;
+            overflow-y: auto !important;
+            padding: 6px 0 !important;
+            scrollbar-width: thin;
+        }
+        #dplayerContainer .dplayer-setting-item {
+            height: 32px !important;
+            padding: 0 14px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            transition: background 0.18s ease !important;
+        }
+        #dplayerContainer .dplayer-setting-item:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+        }
+        #dplayerContainer .dp-custom-setting-divider {
+            height: 1px;
+            margin: 4px 12px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        /* ============================================================================
+           提取自 WebGL 水滴着色器思路：速度感应弹性水滴形变 + 弯月面色散折射滤镜
+           ============================================================================ */
+        .tab-glider,
+        .subnav-glider,
+        .source-route-glider {
+            --droplet-scale-x: 1;
+            --droplet-scale-y: 1;
+            --droplet-skew: 0deg;
+            --caustic-shift: 0px;
+            --chromatic-alpha: 0.32;
+            will-change: left, top, width, height, transform;
+            transform: scale3d(var(--droplet-scale-x, 1), var(--droplet-scale-y, 1), 1) skewX(var(--droplet-skew, 0deg)) !important;
+            transform-origin: center center !important;
+            transition: none !important; /* 由 60fps 弹簧阻尼物理引擎直接驱动，零延迟且带真实水滴拉伸回弹 */
+            background: linear-gradient(
+                135deg,
+                rgba(255, 255, 255, 0.28) 0%,
+                rgba(255, 255, 255, 0.04) 48%,
+                rgba(56, 189, 248, 0.12) 78%,
+                rgba(255, 255, 255, 0.18) 100%
+            ) !important;
+            backdrop-filter: url(#apple-liquid-refract) blur(18px) brightness(1.24) saturate(210%) contrast(1.08) !important;
+            -webkit-backdrop-filter: blur(18px) brightness(1.24) saturate(210%) contrast(1.08) !important;
+            border: 1px solid rgba(255, 255, 255, 0.46) !important;
+            border-top-color: rgba(255, 255, 255, 0.88) !important;
+            border-bottom-color: rgba(56, 189, 248, 0.45) !important;
+            box-shadow:
+                inset 0 2px 3.5px 0 rgba(255, 255, 255, 0.92),
+                inset 0 -2px 4px 0 rgba(56, 189, 248, 0.38),
+                inset 2.5px 0 4px 0 rgba(56, 189, 248, var(--chromatic-alpha, 0.32)),
+                inset -2.5px 0 4px 0 rgba(232, 121, 249, var(--chromatic-alpha, 0.32)),
+                0 6px 20px rgba(0, 0, 0, 0.36),
+                0 0 22px rgba(56, 189, 248, 0.32) !important;
+            overflow: hidden;
+        }
+        /* 水滴内部弯月面折射反光弧 (随运动速度反向偏移模拟凸透镜焦散) */
+        .tab-glider::before,
+        .subnav-glider::before,
+        .source-route-glider::before {
+            content: '';
+            position: absolute;
+            top: 1px;
+            left: 10%;
+            right: 10%;
+            height: 42%;
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.05) 100%);
+            transform: translateX(var(--caustic-shift, 0px));
+            pointer-events: none;
+        }
+        .tab-glider::after,
+        .subnav-glider::after,
+        .source-route-glider::after {
+            content: '';
+            position: absolute;
+            bottom: 1px;
+            left: 14%;
+            right: 14%;
+            height: 28%;
+            border-radius: 999px;
+            background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.45) 0%, transparent 75%);
+            transform: translateX(calc(var(--caustic-shift, 0px) * -0.8));
+            pointer-events: none;
         }
 
         /* 小说阅读背景专属主题切换 (羊皮纸/极夜黑/护眼绿/晨曦白/雅致灰) */
@@ -1492,48 +1567,130 @@
         .palette-btn.daylight { background: #ffffff; }
         .palette-btn.slate { background: #1e2330; }
 
-        /* GooseHyperGlass WebGL 液态玻璃原生组件容器适配 */
-        .goose-lg-nav-wrap {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            margin-bottom: 18px;
-            position: relative;
-            z-index: 30;
-        }
-        .goose-lg-main {
-            width: min(440px, 95vw);
-            height: 76px;
-            display: block;
-            border-radius: 38px;
-        }
-        .goose-lg-sub {
-            width: min(400px, 92vw);
-            height: 68px;
-            display: block;
-            border-radius: 34px;
-        }
-        body.use-goose-webgl #mainTabNav {
-            display: none !important;
-        }
-        body:not(.use-goose-webgl) #lgMainTabNav {
-            display: none !important;
-        }
-        body.use-goose-webgl #historySubNav {
-            display: none !important;
-        }
-        body:not(.use-goose-webgl) #lgHistorySubNav {
-            display: none !important;
+        /* ============================================================================
+           移动端全场景深度适配 (Mobile Responsive Perfection)
+           ============================================================================ */
+        @media (max-width: 640px) {
+            header {
+                padding: 10px 12px;
+                padding-top: calc(10px + env(safe-area-inset-top));
+            }
+            .brand {
+                font-size: 15px;
+                gap: 7px;
+            }
+            main {
+                padding: 10px 10px 24px;
+            }
+            .tab-nav-container {
+                top: 54px;
+                margin-top: 2px;
+                margin-bottom: 14px;
+            }
+            .tab-nav {
+                padding: 4px !important;
+                border-radius: 30px !important;
+            }
+            .tab-nav-btn {
+                padding: 8px 4px !important;
+                font-size: 12px !important;
+                gap: 4px !important;
+                white-space: nowrap !important;
+            }
+            .tab-nav-btn i {
+                font-size: 11.5px;
+            }
+            .history-header-bar {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 8px !important;
+            }
+            .history-subnav {
+                display: flex !important;
+                width: 100% !important;
+                padding: 3.5px !important;
+            }
+            .history-subnav-btn {
+                flex: 1 !important;
+                padding: 7px 4px !important;
+                font-size: 11.5px !important;
+                gap: 4px !important;
+                white-space: nowrap !important;
+            }
+            .history-subnav-btn i {
+                font-size: 11px;
+            }
+            .source-route-nav {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                width: 100%;
+                padding: 4px !important;
+            }
+            .source-route-nav::-webkit-scrollbar {
+                display: none;
+            }
+            .source-route-btn {
+                flex-shrink: 0 !important;
+                padding: 6px 12px !important;
+                font-size: 12px !important;
+            }
+            .search-box {
+                padding: 12px;
+                margin-bottom: 14px;
+            }
+            .search-row {
+                gap: 8px;
+            }
+            .search-input {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+            button.btn.primary {
+                padding: 8px 14px;
+                font-size: 12.5px;
+                white-space: nowrap;
+            }
+            /* 手机端播放器右下角控制栏与弹窗紧凑适配 */
+            #dplayerContainer .p2p-live-pill,
+            #dplayerContainer .dp-pip-icon-btn {
+                display: none !important;
+            }
+            #dplayerContainer .dplayer-setting-box.dplayer-setting-box-open {
+                width: 176px !important;
+                max-height: calc(100% - 44px) !important;
+                bottom: 38px !important;
+                right: 6px !important;
+            }
+            #dplayerContainer .dplayer-setting-item {
+                height: 29px !important;
+                padding: 0 11px !important;
+                font-size: 11.5px !important;
+            }
+            #videoEpisodesList.catalog-grid {
+                grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)) !important;
+                gap: 6px !important;
+            }
         }
     </style>
     <script src="p2p-engine.min.js"></script>
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
     <script src="video.js"></script>
-    <script src="liquid-glass.js" onerror="var s=document.createElement('script');s.src='https://glass.goose.cc.cd/liquid-glass.js';document.head.appendChild(s);"></script>
 </head>
-<body class="use-goose-webgl">
+<body>
+<!-- 零开销 SVG 光学液态水滴折射滤镜 (提取自 WebGL 水滴透镜曲率位移原理) -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none;opacity:0;" aria-hidden="true">
+    <defs>
+        <filter id="apple-liquid-refract" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.018 0.045" numOctaves="1" seed="3" result="noise" />
+            <feGaussianBlur in="noise" stdDeviation="2.5" result="smoothNoise" />
+            <feDisplacementMap in="SourceGraphic" in2="smoothNoise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+    </defs>
+</svg>
 
 <header>
     <div class="brand" onclick="switchNav('history'); switchHistoryTab('shelf');">
@@ -1542,15 +1699,13 @@
         <span class="badge" id="sourceVerTag">昂哥构建</span>
     </div>
     <div class="header-actions">
-        <button class="btn theme-toggle-btn" id="glassEngineBtn" onclick="toggleGlassEngine()" title="切换 GooseHyperGlass WebGL 液态玻璃 / 极光追光模式"><i class="fas fa-droplet" style="color:#38bdf8;"></i> <span id="glassEngineLabel">WebGL水滴</span></button>
         <button class="btn theme-toggle-btn" id="themeToggleBtn" onclick="toggleDarkLightMode()" title="切换日间/夜间模式"><i class="fas fa-sun" id="themeIcon"></i> <span id="themeLabel">日间</span></button>
     </div>
 </header>
 
 <main>
-    <!-- 顶部液态玻璃分段导航：支持 GooseHyperGlass WebGL 真三维水滴折射引擎 & CSS 极光透镜双引擎 -->
+    <!-- 顶部液态玻璃分段导航 (物理弹簧水滴拉伸透镜 + 鼠标/触控随动) -->
     <div class="tab-nav-container">
-        <liquid-glass id="lgMainTabNav" class="goose-lg-main" mode="single-bottom-tabs" dark dpr="2"></liquid-glass>
         <div class="tab-nav" id="mainTabNav">
             <div class="tab-glider" id="tabGlider"></div>
             <button class="tab-nav-btn active" id="navHistoryBtn" onclick="switchNav('history')">
@@ -1570,8 +1725,7 @@
 
     <!-- 第1页：最近观看与书架（分设：影视记录 / 我的书架 / 小说记录 / 漫画记录 四大纯透液态导航） -->
     <section id="historySection">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; flex-wrap:wrap; gap:10px;">
-            <liquid-glass id="lgHistorySubNav" class="goose-lg-sub" mode="single-bottom-tabs" dark dpr="2"></liquid-glass>
+        <div class="history-header-bar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; flex-wrap:wrap; gap:10px;">
             <div class="history-subnav" id="historySubNav">
                 <div class="subnav-glider" id="subnavGlider"></div>
                 <button class="history-subnav-btn active" id="histTabVideo" onclick="switchHistoryTab('video')">
@@ -1587,7 +1741,7 @@
                     <i class="fas fa-palette"></i> <span>漫画记录</span>
                 </button>
             </div>
-            <button class="btn" id="clearHistoryBtn" style="font-size: 11px; padding: 5px 12px;" onclick="clearCurrentHistoryTab()">
+            <button class="btn" id="clearHistoryBtn" style="font-size: 11px; padding: 5px 12px; align-self: flex-end;" onclick="clearCurrentHistoryTab()">
                 <i class="fas fa-trash-alt"></i> <span id="clearHistoryBtnText">清空此分类记录</span>
             </button>
         </div>
@@ -1878,98 +2032,6 @@
 
         <div class="video-container" id="videoContainerWrapper" style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:18px; overflow:hidden; box-shadow:0 14px 45px rgba(0,0,0,0.75);">
             <div id="dplayerContainer" style="width:100%; height:100%;"></div>
-
-            <!-- 原站同款：内嵌在播放器右上角的悬浮微光状态栏 -->
-            <div class="player-invideo-topright" id="playerInVideoTopRight">
-                <span class="p2p-live-pill" id="p2pLivePill" title="WebRTC 点对点边缘加速实时状态">
-                    <span class="p2p-dot"></span>
-                    <span id="p2pLiveText">P2P 就绪</span>
-                </span>
-                <button class="player-invideo-btn" onclick="window.togglePip()" title="画中画播放">
-                    <i class="fas fa-clone"></i>
-                </button>
-                <button class="player-invideo-btn" onclick="window.toggleSettingsDrawer()" title="画质与偏好设置">
-                    <i class="fas fa-cog"></i>
-                </button>
-            </div>
-
-            <!-- 原站同款：直接内嵌在播放器右侧的液态玻璃偏好设置抽屉 -->
-            <div class="player-settings-drawer" id="playerSettingsDrawer">
-                <div class="drawer-header">
-                    <div style="font-weight:700; font-size:15px; display:flex; align-items:center; gap:8px;">
-                        <i class="fas fa-sliders" style="color:var(--accent);"></i>
-                        <span>播放器偏好设置</span>
-                    </div>
-                    <button class="btn" style="padding:4px 8px;" onclick="window.toggleSettingsDrawer()">✕</button>
-                </div>
-                <div class="drawer-body">
-                    <!-- 1. 真实 WebRTC P2P 加速 -->
-                    <div class="setting-card">
-                        <div class="setting-info">
-                            <div class="setting-title">
-                                <i class="fas fa-bolt" style="color:#f59e0b;"></i>
-                                <span>WebRTC P2P 边缘加速</span>
-                            </div>
-                            <div class="setting-desc">点对点网络分片加速，降低卡顿并分担带宽</div>
-                            <div id="p2pDetailsText" style="font-size:10px; color:var(--accent); margin-top:2px;">正在连接 P2P 种子网络...</div>
-                        </div>
-                        <div class="glass-switch active" id="p2pSwitch" onclick="window.toggleP2pFeature()"></div>
-                    </div>
-
-                    <!-- 2. GPU 4K 画质增强 -->
-                    <div class="setting-card">
-                        <div class="setting-info">
-                            <div class="setting-title">
-                                <i class="fas fa-wand-magic-sparkles" style="color:var(--accent);"></i>
-                                <span>GPU 4K 超清画质增强</span>
-                            </div>
-                            <div class="setting-desc">原站同款色彩 HDR 优化与边缘对比度锐化</div>
-                        </div>
-                        <div class="glass-switch active" id="hqSwitch" onclick="window.toggleVideoHqEnhance()"></div>
-                    </div>
-
-                    <!-- 3. 智能跳过片头 -->
-                    <div class="setting-card">
-                        <div class="setting-info">
-                            <div class="setting-title">
-                                <i class="fas fa-forward" style="color:#38bdf8;"></i>
-                                <span>智能自动跳过片头</span>
-                            </div>
-                            <div class="setting-desc" id="skipIntroDescText">根据原站社区众包时间戳自动跳跃约90秒</div>
-                        </div>
-                        <div class="glass-switch active" id="skipIntroSwitch" onclick="window.toggleAutoSkipIntro()"></div>
-                    </div>
-
-                    <!-- 4. 实时流式弹幕 -->
-                    <div class="setting-card">
-                        <div class="setting-info">
-                            <div class="setting-title">
-                                <i class="fas fa-comment-dots" style="color:#a855f7;"></i>
-                                <span>原站剧友实时弹幕</span>
-                            </div>
-                            <div class="setting-desc">展示原站弹幕流，字幕区智能避让</div>
-                        </div>
-                        <div class="glass-switch active" id="danmakuSwitch" onclick="window.toggleDanmaku()"></div>
-                    </div>
-
-                    <!-- 5. 自动无缝连播下一集 -->
-                    <div class="setting-card">
-                        <div class="setting-info">
-                            <div class="setting-title">
-                                <i class="fas fa-forward-step" style="color:#10b981;"></i>
-                                <span>自动连播下一集</span>
-                            </div>
-                            <div class="setting-desc">本集正片播放完毕后自动无缝切入下一集</div>
-                        </div>
-                        <div class="glass-switch active" id="autoNextSwitch" onclick="window.toggleAutoNext()"></div>
-                    </div>
-
-                    <div style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px 0;">
-                        OpenHappy · 纯净播放系统
-                    </div>
-                </div>
-            </div>
-            <div class="drawer-overlay" id="settingsDrawerOverlay" onclick="window.toggleSettingsDrawer()"></div>
         </div>
 
         <div style="margin-top:14px;">
@@ -2044,23 +2106,128 @@
         }).catch(() => {});
     }
 
-    // 拟真苹果流体骨架光渲染器
-    
-    // 通用液态玻璃透镜定位器 (支持鼠标悬停跟随 + 移出回弹锁定 + 多行自适应)
-    function moveGliderToButton(container, glider, btn) {
+    // ============================================================================
+    // 提取自 WebGL 水滴着色器思路：60fps 弹簧阻尼物理水滴透镜引擎 (零 WebGL 卡顿)
+    // 运动时根据瞬时速度 vx 自动产生水平水滴拉伸 (scaleX)、垂直压缩 (scaleY)、
+    // 表面张力倾角 (skewX)、凸透镜内部反光弧反向位移与边缘红青色散增强
+    // ============================================================================
+    const gliderSpringMap = new WeakMap();
+
+    function moveGliderToButton(container, glider, btn, immediate = false) {
         if (!container || !glider || !btn) return;
         const navRect = container.getBoundingClientRect();
         const btnRect = btn.getBoundingClientRect();
         if (navRect.width === 0 || btnRect.width === 0) return;
-        const leftOffset = btnRect.left - navRect.left;
-        const topOffset = btnRect.top - navRect.top;
-        glider.style.left = leftOffset + 'px';
-        glider.style.width = btnRect.width + 'px';
-        if (glider.classList.contains('source-route-glider')) {
-            glider.style.top = topOffset + 'px';
-            glider.style.height = btnRect.height + 'px';
+
+        const targetLeft = (btnRect.left - navRect.left) + (container.scrollLeft || 0);
+        const targetTop = (btnRect.top - navRect.top) + (container.scrollTop || 0);
+        const targetWidth = btnRect.width;
+        const targetHeight = btnRect.height;
+        const isRouteGlider = glider.classList.contains('source-route-glider');
+
+        let state = gliderSpringMap.get(glider);
+        if (!state || immediate || !state.initialized) {
+            state = {
+                initialized: true,
+                x: targetLeft,
+                y: targetTop,
+                w: targetWidth,
+                h: targetHeight,
+                vx: 0,
+                vy: 0,
+                vw: 0,
+                targetX: targetLeft,
+                targetY: targetTop,
+                targetW: targetWidth,
+                targetH: targetHeight,
+                rafId: null
+            };
+            gliderSpringMap.set(glider, state);
+            glider.style.left = targetLeft + 'px';
+            glider.style.width = targetWidth + 'px';
+            if (isRouteGlider) {
+                glider.style.top = targetTop + 'px';
+                glider.style.height = targetHeight + 'px';
+            }
+            glider.style.setProperty('--droplet-scale-x', '1');
+            glider.style.setProperty('--droplet-scale-y', '1');
+            glider.style.setProperty('--droplet-skew', '0deg');
+            glider.style.setProperty('--caustic-shift', '0px');
+            glider.style.setProperty('--chromatic-alpha', '0.32');
+            return;
         }
-        glider.style.transform = 'none';
+
+        state.targetX = targetLeft;
+        state.targetY = targetTop;
+        state.targetW = targetWidth;
+        state.targetH = targetHeight;
+
+        if (state.rafId) return;
+
+        const stiffness = 0.22; // 液态表面张力刚度
+        const damping = 0.72;   // 流体阻尼系数
+
+        const step = () => {
+            const dx = state.targetX - state.x;
+            const dy = state.targetY - state.y;
+            const dw = state.targetW - state.w;
+
+            state.vx = (state.vx + dx * stiffness) * damping;
+            state.vy = (state.vy + dy * stiffness) * damping;
+            state.vw = (state.vw + dw * stiffness) * damping;
+
+            state.x += state.vx;
+            state.y += state.vy;
+            state.w += state.vw;
+            state.h += (state.targetH - state.h) * 0.35;
+
+            const speed = Math.hypot(state.vx, state.vy);
+            // 根据瞬时速度计算水滴拉伸形变与光学色散强度
+            const stretchX = 1 + Math.min(0.26, Math.abs(state.vx) * 0.014);
+            const squishY = 1 - Math.min(0.11, Math.abs(state.vx) * 0.006);
+            const skewDeg = Math.max(-4.5, Math.min(4.5, state.vx * 0.16));
+            const causticShift = Math.max(-14, Math.min(14, -state.vx * 0.65));
+            const chromaticAlpha = Math.min(0.78, 0.32 + speed * 0.022);
+
+            glider.style.left = state.x.toFixed(2) + 'px';
+            glider.style.width = Math.max(24, state.w).toFixed(2) + 'px';
+            if (isRouteGlider) {
+                glider.style.top = state.y.toFixed(2) + 'px';
+                glider.style.height = Math.max(20, state.h).toFixed(2) + 'px';
+            }
+
+            glider.style.setProperty('--droplet-scale-x', stretchX.toFixed(3));
+            glider.style.setProperty('--droplet-scale-y', squishY.toFixed(3));
+            glider.style.setProperty('--droplet-skew', skewDeg.toFixed(2) + 'deg');
+            glider.style.setProperty('--caustic-shift', causticShift.toFixed(1) + 'px');
+            glider.style.setProperty('--chromatic-alpha', chromaticAlpha.toFixed(2));
+
+            if (Math.abs(dx) > 0.25 || Math.abs(dy) > 0.25 || Math.abs(dw) > 0.25 || speed > 0.25) {
+                state.rafId = requestAnimationFrame(step);
+            } else {
+                state.x = state.targetX;
+                state.y = state.targetY;
+                state.w = state.targetW;
+                state.h = state.targetH;
+                state.vx = 0;
+                state.vy = 0;
+                state.vw = 0;
+                state.rafId = null;
+                glider.style.left = state.targetX + 'px';
+                glider.style.width = state.targetW + 'px';
+                if (isRouteGlider) {
+                    glider.style.top = state.targetY + 'px';
+                    glider.style.height = state.targetH + 'px';
+                }
+                glider.style.setProperty('--droplet-scale-x', '1');
+                glider.style.setProperty('--droplet-scale-y', '1');
+                glider.style.setProperty('--droplet-skew', '0deg');
+                glider.style.setProperty('--caustic-shift', '0px');
+                glider.style.setProperty('--chromatic-alpha', '0.32');
+            }
+        };
+
+        state.rafId = requestAnimationFrame(step);
     }
     window.moveGliderToButton = moveGliderToButton;
 
@@ -2086,7 +2253,7 @@
         }
     }
 
-    // 绑定纯透液态玻璃导航栏的【光斑跟随鼠标】与【选中框透镜跟随鼠标滑入/滑出】
+    // 绑定纯透液态玻璃导航栏的【光斑跟随鼠标】与【水滴透镜跟随鼠标/手指滑入滑出】
     function bindLiquidGlassNav(containerId, gliderId, btnSelector, getActiveFn) {
         const navEl = document.getElementById(containerId);
         const gliderEl = document.getElementById(gliderId);
@@ -2101,7 +2268,7 @@
             navEl.style.setProperty('--mouse-y', y + 'px');
         });
 
-        // 鼠标滑过任意按钮时，液态玻璃选中框透镜实时磁吸跟随鼠标！
+        // 鼠标滑过任意按钮时，液态水滴透镜实时弹性拉伸跟随鼠标
         const buttons = navEl.querySelectorAll(btnSelector);
         buttons.forEach(btn => {
             btn.addEventListener('mouseenter', () => {
@@ -2109,7 +2276,35 @@
             });
         });
 
-        // 鼠标移出导航条时，光斑淡出，液态玻璃透镜丝滑回弹至当前激活的选项
+        // 移动端手指滑动导航栏时，水滴透镜实时跟随手指拉伸滑动
+        let lastTouchedBtn = null;
+        navEl.addEventListener('touchmove', (e) => {
+            if (!e.touches || !e.touches[0]) return;
+            const touch = e.touches[0];
+            const rect = navEl.getBoundingClientRect();
+            navEl.style.setProperty('--mouse-x', (touch.clientX - rect.left) + 'px');
+            navEl.style.setProperty('--mouse-y', (touch.clientY - rect.top) + 'px');
+            const el = document.elementFromPoint(touch.clientX, touch.clientY);
+            const btn = el ? el.closest(btnSelector) : null;
+            if (btn && navEl.contains(btn)) {
+                lastTouchedBtn = btn;
+                moveGliderToButton(navEl, gliderEl, btn);
+            }
+        }, { passive: true });
+
+        navEl.addEventListener('touchend', () => {
+            navEl.style.setProperty('--mouse-x', '-200px');
+            navEl.style.setProperty('--mouse-y', '-200px');
+            if (lastTouchedBtn) {
+                lastTouchedBtn.click();
+                lastTouchedBtn = null;
+            } else {
+                const activeBtn = getActiveFn();
+                if (activeBtn) moveGliderToButton(navEl, gliderEl, activeBtn);
+            }
+        }, { passive: true });
+
+        // 鼠标移出导航条时，光斑淡出，液态水滴透镜丝滑回弹至当前激活的选项
         navEl.addEventListener('mouseleave', () => {
             navEl.style.setProperty('--mouse-x', '-200px');
             navEl.style.setProperty('--mouse-y', '-200px');
@@ -2133,119 +2328,10 @@
 
         window.addEventListener('resize', () => {
             const activeMain = document.querySelector('#mainTabNav .tab-nav-btn.active');
-            if (activeMain) moveGliderToButton(document.getElementById('mainTabNav'), document.getElementById('tabGlider'), activeMain);
+            if (activeMain) moveGliderToButton(document.getElementById('mainTabNav'), document.getElementById('tabGlider'), activeMain, true);
             const activeSub = document.querySelector('#historySubNav .history-subnav-btn.active');
-            if (activeSub) moveGliderToButton(document.getElementById('historySubNav'), document.getElementById('subnavGlider'), activeSub);
+            if (activeSub) moveGliderToButton(document.getElementById('historySubNav'), document.getElementById('subnavGlider'), activeSub, true);
         });
-    }
-
-    // GooseHyperGlass WebGL 液态玻璃原生组件初始化与双引擎切换
-    const MAIN_NAV_KEYS = ['history', 'novel', 'manga', 'video'];
-    const HIST_SUB_KEYS = ['video', 'shelf', 'novel', 'manga'];
-    let isSyncingLgNav = false;
-
-    function initGooseHyperGlass() {
-        const savedEngine = localStorage.getItem('openhappy_glass_engine');
-        const useWebGL = savedEngine !== 'css'; // 默认开启 GooseHyperGlass WebGL 模式供体验
-        document.body.classList.toggle('use-goose-webgl', useWebGL);
-        updateGlassEngineBtn(useWebGL);
-
-        const configureLgElements = () => {
-            const isLight = document.body.classList.contains('light-mode');
-            const lgMain = document.getElementById('lgMainTabNav');
-            if (lgMain && typeof lgMain.setTabs === 'function') {
-                if (isLight) lgMain.removeAttribute('dark');
-                else lgMain.setAttribute('dark', '');
-
-                lgMain.setTabs([[
-                    {
-                        label: '最近观看',
-                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>`
-                    },
-                    {
-                        label: '小说专区',
-                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></svg>`
-                    },
-                    {
-                        label: '漫画专区',
-                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`
-                    },
-                    {
-                        label: '影视专区',
-                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>`
-                    }
-                ]]);
-
-                if (!lgMain.__boundStateChange) {
-                    lgMain.__boundStateChange = true;
-                    lgMain.addEventListener('lg-statechange', (e) => {
-                        if (isSyncingLgNav) return;
-                        const idx = e.detail?.selectedTab;
-                        if (typeof idx === 'number' && MAIN_NAV_KEYS[idx] && MAIN_NAV_KEYS[idx] !== previousView) {
-                            switchNav(MAIN_NAV_KEYS[idx]);
-                        }
-                    });
-                }
-            }
-
-            const lgSub = document.getElementById('lgHistorySubNav');
-            if (lgSub && typeof lgSub.setTabs === 'function') {
-                if (isLight) lgSub.removeAttribute('dark');
-                else lgSub.setAttribute('dark', '');
-
-                lgSub.setTabs([[
-                    {
-                        label: '影视记录',
-                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg>`
-                    },
-                    {
-                        label: '我的书架',
-                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>`
-                    },
-                    {
-                        label: '小说记录',
-                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>`
-                    },
-                    {
-                        label: '漫画记录',
-                        svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z"/></svg>`
-                    }
-                ]]);
-
-                if (!lgSub.__boundStateChange) {
-                    lgSub.__boundStateChange = true;
-                    lgSub.addEventListener('lg-statechange', (e) => {
-                        if (isSyncingLgNav) return;
-                        const idx = e.detail?.selectedTab;
-                        if (typeof idx === 'number' && HIST_SUB_KEYS[idx] && HIST_SUB_KEYS[idx] !== currentHistoryTab) {
-                            switchHistoryTab(HIST_SUB_KEYS[idx]);
-                        }
-                    });
-                }
-            }
-        };
-
-        if (window.customElements && window.customElements.whenDefined) {
-            window.customElements.whenDefined('liquid-glass').then(configureLgElements).catch(() => {});
-        }
-        setTimeout(configureLgElements, 150);
-    }
-
-    function toggleGlassEngine() {
-        const useWebGL = document.body.classList.toggle('use-goose-webgl');
-        localStorage.setItem('openhappy_glass_engine', useWebGL ? 'webgl' : 'css');
-        updateGlassEngineBtn(useWebGL);
-        if (!useWebGL) {
-            setTimeout(() => {
-                updateTabGlider(previousView || 'history');
-                updateSubnavGlider(currentHistoryTab || 'video');
-            }, 30);
-        }
-    }
-
-    function updateGlassEngineBtn(useWebGL) {
-        const lbl = document.getElementById('glassEngineLabel');
-        if (lbl) lbl.innerText = useWebGL ? 'WebGL水滴' : '极光透镜';
     }
 
     // 日间 / 夜间模式全局控制
@@ -2260,13 +2346,6 @@
         const isLight = document.body.classList.toggle('light-mode');
         localStorage.setItem('openhappy_theme', isLight ? 'light' : 'dark');
         updateThemeBtn(isLight);
-        ['lgMainTabNav', 'lgHistorySubNav'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                if (isLight) el.removeAttribute('dark');
-                else el.setAttribute('dark', '');
-            }
-        });
     }
 
     function updateThemeBtn(isLight) {
@@ -2922,14 +3001,6 @@
 
         if (tab === 'shelf') renderShelfHistory();
         updateSubnavGlider(tab);
-
-        const lgSub = document.getElementById('lgHistorySubNav');
-        const subIdx = HIST_SUB_KEYS.indexOf(tab);
-        if (lgSub && typeof lgSub.setState === 'function' && subIdx !== -1) {
-            isSyncingLgNav = true;
-            try { lgSub.setState({ selectedTab: subIdx }); } catch(e) {}
-            isSyncingLgNav = false;
-        }
     };
 
     window.clearCurrentHistoryTab = function() {
@@ -3014,15 +3085,10 @@
         previousView = nav;
         updateTabGlider(nav);
 
-        const lgMain = document.getElementById('lgMainTabNav');
-        const mainIdx = MAIN_NAV_KEYS.indexOf(nav);
-        if (lgMain && typeof lgMain.setState === 'function' && mainIdx !== -1) {
-            isSyncingLgNav = true;
-            try { lgMain.setState({ selectedTab: mainIdx }); } catch(e) {}
-            isSyncingLgNav = false;
+        if (isHistory) {
+            renderHistoryModule();
+            setTimeout(() => updateSubnavGlider(currentHistoryTab), 20);
         }
-
-        if (isHistory) renderHistoryModule();
         if (isNovel && (!document.getElementById('novelResultsGrid').innerHTML || document.getElementById('novelResultsGrid').children.length === 0)) {
             doNovelSearch('剑来');
         }
@@ -3514,7 +3580,6 @@
         initTheme();
         setNovelTheme(currentNovelTheme);
         initLiquidGlassMouseFollower();
-        initGooseHyperGlass();
         setTimeout(() => {
             updateTabGlider('history');
             updateSubnavGlider(currentHistoryTab);
