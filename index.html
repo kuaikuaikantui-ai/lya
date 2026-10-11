@@ -267,31 +267,93 @@
             backdrop-filter: blur(8px);
         }
 
-        /* 第一页：最近观看三大子分类切换药丸 */
+        /* 第一页：最近观看与书架 纯透明液态玻璃导航 (支持鼠标跟随透镜) */
         .history-subnav {
             display: inline-flex;
-            gap: 6px;
-            background: rgba(0, 0, 0, 0.25);
-            padding: 4px;
-            border-radius: 12px;
-            border: 1px solid var(--glass-border);
-            margin-bottom: 16px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.03) !important;
+            backdrop-filter: blur(28px) saturate(220%) !important;
+            -webkit-backdrop-filter: blur(28px) saturate(220%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.16) !important;
+            box-shadow: 
+                inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.3),
+                inset 0 -1px 2px 0 rgba(0, 0, 0, 0.35),
+                0 12px 30px -8px rgba(0, 0, 0, 0.5) !important;
+            padding: 4px !important;
+            border-radius: 30px !important;
+            overflow: hidden;
+            --mouse-x: -200px;
+            --mouse-y: -200px;
+        }
+        .history-subnav::before {
+            content: '';
+            position: absolute;
+            left: var(--mouse-x, -200px);
+            top: var(--mouse-y, -200px);
+            width: 140px;
+            height: 140px;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.28) 0%, rgba(56, 189, 248, 0.14) 35%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            mix-blend-mode: overlay;
+            z-index: 3;
+        }
+        .history-subnav:hover::before {
+            opacity: 1;
         }
         .history-subnav-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            font-size: 12px;
-            font-weight: 600;
-            padding: 6px 14px;
-            border-radius: 8px;
+            background: transparent !important;
+            border: none !important;
+            outline: none;
+            color: rgba(241, 245, 249, 0.6) !important;
+            font-size: 12.5px !important;
+            font-weight: 500 !important;
+            padding: 7px 16px !important;
+            border-radius: 25px !important;
             cursor: pointer;
-            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            z-index: 4;
+            position: relative;
+            transition: color 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            user-select: none;
+        }
+        .history-subnav-btn:hover {
+            color: #ffffff !important;
+            transform: scale(1.03) !important;
         }
         .history-subnav-btn.active {
-            background: var(--accent-glow);
-            color: var(--accent);
-            border: 1px solid rgba(45, 212, 192, 0.3);
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            text-shadow: 0 0 14px rgba(255, 255, 255, 0.75), 0 0 8px rgba(56, 189, 248, 0.5) !important;
+            background: transparent !important;
+            border: none !important;
+        }
+        .subnav-glider {
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 4px;
+            width: 88px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.12) 100%) !important;
+            backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
+            -webkit-backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.42) !important;
+            border-top-color: rgba(255, 255, 255, 0.75) !important;
+            border-radius: 25px !important;
+            box-shadow: 
+                inset 0 1.5px 3px 0 rgba(255, 255, 255, 0.8),
+                inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
+                0 6px 18px rgba(0, 0, 0, 0.35),
+                0 0 22px rgba(56, 189, 248, 0.35) !important;
+            z-index: 2;
+            pointer-events: none;
+            transition: left 0.38s cubic-bezier(0.34, 1.35, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.35, 0.64, 1), transform 0.38s cubic-bezier(0.34, 1.35, 0.64, 1);
         }
 
         .grid-list {
@@ -1047,7 +1109,7 @@
                 0 0 25px rgba(56, 189, 248, 0.35) !important;
             z-index: 2;
             pointer-events: none;
-            transition: transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1);
+            transition: left 0.38s cubic-bezier(0.34, 1.35, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.35, 0.64, 1), transform 0.38s cubic-bezier(0.34, 1.35, 0.64, 1);
         }
 
         /* 日间模式 (Apple Light Daylight Mode) */
@@ -1087,10 +1149,23 @@
             color: #0f172a !important;
             text-shadow: none !important;
         }
-        body.light-mode .tab-glider {
-            background: #ffffff !important;
+        body.light-mode .tab-glider,
+        body.light-mode .subnav-glider {
+            background: rgba(255, 255, 255, 0.85) !important;
             border: 1px solid rgba(0, 0, 0, 0.08) !important;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+            box-shadow: inset 0 1px 2px #fff, 0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+        }
+        body.light-mode .history-subnav {
+            background: rgba(255, 255, 255, 0.65) !important;
+            border-color: rgba(0, 0, 0, 0.08) !important;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 8px 24px rgba(0, 0, 0, 0.05) !important;
+        }
+        body.light-mode .history-subnav-btn {
+            color: #64748b !important;
+        }
+        body.light-mode .history-subnav-btn.active {
+            color: #0f172a !important;
+            text-shadow: none !important;
         }
         body.light-mode .search-input {
             background: rgba(255, 255, 255, 0.8) !important;
@@ -1263,7 +1338,7 @@
 <body>
 
 <header>
-    <div class="brand" onclick="switchNav('shelf')">
+    <div class="brand" onclick="switchNav('history'); switchHistoryTab('shelf');">
         <i class="fas fa-wand-magic-sparkles"></i>
         <span>OpenHappy</span>
         <span class="badge" id="sourceVerTag">昂哥构建</span>
@@ -1294,31 +1369,44 @@
         </div>
     </div>
 
-    <!-- 第1页：最近观看（分设：影视 / 小说 / 漫画 三大标签） -->
+    <!-- 第1页：最近观看与书架（分设：影视记录 / 我的书架 / 小说记录 / 漫画记录 四大纯透液态导航） -->
     <section id="historySection">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px; flex-wrap:wrap; gap:8px;">
-            <div class="history-subnav">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; flex-wrap:wrap; gap:10px;">
+            <div class="history-subnav" id="historySubNav">
+                <div class="subnav-glider" id="subnavGlider"></div>
                 <button class="history-subnav-btn active" id="histTabVideo" onclick="switchHistoryTab('video')">
-                    <i class="fas fa-film"></i> 影视记录
+                    <i class="fas fa-film"></i> <span>影视记录</span>
+                </button>
+                <button class="history-subnav-btn" id="histTabShelf" onclick="switchHistoryTab('shelf')">
+                    <i class="fas fa-bookmark"></i> <span>我的书架</span>
                 </button>
                 <button class="history-subnav-btn" id="histTabNovel" onclick="switchHistoryTab('novel')">
-                    <i class="fas fa-book"></i> 小说记录
+                    <i class="fas fa-book"></i> <span>小说记录</span>
                 </button>
                 <button class="history-subnav-btn" id="histTabManga" onclick="switchHistoryTab('manga')">
-                    <i class="fas fa-palette"></i> 漫画记录
+                    <i class="fas fa-palette"></i> <span>漫画记录</span>
                 </button>
             </div>
-            <button class="btn" style="font-size: 11px; padding: 4px 10px;" onclick="clearCurrentHistoryTab()">
-                <i class="fas fa-trash-alt"></i> 清空此分类记录
+            <button class="btn" id="clearHistoryBtn" style="font-size: 11px; padding: 5px 12px;" onclick="clearCurrentHistoryTab()">
+                <i class="fas fa-trash-alt"></i> <span id="clearHistoryBtnText">清空此分类记录</span>
             </button>
         </div>
 
-        <!-- 影视观看记录列表 -->
+        <!-- 1. 影视观看记录列表 -->
         <div id="videoHistoryContainer">
             <div id="videoHistoryGrid" class="video-grid"></div>
             <div id="videoHistoryEmpty" style="text-align: center; color: var(--text-muted); padding: 50px 0; display: none;">
                 <i class="fas fa-play-circle" style="font-size:32px; color:var(--accent); margin-bottom:12px; display:block;"></i>
                 暂无影视观看记录，点击上方【影视专区】立即畅享热门电影与电视剧！
+            </div>
+        </div>
+
+        <!-- 2. 我的书架列表 (位于影视记录之后、小说记录之前) -->
+        <div id="shelfHistoryContainer" style="display:none;">
+            <div id="shelfHistoryGrid" class="grid-list"></div>
+            <div id="shelfHistoryEmpty" style="text-align: center; color: var(--text-muted); padding: 50px 0; display: none;">
+                <i class="fas fa-bookmark" style="font-size:32px; color:var(--accent); margin-bottom:12px; display:block;"></i>
+                书架空空如也，在小说或漫画详情页点击【加书架】即可收藏至此随时追更！
             </div>
         </div>
 
@@ -1833,51 +1921,89 @@
 
     // 拟真苹果流体骨架光渲染器
     
-    // 苹果纯透液态玻璃滑块物理跟随与定位
+    // 通用液态玻璃透镜定位器 (支持鼠标悬停跟随 + 移出回弹锁定)
+    function moveGliderToButton(container, glider, btn) {
+        if (!container || !glider || !btn) return;
+        const navRect = container.getBoundingClientRect();
+        const btnRect = btn.getBoundingClientRect();
+        if (navRect.width === 0 || btnRect.width === 0) return;
+        const leftOffset = btnRect.left - navRect.left;
+        glider.style.left = leftOffset + 'px';
+        glider.style.width = btnRect.width + 'px';
+        glider.style.transform = 'none';
+    }
+
+    // 1. 顶部四大主导航滑块更新
     function updateTabGlider(nav) {
         const glider = document.getElementById('tabGlider');
         const container = document.getElementById('mainTabNav');
         if (!glider || !container) return;
-        const tabs = ['history', 'novel', 'manga', 'video'];
-        const targetBtn = document.querySelector(`#nav${nav.charAt(0).toUpperCase() + nav.slice(1)}Btn`);
-        const idx = tabs.indexOf(nav);
-        if (idx !== -1) {
-            if (targetBtn) {
-                const navRect = container.getBoundingClientRect();
-                const btnRect = targetBtn.getBoundingClientRect();
-                const leftOffset = btnRect.left - navRect.left;
-                glider.style.left = leftOffset + 'px';
-                glider.style.width = btnRect.width + 'px';
-                glider.style.transform = 'none';
-            } else {
-                glider.style.left = '5px';
-                glider.style.width = 'calc(25% - 2.5px)';
-                glider.style.transform = 'translateX(' + (idx * 100) + '%)';
-            }
+        const targetBtn = document.getElementById('nav' + nav.charAt(0).toUpperCase() + nav.slice(1) + 'Btn');
+        if (targetBtn) {
+            moveGliderToButton(container, glider, targetBtn);
         }
     }
 
-    // 鼠标在液态玻璃导航栏上的物理折射光斑随动 (Liquid Glass Specular Follower)
-    function initLiquidGlassMouseFollower() {
-        const tabNav = document.getElementById('mainTabNav');
-        if (!tabNav) return;
-        tabNav.addEventListener('mousemove', (e) => {
-            const rect = tabNav.getBoundingClientRect();
+    // 2. 下方四合一子导航滑块更新 (影视记录 / 我的书架 / 小说记录 / 漫画记录)
+    function updateSubnavGlider(tab) {
+        const glider = document.getElementById('subnavGlider');
+        const container = document.getElementById('historySubNav');
+        if (!glider || !container) return;
+        const targetBtn = document.getElementById('histTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+        if (targetBtn) {
+            moveGliderToButton(container, glider, targetBtn);
+        }
+    }
+
+    // 绑定纯透液态玻璃导航栏的【光斑跟随鼠标】与【选中框透镜跟随鼠标滑入/滑出】
+    function bindLiquidGlassNav(containerId, gliderId, btnSelector, getActiveFn) {
+        const navEl = document.getElementById(containerId);
+        const gliderEl = document.getElementById(gliderId);
+        if (!navEl || !gliderEl) return;
+
+        // 折射光斑随鼠标实时游走
+        navEl.addEventListener('mousemove', (e) => {
+            const rect = navEl.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-            tabNav.style.setProperty('--mouse-x', x + 'px');
-            tabNav.style.setProperty('--mouse-y', y + 'px');
+            navEl.style.setProperty('--mouse-x', x + 'px');
+            navEl.style.setProperty('--mouse-y', y + 'px');
         });
-        tabNav.addEventListener('mouseleave', () => {
-            tabNav.style.setProperty('--mouse-x', '-200px');
-            tabNav.style.setProperty('--mouse-y', '-200px');
+
+        // 鼠标滑过任意按钮时，液态玻璃选中框透镜实时磁吸跟随鼠标！
+        const buttons = navEl.querySelectorAll(btnSelector);
+        buttons.forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                moveGliderToButton(navEl, gliderEl, btn);
+            });
         });
+
+        // 鼠标移出导航条时，光斑淡出，液态玻璃透镜丝滑回弹至当前激活的选项
+        navEl.addEventListener('mouseleave', () => {
+            navEl.style.setProperty('--mouse-x', '-200px');
+            navEl.style.setProperty('--mouse-y', '-200px');
+            const activeBtn = getActiveFn();
+            if (activeBtn) {
+                moveGliderToButton(navEl, gliderEl, activeBtn);
+            }
+        });
+    }
+
+    function initLiquidGlassMouseFollower() {
+        // 顶部四大导航绑定
+        bindLiquidGlassNav('mainTabNav', 'tabGlider', '.tab-nav-btn', () => {
+            return document.querySelector('#mainTabNav .tab-nav-btn.active');
+        });
+        // 下方四大记录/书架子导航绑定
+        bindLiquidGlassNav('historySubNav', 'subnavGlider', '.history-subnav-btn', () => {
+            return document.querySelector('#historySubNav .history-subnav-btn.active');
+        });
+
         window.addEventListener('resize', () => {
-            const currentTab = ['history', 'novel', 'manga', 'video'].find(t => {
-                const b = document.getElementById(`nav${t.charAt(0).toUpperCase() + t.slice(1)}Btn`);
-                return b && b.classList.contains('active');
-            }) || 'history';
-            updateTabGlider(currentTab);
+            const activeMain = document.querySelector('#mainTabNav .tab-nav-btn.active');
+            if (activeMain) moveGliderToButton(document.getElementById('mainTabNav'), document.getElementById('tabGlider'), activeMain);
+            const activeSub = document.querySelector('#historySubNav .history-subnav-btn.active');
+            if (activeSub) moveGliderToButton(document.getElementById('historySubNav'), document.getElementById('subnavGlider'), activeSub);
         });
     }
 
@@ -2356,6 +2482,14 @@
 
     function updateRecentHistory(book, chapTitle, chapIdx) {
         if (!book || !book.book_name) return;
+        // 同步更新书架中的阅读进度
+        let shelf = getLocalShelf();
+        const sIdx = shelf.findIndex(b => b.book_name === book.book_name);
+        if (sIdx !== -1) {
+            shelf[sIdx].lastReadTitle = chapTitle || '第一章';
+            shelf[sIdx].lastReadIndex = chapIdx || 0;
+            saveLocalShelf(shelf);
+        }
         let history = getRecentHistory();
         history = history.filter(b => b.book_name !== book.book_name);
         history.unshift({
@@ -2368,11 +2502,56 @@
         saveRecentHistory(history);
     }
 
-    // 渲染最近观看（分设：影视 / 小说 / 漫画）
+    // 渲染最近观看与书架（分设：1.影视记录 2.我的书架 3.小说记录 4.漫画记录）
     function renderHistoryModule() {
         renderVideoHistory();
+        renderShelfHistory();
         renderNovelHistory();
         renderMangaHistory();
+        setTimeout(() => updateSubnavGlider(currentHistoryTab), 30);
+    }
+
+    // 渲染我的书架
+    function renderShelfHistory() {
+        const grid = document.getElementById('shelfHistoryGrid');
+        const empty = document.getElementById('shelfHistoryEmpty');
+        if (!grid || !empty) return;
+
+        const list = getLocalShelf();
+        if (list.length === 0) {
+            grid.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+
+        empty.style.display = 'none';
+        grid.innerHTML = list.map((b) => {
+            const isManga = b.tab === '漫画' || b.source === '新新漫画' || b.source === '全面漫画' || b.source === 'G社漫画';
+            const typeBadge = isManga ? '<i class="fas fa-images"></i> 漫画' : '<i class="fas fa-book-open"></i> 小说';
+            return `
+                <div class="card" onclick="openBookFromHistory('${encodeURIComponent(JSON.stringify(b))}')">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="card-title">${b.book_name}</span>
+                            <span class="card-tag" style="font-size:10px;">${typeBadge}</span>
+                        </div>
+                        <div class="card-sub">进度: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '第一章'}</span></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                        <span class="card-sub">${b.source || '书架收藏'} · ${b.author || '连载'}</span>
+                        <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="removeFromShelfByName(event, '${b.book_name}')"><i class="fas fa-trash-alt"></i> 移出书架</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function removeFromShelfByName(e, bookName) {
+        e.stopPropagation();
+        let shelf = getLocalShelf();
+        shelf = shelf.filter(b => b.book_name !== bookName);
+        saveLocalShelf(shelf);
+        renderShelfHistory();
     }
 
     // 1. 影视观看历史渲染
@@ -2475,23 +2654,37 @@
         `).join('');
     }
 
-    // 切换第1页最近观看中的3个子类
+    // 切换第1页最近观看中的4个子类 (影视记录 / 我的书架 / 小说记录 / 漫画记录)
     window.switchHistoryTab = function(tab) {
         currentHistoryTab = tab;
         document.getElementById('histTabVideo').classList.toggle('active', tab === 'video');
+        const shelfBtn = document.getElementById('histTabShelf');
+        if (shelfBtn) shelfBtn.classList.toggle('active', tab === 'shelf');
         document.getElementById('histTabNovel').classList.toggle('active', tab === 'novel');
         document.getElementById('histTabManga').classList.toggle('active', tab === 'manga');
 
         document.getElementById('videoHistoryContainer').style.display = (tab === 'video') ? 'block' : 'none';
+        const shelfCont = document.getElementById('shelfHistoryContainer');
+        if (shelfCont) shelfCont.style.display = (tab === 'shelf') ? 'block' : 'none';
         document.getElementById('novelHistoryContainer').style.display = (tab === 'novel') ? 'block' : 'none';
         document.getElementById('mangaHistoryContainer').style.display = (tab === 'manga') ? 'block' : 'none';
+
+        const clearTxt = document.getElementById('clearHistoryBtnText');
+        if (clearTxt) clearTxt.innerText = (tab === 'shelf') ? '清空我的书架' : '清空此分类记录';
+
+        if (tab === 'shelf') renderShelfHistory();
+        updateSubnavGlider(tab);
     };
 
     window.clearCurrentHistoryTab = function() {
-        if (!confirm('确定清空当前分类的历史记录吗？')) return;
+        const promptMsg = (currentHistoryTab === 'shelf') ? '确定清空书架中的所有收藏吗？' : '确定清空当前分类的历史记录吗？';
+        if (!confirm(promptMsg)) return;
         if (currentHistoryTab === 'video') {
             if (typeof window.clearVideoHistory === 'function') window.clearVideoHistory();
             renderVideoHistory();
+        } else if (currentHistoryTab === 'shelf') {
+            saveLocalShelf([]);
+            renderShelfHistory();
         } else if (currentHistoryTab === 'novel') {
             let hist = getRecentHistory();
             hist = hist.filter(item => item.tab === '漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画');
@@ -3056,7 +3249,10 @@
         initTheme();
         setNovelTheme(currentNovelTheme);
         initLiquidGlassMouseFollower();
-        setTimeout(() => updateTabGlider('history'), 50);
+        setTimeout(() => {
+            updateTabGlider('history');
+            updateSubnavGlider(currentHistoryTab);
+        }, 50);
         try {
             const res = await fetch('/api/info');
             appConfig = await res.json();
