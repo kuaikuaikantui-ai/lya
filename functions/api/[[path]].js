@@ -736,6 +736,41 @@ const workerHandler = {
             }
         }
 
+        if (url.pathname === '/api/proxy') {
+            const targetUrl = url.searchParams.get('url') || '';
+            if (!targetUrl || !/^https?:\/\//i.test(targetUrl)) {
+                return new Response(JSON.stringify({ code: -1, msg: 'Invalid url' }), {
+                    status: 400,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+            try {
+                const targetOrigin = new URL(targetUrl).origin;
+                const r = await fetch(targetUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,application/json,*/*;q=0.8',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                        'Referer': targetOrigin + '/'
+                    }
+                });
+                const contentType = r.headers.get('content-type') || 'text/html; charset=utf-8';
+                const body = await r.arrayBuffer();
+                return new Response(body, {
+                    status: r.status,
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': contentType
+                    }
+                });
+            } catch (e) {
+                return new Response(JSON.stringify({ code: -1, msg: e.message }), {
+                    status: 502,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+        }
+
         return new Response('Not Found', { status: 404 });
     }
 };
