@@ -1182,19 +1182,31 @@
                         }
                     }
 
-                    // 每隔 8 秒更新一次本地播放秒数，每隔 28 秒同步一次云端进度
-                    if (cur > 10 && Math.abs(cur - lastSavedSec) >= 8 && window.currentVideo) {
+                    // 每隔 5 秒更新一次本地播放秒数，每隔 12 秒无感自动同步一次云端进度
+                    if (cur > 8 && Math.abs(cur - lastSavedSec) >= 5 && window.currentVideo) {
                         lastSavedSec = Math.floor(cur);
-                        const shouldPushCloud = (Date.now() - lastCloudPushAt > 28000);
+                        const shouldPushCloud = (Date.now() - lastCloudPushAt > 12000);
                         if (shouldPushCloud) lastCloudPushAt = Date.now();
                         window.saveVideoHistory(window.currentVideo, group.name, ep.title, idx, lastSavedSec, !shouldPushCloud);
+                    }
+                });
+
+                window.dpInstance.on('seeked', function() {
+                    if (!window.dpInstance || !window.dpInstance.video || !window.currentVideo) return;
+                    const cur = Math.floor(window.dpInstance.video.currentTime || 0);
+                    if (cur > 8) {
+                        lastSavedSec = cur;
+                        lastCloudPushAt = Date.now();
+                        window.saveVideoHistory(window.currentVideo, group.name, ep.title, idx, cur, false);
                     }
                 });
 
                 window.dpInstance.on('pause', function() {
                     if (!window.dpInstance || !window.dpInstance.video || !window.currentVideo) return;
                     const cur = Math.floor(window.dpInstance.video.currentTime || 0);
-                    if (cur > 10) {
+                    if (cur > 8) {
+                        lastSavedSec = cur;
+                        lastCloudPushAt = Date.now();
                         window.saveVideoHistory(window.currentVideo, group.name, ep.title, idx, cur, false);
                     }
                 });

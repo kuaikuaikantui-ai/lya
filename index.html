@@ -3365,7 +3365,7 @@
                 </button>
             </div>
 
-            <!-- 已登录视图 -->
+            <!-- 已登录视图（全自动实时同步，无需手动上传） -->
             <div id="cloudLoggedInView" style="display:none;">
                 <div style="padding: 13px 14px; border-radius: 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.28); margin-bottom: 14px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
@@ -3373,25 +3373,22 @@
                             <span class="cloud-sync-dot online"></span>
                             <span id="cloudLoggedAccountLabel">通行证</span>
                         </div>
-                        <span class="badge" id="cloudSyncStateBadge" style="background:rgba(16,185,129,0.18); color:#10b981; border-color:rgba(16,185,129,0.4);">实时云同步中</span>
+                        <span class="badge" id="cloudSyncStateBadge" style="background:rgba(16,185,129,0.18); color:#10b981; border-color:rgba(16,185,129,0.4);">⚡ 全自动实时同步中</span>
                     </div>
                     <div id="cloudSyncStatsText" style="font-size:12px; color:var(--text-muted); line-height:1.5;">
                         正在读取多端同步状态...
                     </div>
                     <div id="cloudLastSyncTimeText" style="font-size:11px; color:var(--text-muted); margin-top:4px;">
-                        上次同步：刚刚
+                        上次自动同步：刚刚（看书、看漫、看剧、加书架均自动后台上传，无需手动操作）
                     </div>
                 </div>
 
                 <div style="display:flex; gap:8px; margin-bottom: 12px;">
-                    <button class="btn primary" id="cloudManualSyncBtn" style="flex:1; padding:9px 12px; justify-content:center;" onclick="syncCloudNow(true)">
-                        <i class="fas fa-arrows-rotate"></i> 立即同步
-                    </button>
-                    <button class="btn" style="padding:9px 12px;" onclick="forcePushLocalToCloud()" title="以本机进度为准推送到云端">
-                        <i class="fas fa-cloud-arrow-up"></i> 推送本机
+                    <button class="btn primary" style="flex:1; padding:9px 12px; justify-content:center;" onclick="closeCloudSyncModal()">
+                        <i class="fas fa-check-circle"></i> 知道了（后台自动同步中）
                     </button>
                     <button class="btn" style="padding:9px 12px; color:#fb7185; border-color:rgba(244,63,94,0.35);" onclick="doCloudLogout()" title="退出当前通行证（保留本地进度）">
-                        <i class="fas fa-right-from-bracket"></i> 退出
+                        <i class="fas fa-right-from-bracket"></i> 切换/退出账号
                     </button>
                 </div>
             </div>
@@ -4493,7 +4490,90 @@
         return false;
     }
 
-    // 防抖自动推送进度至云端
+    const _cloudDeviceId = (() => {
+        let id = localStorage.getItem('open_reader_device_id');
+        if (!id) {
+            id = 'dev_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+            localStorage.setItem('open_reader_device_id', id);
+        }
+        return id;
+    })();
+    let _cloudEventSource = null;
+    let _cloudStreamUid = '';
+
+    // 仅从云端静默拉取并合并到本地（用于定时心跳与 SSE 实时推送接收，避免循环回推）
+    async function pullAndMergeCloudSilently(incomingPayload = null) {
+        const user = getCloudUser();
+        if (!user || !user.uid || _isCloudSyncing || _cloudPushTimer) return false;
+        _isCloudSyncing = true;
+        try {
+            const cloudPayload = incomingPayload || await fetchCloudSnapshot(user.uid);
+            if (cloudPayload) {
+                const localPayload = buildLocalSyncPayload();
+                const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
+                applyMergedPayloadToLocal(merged);
+                _lastCloudSyncTime = Date.now();
+                user.lastSyncAt = _lastCloudSyncTime;
+                saveCloudUser(user);
+            }
+            return true;
+        } catch (e) {
+            return false;
+        } finally {
+            _isCloudSyncing = false;
+            updateCloudSyncUI(false);
+        }
+    }
+
+    // 建立跨端毫秒级实时同步流 (SSE)：手机翻页/看剧，电脑无需刷新自动秒级同步更新
+    function ensureCloudLiveStream() {
+        const user = getCloudUser();
+        if (!user || !user.uid) {
+            if (_cloudEventSource) {
+                try { _cloudEventSource.close(); } catch (e) {}
+                _cloudEventSource = null;
+                _cloudStreamUid = '';
+            }
+            return;
+        }
+        if (_cloudEventSource && _cloudStreamUid === user.uid) return;
+        if (_cloudEventSource) {
+            try { _cloudEventSource.close(); } catch (e) {}
+            _cloudEventSource = null;
+        }
+        if (typeof EventSource === 'undefined') return;
+
+        try {
+            _cloudStreamUid = user.uid;
+            const es = new EventSource(`https://ntfy.sh/oh_sync_${user.uid}/sse`);
+            es.onmessage = async (ev) => {
+                try {
+                    const data = JSON.parse(ev.data || '{}');
+                    if (!data || data.event !== 'message' || !data.message) return;
+                    const msgObj = JSON.parse(data.message);
+                    if (msgObj.deviceId && msgObj.deviceId === _cloudDeviceId) return;
+
+                    if (msgObj.payload) {
+                        await pullAndMergeCloudSilently(msgObj.payload);
+                    } else if (msgObj.bytebinKey) {
+                        const bbRes = await fetch(`https://bytebin.lucko.me/${msgObj.bytebinKey}`, {
+                            signal: AbortSignal.timeout(4500)
+                        });
+                        if (bbRes.ok) {
+                            const remotePayload = await bbRes.json();
+                            await pullAndMergeCloudSilently(remotePayload);
+                        }
+                    } else {
+                        await pullAndMergeCloudSilently(null);
+                    }
+                } catch (e) {}
+            };
+            es.onerror = () => {};
+            _cloudEventSource = es;
+        } catch (e) {}
+    }
+
+    // 防抖全自动推送进度至云端（800ms 极速无感自动上传）
     window.scheduleCloudSyncPush = function(reason = 'auto') {
         updateCloudSyncUI();
         const user = getCloudUser();
@@ -4503,27 +4583,30 @@
         _cloudPushTimer = setTimeout(async () => {
             _cloudPushTimer = null;
             await syncCloudNow(false);
-        }, 1200);
+        }, 800);
     };
 
-    // 执行一次完整的【拉取 -> 智能双向合并 -> 推送更新】
+    // 执行一次完整的【拉取 -> 智能双向合并 -> 自动上传云端】
     window.syncCloudNow = async function(isManual = false) {
         const user = getCloudUser();
         if (!user || !user.uid) {
             if (isManual) openCloudSyncModal();
             return false;
         }
+        ensureCloudLiveStream();
         if (_isCloudSyncing) return false;
         _isCloudSyncing = true;
         updateCloudSyncUI(true);
 
         try {
             const localPayload = buildLocalSyncPayload();
+            localPayload.deviceId = _cloudDeviceId;
             const cloudPayload = await fetchCloudSnapshot(user.uid);
 
             let finalPayload = localPayload;
             if (cloudPayload) {
                 const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
+                merged.deviceId = _cloudDeviceId;
                 finalPayload = merged;
                 applyMergedPayloadToLocal(merged);
             }
@@ -4534,7 +4617,7 @@
                 user.lastSyncAt = _lastCloudSyncTime;
                 saveCloudUser(user);
                 if (isManual) {
-                    showCloudToast('多端进度已双向合并并同步至云端');
+                    showCloudToast('多端进度已自动双向合并同步');
                 }
             } else if (isManual) {
                 showCloudToast('云端节点繁忙，已保存在本地', 'fa-triangle-exclamation', '#f59e0b');
@@ -4543,26 +4626,6 @@
         } catch (e) {
             if (isManual) showCloudToast('同步异常: ' + e.message, 'fa-circle-exclamation', '#ef4444');
             return false;
-        } finally {
-            _isCloudSyncing = false;
-            updateCloudSyncUI(false);
-        }
-    };
-
-    window.forcePushLocalToCloud = async function() {
-        const user = getCloudUser();
-        if (!user || !user.uid) return;
-        _isCloudSyncing = true;
-        updateCloudSyncUI(true);
-        try {
-            const payload = buildLocalSyncPayload();
-            const ok = await pushCloudSnapshot(user.uid, payload);
-            if (ok) {
-                _lastCloudSyncTime = Date.now();
-                user.lastSyncAt = _lastCloudSyncTime;
-                saveCloudUser(user);
-                showCloudToast('已将本机进度覆盖推送至云端');
-            }
         } finally {
             _isCloudSyncing = false;
             updateCloudSyncUI(false);
@@ -4594,7 +4657,7 @@
             if (dot) dot.className = 'cloud-sync-dot';
             if (headerLabel) headerLabel.textContent = '云同步';
             if (cardTitle) cardTitle.textContent = '多端云同步 · 未登录';
-            if (cardSub) cardSub.textContent = '免注册输入口令，手机/电脑自动同步进度';
+            if (cardSub) cardSub.textContent = '免注册输入口令，手机/电脑全自动同步进度';
             if (cardBtn) cardBtn.innerHTML = '<i class="fas fa-key"></i> 登录';
             if (cardIcon) cardIcon.className = 'fas fa-cloud-arrow-up';
             if (loginView) loginView.style.display = 'block';
@@ -4604,36 +4667,31 @@
 
         const shortName = user.account.length > 8 ? user.account.slice(0, 8) + '…' : user.account;
         if (dot) dot.className = syncing ? 'cloud-sync-dot syncing' : 'cloud-sync-dot online';
-        if (headerLabel) headerLabel.textContent = syncing ? '同步中…' : shortName;
+        if (headerLabel) headerLabel.textContent = syncing ? '自动同步…' : shortName;
         if (cardTitle) cardTitle.textContent = `通行证: ${user.account}`;
         if (cardSub) {
             const syncAgo = user.lastSyncAt ? formatTimeAgo(user.lastSyncAt) : '刚刚';
-            cardSub.textContent = syncing ? '正在与云端双向同步进度…' : `已开启多端实时同步 · ${syncAgo}`;
+            cardSub.textContent = syncing ? '正在自动同步云端进度…' : `全自动实时同步中 · ${syncAgo}`;
         }
-        if (cardBtn) cardBtn.innerHTML = syncing ? '<i class="fas fa-spinner fa-spin"></i>' : '<i class="fas fa-arrows-rotate"></i> 同步';
+        if (cardBtn) cardBtn.innerHTML = syncing ? '<i class="fas fa-spinner fa-spin"></i>' : '<i class="fas fa-check-circle" style="color:#10b981;"></i> 自动';
         if (cardIcon) cardIcon.className = syncing ? 'fas fa-arrows-rotate fa-spin' : 'fas fa-cloud-check';
 
         if (loginView) loginView.style.display = 'none';
         if (loggedView) loggedView.style.display = 'block';
         if (loggedAccLabel) loggedAccLabel.textContent = `通行证：${user.account}`;
         if (stateBadge) {
-            stateBadge.textContent = syncing ? '正在同步云端…' : '多端实时同步已开启';
+            stateBadge.textContent = syncing ? '正在自动同步…' : '⚡ 全自动实时同步中';
         }
         if (statsText) {
-            statsText.innerHTML = `当前已保护：<strong>书架 ${shelfCount} 本</strong> · <strong>小说/漫画 ${allHist.length} 条</strong> · <strong>影视 ${vidCount} 部</strong>`;
+            statsText.innerHTML = `已自动云端保护：<strong>书架 ${shelfCount} 本</strong> · <strong>小说/漫画 ${allHist.length} 条</strong> · <strong>影视 ${vidCount} 部</strong>`;
         }
         if (lastSyncText) {
-            lastSyncText.textContent = `上次云端同步：${user.lastSyncAt ? formatTimeAgo(user.lastSyncAt) : '刚刚'}（其它设备用相同账号与口令登录即可无缝续看）`;
+            lastSyncText.textContent = `上次自动同步：${user.lastSyncAt ? formatTimeAgo(user.lastSyncAt) : '刚刚'}（本机及所有登录设备均全自动后台上传与拉取，无需手动操作）`;
         }
     }
 
     window.handleQuickCloudCardAction = function() {
-        const user = getCloudUser();
-        if (user && user.uid) {
-            window.syncCloudNow(true);
-        } else {
-            openCloudSyncModal();
-        }
+        openCloudSyncModal();
     };
 
     window.openCloudSyncModal = function() {
@@ -4670,7 +4728,7 @@
 
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在连接云端并合并多端进度...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在开启全自动多端云同步...';
         }
 
         try {
@@ -4681,8 +4739,9 @@
                 uid,
                 lastSyncAt: Date.now()
             });
+            ensureCloudLiveStream();
             await window.syncCloudNow(false);
-            showCloudToast(`欢迎回来，${account}！多端进度已同步`);
+            showCloudToast(`已开启全自动同步！本机与其它设备进度将自动双向实时更新`);
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -4695,6 +4754,7 @@
     window.doCloudLogout = function() {
         if (!confirm('确定要在此设备退出云同步通行证吗？（本机已有的书架和观看记录仍会保留）')) return;
         saveCloudUser(null);
+        ensureCloudLiveStream();
         showCloudToast('已退出云同步通行证', 'fa-info-circle', '#38bdf8');
     };
 
@@ -4743,20 +4803,56 @@
         }
     };
 
-    // 页面切回前台/解锁手机时自动拉取其它设备的最新进度
+    // 全自动后台同步生命周期：切回前台、窗口获焦、网络恢复、定时心跳、关闭页面瞬时直推
     document.addEventListener('visibilitychange', () => {
         const user = getCloudUser();
         if (!user || !user.uid) return;
         if (document.visibilityState === 'visible') {
-            if (Date.now() - _lastCloudSyncTime > 15000) {
-                window.syncCloudNow(false);
+            ensureCloudLiveStream();
+            if (Date.now() - _lastCloudSyncTime > 6000) {
+                pullAndMergeCloudSilently(null);
             }
         } else if (document.visibilityState === 'hidden' && _cloudPushTimer) {
             clearTimeout(_cloudPushTimer);
             _cloudPushTimer = null;
-            pushCloudSnapshot(user.uid, buildLocalSyncPayload());
+            const payload = buildLocalSyncPayload();
+            payload.deviceId = _cloudDeviceId;
+            pushCloudSnapshot(user.uid, payload);
         }
     });
+
+    window.addEventListener('focus', () => {
+        const user = getCloudUser();
+        if (user && user.uid && Date.now() - _lastCloudSyncTime > 8000) {
+            pullAndMergeCloudSilently(null);
+        }
+    });
+
+    window.addEventListener('online', () => {
+        const user = getCloudUser();
+        if (user && user.uid) window.syncCloudNow(false);
+    });
+
+    window.addEventListener('pagehide', () => {
+        const user = getCloudUser();
+        if (user && user.uid && _cloudPushTimer) {
+            clearTimeout(_cloudPushTimer);
+            _cloudPushTimer = null;
+            const payload = buildLocalSyncPayload();
+            payload.deviceId = _cloudDeviceId;
+            pushCloudSnapshot(user.uid, payload);
+        }
+    });
+
+    // 每 12 秒后台自动静默检查一次云端进度更新
+    setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            const user = getCloudUser();
+            if (user && user.uid && !_cloudPushTimer && Date.now() - _lastCloudSyncTime > 11000) {
+                pullAndMergeCloudSilently(null);
+            }
+        }
+    }, 12000);
 
     // 渲染“我的”个人中心（左侧竖向 Tab 实时计数徽章同步 + 右侧独立面板分开展示）
     function renderHistoryModule() {

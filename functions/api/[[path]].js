@@ -973,6 +973,7 @@ const workerHandler = {
                             headers: { 'Cache': 'yes' },
                             body: JSON.stringify({
                                 bytebinKey,
+                                deviceId: payload.deviceId || '',
                                 syncTime: payload.syncTime,
                                 payload: payloadStr.length < 3200 ? payload : undefined
                             }),
