@@ -3607,7 +3607,6 @@
             <span id="cloudSyncHeaderLabel">云同步</span>
         </button>
         <button class="btn theme-toggle-btn" id="chiguaToggleBtn" style="display:none; border-color:rgba(244,63,94,0.45); color:#fb7185;" onclick="toggleChiguaMode()" title="开启/隐藏吃瓜标签"><i class="fas fa-fire-flame-curved"></i> <span id="chiguaToggleLabel">吃瓜:开</span></button>
-        <button class="btn theme-toggle-btn" id="themeToggleBtn" onclick="toggleDarkLightMode()" title="切换日间/夜间模式"><i class="fas fa-sun" id="themeIcon"></i> <span id="themeLabel">日间</span></button>
     </div>
 </header>
 
@@ -4636,25 +4635,10 @@
         });
     }
 
-    // 日间 / 夜间模式全局控制
+    // 恒定沉浸暗黑影院主题（已移除无用的日间模式）
     function initTheme() {
-        const saved = localStorage.getItem('openhappy_theme');
-        const isLight = saved === 'light';
-        document.body.classList.toggle('light-mode', isLight);
-        updateThemeBtn(isLight);
-    }
-
-    function toggleDarkLightMode() {
-        const isLight = document.body.classList.toggle('light-mode');
-        localStorage.setItem('openhappy_theme', isLight ? 'light' : 'dark');
-        updateThemeBtn(isLight);
-    }
-
-    function updateThemeBtn(isLight) {
-        const icon = document.getElementById('themeIcon');
-        const label = document.getElementById('themeLabel');
-        if (icon) icon.className = isLight ? 'fas fa-moon' : 'fas fa-sun';
-        if (label) label.innerText = isLight ? '夜间' : '日间';
+        document.body.classList.remove('light-mode');
+        localStorage.removeItem('openhappy_theme');
     }
 
     // 小说阅读专属背景主题切换 (羊皮纸/极夜黑/护眼绿/晨曦白/雅致灰)
