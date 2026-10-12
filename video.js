@@ -479,14 +479,214 @@
 
         window.currentVideoList = flatList;
         container.innerHTML = html;
+        window.initTxHeroCarousel(flatList);
+    };
+
+    // =========================================================================
+    // 🎬 腾讯视频 (v.qq.com) 首屏全宽巨幕轮播海报墙控制器
+    // =========================================================================
+    let txHeroSlides = [];
+    let txHeroActiveIdx = 0;
+    let txHeroTimer = null;
+    let txHeroTouchStartX = 0;
+    let txHeroTouchBound = false;
+
+    const TX_HERO_CUSTOM_SYNOPSES = {
+        '庆余年 第二季': '范闲率使团归京，抱月楼迷局与春闱大案接连引爆！面对二皇子步步紧逼与内库巨额亏空，范闲孤身下江南掀翻旧局。',
+        '繁花': '王家卫首部剧集巨制！九十年代十里洋场黄河路，阿宝从籍籍无名蜕变为叱咤风云的宝总，演绎上海滩时代的滚烫传奇。',
+        '狂飙': '横跨二十年的扫黑除恶史诗巨作！京海市刑警安欣与高启强在黑白边缘展开命运博弈，全员飙戏高能不断。',
+        '凡人修仙传': '一介凡人韩立机缘巧合踏入修真界，凭谨慎心性与噬金虫、青竹蜂云剑逆天改命，国漫修仙巅峰视效巨制！',
+        '斗破苍穹': '三十年河东，三十年河西，莫欺少年穷！萧炎携异火重返云岚宗，中州大陆巅峰强者之战燃爆苍穹。',
+        '仙逆': '顺为凡，逆则仙，只在心中一念间！王林以凡根踏碎修真万古枯骨，化神之战震撼开启。',
+        '兰香如故': '年度古装口碑热剧！名门风月与家国命运交织，权谋暗涌之下守护挚爱与初心。',
+        '现在就出发 第4季': '沈腾、白敬亭、贾冰、王安宇原班熟人局爆笑回归！山野露营与高能游戏名场面密集轰炸，今晚解压首选。',
+        '我不是大师': '李现、李一桐领衔主演高分反套路爽剧，市井奇才卷入连环迷局，笑点与反转齐飞！',
+        '魅影神捕': '罗云熙古装悬疑探案力作，奇案诡局环环相扣，孤傲神捕拨开重重迷雾直抵真相。'
+    };
+
+    function cleanHtmlSummary(rawHtml, fallbackText) {
+        if (!rawHtml) return fallbackText;
+        const txt = String(rawHtml).replace(/<[^>]+>/g, '').replace(/[\r\n\u3000\s]+/g, ' ').trim();
+        return txt.length > 8 ? txt : fallbackText;
+    }
+
+    window.initTxHeroCarousel = function(flatList) {
+        const list = Array.isArray(flatList) ? flatList : [];
+        const picked = [];
+        const usedNames = new Set();
+
+        // 优先挑选内置蓝光秒播大片 + 首屏热播大剧组成 7 部腾讯视频焦点剧目
+        const priorityNames = ['庆余年 第二季', '凡人修仙传', '兰香如故', '繁花', '斗破苍穹', '现在就出发 第4季', '仙逆', '狂飙', '我不是大师', '魅影神捕'];
+
+        priorityNames.forEach(pName => {
+            if (picked.length >= 7) return;
+            const idx = list.findIndex(item => item && (item.vod_name === pName || (item.vod_name && item.vod_name.includes(pName))));
+            if (idx !== -1 && !usedNames.has(list[idx].vod_name)) {
+                usedNames.add(list[idx].vod_name);
+                picked.push({ item: list[idx], globalIdx: idx });
+            }
+        });
+
+        // 若不足 7 部，从 KANJU_HOT_LIST 或 flatList 前列补齐
+        (window.KANJU_HOT_LIST || []).forEach(hotItem => {
+            if (picked.length >= 7 || !hotItem || usedNames.has(hotItem.vod_name)) return;
+            let idx = list.findIndex(it => it && it.vod_name === hotItem.vod_name);
+            if (idx === -1) {
+                idx = list.length;
+                list.push(hotItem);
+            }
+            usedNames.add(hotItem.vod_name);
+            picked.push({ item: hotItem, globalIdx: idx });
+        });
+
+        for (let i = 0; i < list.length && picked.length < 7; i++) {
+            const it = list[i];
+            if (it && it.vod_name && it.vod_pic && !usedNames.has(it.vod_name)) {
+                usedNames.add(it.vod_name);
+                picked.push({ item: it, globalIdx: i });
+            }
+        }
+
+        txHeroSlides = picked;
+        const railEl = document.getElementById('txHeroRailList');
+        if (!railEl || txHeroSlides.length === 0) return;
+
+        railEl.innerHTML = txHeroSlides.map((entry, idx) => {
+            const it = entry.item;
+            const sub = it.vod_remarks || (it.type_name ? `${it.type_name} · ★${it.vod_score || '9.2'}` : '4K 超清热播');
+            return `
+                <div class="tx-rail-item ${idx === txHeroActiveIdx ? 'active' : ''}"
+                     id="txRailItem_${idx}"
+                     onmouseenter="window.selectTxHeroSlide(${idx})"
+                     onclick="window.handleTxRailClick(${idx})">
+                    <img class="tx-rail-thumb" src="${it.vod_pic}" alt="${it.vod_name}" referrerpolicy="no-referrer" onerror="this.src='https://api.iconify.design/lucide:film.svg?color=%23888'" />
+                    <div class="tx-rail-text">
+                        <div class="tx-rail-title">${it.vod_name}</div>
+                        <div class="tx-rail-sub">${sub}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        if (txHeroActiveIdx >= txHeroSlides.length) txHeroActiveIdx = 0;
+        window.selectTxHeroSlide(txHeroActiveIdx, false);
+        window.resumeTxHeroCarousel();
+
+        // 绑定移动端左右滑动切换焦点图手势
+        const stageEl = document.getElementById('txHeroStage');
+        if (stageEl && !txHeroTouchBound) {
+            txHeroTouchBound = true;
+            stageEl.addEventListener('touchstart', (e) => {
+                if (e.touches && e.touches.length > 0) {
+                    txHeroTouchStartX = e.touches[0].clientX;
+                }
+                window.pauseTxHeroCarousel();
+            }, { passive: true });
+            stageEl.addEventListener('touchend', (e) => {
+                if (e.changedTouches && e.changedTouches.length > 0 && txHeroTouchStartX) {
+                    const dx = e.changedTouches[0].clientX - txHeroTouchStartX;
+                    if (Math.abs(dx) > 48) {
+                        window.stepTxHeroSlide(dx < 0 ? 1 : -1);
+                    }
+                }
+                txHeroTouchStartX = 0;
+                window.resumeTxHeroCarousel();
+            }, { passive: true });
+        }
+    };
+
+    window.selectTxHeroSlide = function(idx, resetTimer = true) {
+        if (!txHeroSlides || txHeroSlides.length === 0) return;
+        txHeroActiveIdx = ((idx % txHeroSlides.length) + txHeroSlides.length) % txHeroSlides.length;
+        const entry = txHeroSlides[txHeroActiveIdx];
+        if (!entry || !entry.item) return;
+        const it = entry.item;
+
+        const bgAmbient = document.getElementById('txHeroBgAmbient');
+        const bgPanoramic = document.getElementById('txHeroBgPanoramic');
+        const posterImg = document.getElementById('txHeroPosterImg');
+        const posterTag = document.getElementById('txHeroPosterTag');
+        const rankBadge = document.getElementById('txHeroRankBadge');
+        const scoreBadge = document.getElementById('txHeroScoreBadge');
+        const catBadge = document.getElementById('txHeroCatBadge');
+        const titleEl = document.getElementById('txHeroTitle');
+        const remarkEl = document.getElementById('txHeroRemark');
+        const actorsEl = document.getElementById('txHeroActors');
+        const descEl = document.getElementById('txHeroDesc');
+
+        const picUrl = it.vod_pic || '';
+        if (bgAmbient) bgAmbient.style.backgroundImage = `url('${picUrl}')`;
+        if (bgPanoramic) bgPanoramic.style.backgroundImage = `url('${picUrl}')`;
+        if (posterImg) posterImg.src = picUrl;
+        if (posterTag) posterTag.textContent = it.vod_play_url ? '蓝光秒播' : '4K 臻彩';
+        if (rankBadge) rankBadge.innerHTML = `<i class="fas fa-fire"></i> 热播焦点 TOP ${txHeroActiveIdx + 1}`;
+        if (scoreBadge) scoreBadge.textContent = `★ ${it.vod_score && it.vod_score !== '0.0' ? it.vod_score : '9.3'}`;
+        if (catBadge) catBadge.textContent = `${it.type_name || '精选剧集'} · ${it.vod_year || '2026'}`;
+        if (titleEl) titleEl.textContent = it.vod_name || '正在热播';
+        if (remarkEl) remarkEl.textContent = it.vod_remarks || '全集超清连载';
+        if (actorsEl) {
+            const actors = (it.vod_actor || '').split(/[,，]/).map(s => s.trim()).filter(Boolean).slice(0, 5).join(' / ');
+            actorsEl.textContent = actors ? `主演：${actors}` : '星穹院线全网聚合直连 · 零广告秒开';
+        }
+        if (descEl) {
+            const customDesc = TX_HERO_CUSTOM_SYNOPSES[it.vod_name];
+            descEl.textContent = customDesc || cleanHtmlSummary(it.vod_content, `《${it.vod_name}》正在星穹视界巨幕热播中，支持多线路蓝光画质切换、自动跳过片头片尾及跨设备云端续播。`);
+        }
+
+        txHeroSlides.forEach((_, i) => {
+            const el = document.getElementById('txRailItem_' + i);
+            if (el) el.classList.toggle('active', i === txHeroActiveIdx);
+        });
+
+        if (resetTimer) {
+            window.resumeTxHeroCarousel();
+        }
+    };
+
+    window.handleTxRailClick = function(idx) {
+        if (window.innerWidth <= 860 && txHeroActiveIdx !== idx) {
+            window.selectTxHeroSlide(idx);
+            return;
+        }
+        window.selectTxHeroSlide(idx);
+        window.playCurrentTxHero();
+    };
+
+    window.stepTxHeroSlide = function(delta) {
+        window.selectTxHeroSlide(txHeroActiveIdx + (delta || 1), true);
+    };
+
+    window.playCurrentTxHero = function() {
+        if (!txHeroSlides || txHeroSlides.length === 0) return;
+        const entry = txHeroSlides[txHeroActiveIdx] || txHeroSlides[0];
+        if (!entry) return;
+        window.openVideoDetail(entry.globalIdx, 0);
+    };
+
+    window.pauseTxHeroCarousel = function() {
+        if (txHeroTimer) {
+            clearInterval(txHeroTimer);
+            txHeroTimer = null;
+        }
+    };
+
+    window.resumeTxHeroCarousel = function() {
+        window.pauseTxHeroCarousel();
+        txHeroTimer = setInterval(() => {
+            const videoSec = document.getElementById('videoSection');
+            if (!videoSec || videoSec.style.display === 'none' || document.hidden) return;
+            window.selectTxHeroSlide(txHeroActiveIdx + 1, false);
+        }, 5200);
     };
 
     window.clearVideoSearch = function() {
         const searchBlock = document.getElementById('videoSearchResultBlock');
         const allSecs = document.getElementById('videoAllSectionsContainer');
+        const heroStage = document.getElementById('txHeroStage');
         const input = document.getElementById('videoSearchInput');
         if (input) input.value = '';
         if (searchBlock) searchBlock.style.display = 'none';
+        if (heroStage) heroStage.style.display = '';
         if (allSecs) allSecs.style.display = 'block';
         window.renderAllVideoSections(window.KANJU_ALL_SECTIONS);
     };
@@ -497,7 +697,9 @@
 
         const searchBlock = document.getElementById('videoSearchResultBlock');
         const allSecs = document.getElementById('videoAllSectionsContainer');
+        const heroStage = document.getElementById('txHeroStage');
         if (searchBlock) searchBlock.style.display = 'none';
+        if (heroStage) heroStage.style.display = '';
         if (allSecs) allSecs.style.display = 'block';
 
         // 1. 立即用内置的原站 8 大板块 (96部热播片单) 瞬间秒开渲染
@@ -555,6 +757,8 @@
         if (!wd) return;
         if (window.checkSecretUnlockKeyword && window.checkSecretUnlockKeyword(wd, input)) return;
 
+        const heroStage = document.getElementById('txHeroStage');
+        if (heroStage) heroStage.style.display = 'none';
         const searchBlock = document.getElementById('videoSearchResultBlock');
         if (searchBlock) searchBlock.style.display = 'block';
         const grid = document.getElementById('videoGrid');

@@ -2802,6 +2802,533 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
+        /* ============================================================================
+           🎬 腾讯视频 (v.qq.com) 同款首屏全宽铺满巨幕轮播海报墙 (#txHeroStage)
+           ============================================================================ */
+        .tx-hero-stage {
+            position: relative;
+            width: 100%;
+            min-height: 446px;
+            border-radius: 26px;
+            overflow: hidden;
+            margin-bottom: 18px;
+            background: #06080f;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-top-color: rgba(255, 255, 255, 0.32);
+            box-shadow:
+                inset 0 1px 2px rgba(255, 255, 255, 0.25),
+                0 24px 60px -12px rgba(0, 0, 0, 0.78),
+                0 0 40px -10px rgba(56, 189, 248, 0.2);
+            display: flex;
+            align-items: stretch;
+            justify-content: space-between;
+            user-select: none;
+            isolation: isolate;
+        }
+        /* 第1层：全屏动态高饱和流光背景底幕 (100% 铺满绝无黑边) */
+        .tx-hero-bg-ambient {
+            position: absolute;
+            inset: -24px;
+            background-size: cover;
+            background-position: center center;
+            filter: blur(42px) saturate(220%) brightness(0.52);
+            transform: scale(1.18);
+            transition: background-image 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 0;
+            pointer-events: none;
+        }
+        /* 第2层：右侧宽幅巨幕剧照视觉层 (带柔和边缘羽化遮罩) */
+        .tx-hero-bg-panoramic {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 76%;
+            height: 100%;
+            background-size: cover;
+            background-position: center 18%;
+            filter: contrast(1.08) saturate(1.12) brightness(0.86);
+            -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 18%, rgba(0,0,0,0.92) 45%, rgba(0,0,0,0.95) 76%, rgba(0,0,0,0.25) 100%);
+            mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 18%, rgba(0,0,0,0.92) 45%, rgba(0,0,0,0.95) 76%, rgba(0,0,0,0.25) 100%);
+            transition: background-image 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 6s ease-out;
+            transform: scale(1.04);
+            z-index: 1;
+            pointer-events: none;
+        }
+        .tx-hero-stage:hover .tx-hero-bg-panoramic {
+            transform: scale(1.08);
+        }
+        /* 第3层：腾讯视频标志性多向暗角渐变遮罩 (保证左侧大字与右侧选片栏绝对清晰) */
+        .tx-hero-vignette {
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(90deg, rgba(6, 8, 15, 0.96) 0%, rgba(6, 8, 15, 0.84) 34%, rgba(6, 8, 15, 0.26) 62%, rgba(6, 8, 15, 0.88) 100%),
+                linear-gradient(180deg, rgba(6, 8, 15, 0.42) 0%, transparent 28%, rgba(6, 8, 15, 0.28) 66%, rgba(6, 8, 15, 0.96) 100%);
+            z-index: 2;
+            pointer-events: none;
+        }
+        /* 第4层：中右侧 3D 悬浮超清原画立牌 (解决竖版海报拉伸模糊，兼具立体景深) */
+        .tx-hero-poster-showcase {
+            position: absolute;
+            right: 268px;
+            top: 50%;
+            transform: translateY(-50%) perspective(950px) rotateY(-12deg) rotateZ(1.2deg);
+            width: 186px;
+            aspect-ratio: 2 / 3;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1.5px solid rgba(255, 255, 255, 0.38);
+            box-shadow:
+                -18px 24px 48px rgba(0, 0, 0, 0.78),
+                0 0 32px rgba(56, 189, 248, 0.28),
+                inset 0 1px 2px rgba(255, 255, 255, 0.55);
+            z-index: 3;
+            cursor: pointer;
+            transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.45s ease;
+        }
+        .tx-hero-poster-showcase:hover {
+            transform: translateY(-52%) perspective(950px) rotateY(-4deg) rotateZ(0deg) scale(1.04);
+            box-shadow:
+                -12px 28px 56px rgba(0, 0, 0, 0.85),
+                0 0 42px rgba(56, 189, 248, 0.48);
+        }
+        .tx-hero-poster-showcase img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .tx-hero-poster-tag {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 999px;
+            box-shadow: 0 4px 12px rgba(234, 88, 12, 0.5);
+            letter-spacing: 0.5px;
+        }
+
+        /* 左侧大片焦点信息主舞台 */
+        .tx-hero-main {
+            position: relative;
+            z-index: 4;
+            flex: 1;
+            min-width: 0;
+            padding: 28px 24px 26px 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            max-width: calc(100% - 250px);
+        }
+        .tx-hero-brand-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .tx-hero-brand-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            background: rgba(15, 23, 42, 0.68);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(125, 211, 252, 0.38);
+            color: #e0f2fe;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+        }
+        .tx-hero-brand-pill i {
+            color: #38bdf8;
+        }
+        .tx-hero-vip-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 800;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.24) 0%, rgba(234, 88, 12, 0.24) 100%);
+            border: 1px solid rgba(251, 191, 36, 0.48);
+            color: #fde68a;
+        }
+        .tx-hero-info-body {
+            margin: auto 0 18px 0;
+            padding-top: 18px;
+            max-width: 500px;
+        }
+        .tx-hero-badges {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .tx-badge-rank {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tx-badge-score {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.48);
+            color: #34d399;
+            font-size: 11.5px;
+            font-weight: 800;
+            padding: 2.5px 9px;
+            border-radius: 8px;
+        }
+        .tx-badge-quality {
+            background: rgba(56, 189, 248, 0.16);
+            border: 1px solid rgba(56, 189, 248, 0.38);
+            color: #7dd3fc;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2.5px 8px;
+            border-radius: 8px;
+            letter-spacing: 0.4px;
+        }
+        .tx-badge-cat {
+            color: #cbd5e1;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2.5px 10px;
+            border-radius: 8px;
+        }
+        .tx-hero-title {
+            font-size: 36px;
+            font-weight: 900;
+            line-height: 1.15;
+            letter-spacing: 0.5px;
+            margin: 0 0 10px 0;
+            color: #ffffff;
+            text-shadow: 0 4px 24px rgba(0, 0, 0, 0.85), 0 0 20px rgba(56, 189, 248, 0.22);
+            cursor: pointer;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .tx-hero-cast {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .tx-hero-cast span.tx-ep-highlight {
+            color: #38bdf8;
+            font-weight: 700;
+        }
+        .tx-hero-desc {
+            font-size: 13px;
+            line-height: 1.65;
+            color: rgba(203, 213, 225, 0.86);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+        .tx-hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .tx-btn-play {
+            background: linear-gradient(135deg, #38bdf8 0%, #2563eb 55%, #7c3aed 100%);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.48);
+            border-top-color: rgba(255, 255, 255, 0.85);
+            border-radius: 999px;
+            padding: 12px 28px;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            box-shadow:
+                inset 0 1.5px 2px rgba(255, 255, 255, 0.65),
+                0 10px 28px -4px rgba(37, 99, 235, 0.65),
+                0 0 24px rgba(56, 189, 248, 0.45);
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+        }
+        .tx-btn-play:hover {
+            transform: translateY(-2px) scale(1.04);
+            box-shadow:
+                inset 0 2px 3px rgba(255, 255, 255, 0.85),
+                0 14px 34px -4px rgba(37, 99, 235, 0.8),
+                0 0 32px rgba(56, 189, 248, 0.65);
+        }
+        .tx-btn-play:active {
+            transform: scale(0.97);
+        }
+        .tx-btn-glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            color: #f8fafc;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 999px;
+            padding: 11px 20px;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            transition: all 0.22s ease;
+        }
+        .tx-btn-glass:hover {
+            background: rgba(255, 255, 255, 0.18);
+            border-color: rgba(255, 255, 255, 0.42);
+            transform: translateY(-1px);
+        }
+        .tx-hero-nav-arrows {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 4px;
+        }
+        .tx-hero-arrow-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.62);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e2e8f0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .tx-hero-arrow-btn:hover {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: rgba(56, 189, 248, 0.6);
+            color: #fff;
+            transform: scale(1.08);
+        }
+
+        /* 腾讯视频标志性右侧悬浮选片导视栏 (#txHeroRail) */
+        .tx-hero-rail {
+            position: relative;
+            z-index: 4;
+            width: 246px;
+            flex-shrink: 0;
+            background: linear-gradient(180deg, rgba(10, 14, 24, 0.76) 0%, rgba(10, 14, 24, 0.88) 100%);
+            backdrop-filter: blur(26px) saturate(180%);
+            -webkit-backdrop-filter: blur(26px) saturate(180%);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .tx-rail-header {
+            font-size: 11.5px;
+            font-weight: 800;
+            color: #94a3b8;
+            letter-spacing: 1px;
+            padding: 0 6px 6px 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .tx-rail-header span {
+            color: #38bdf8;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tx-rail-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+            justify-content: center;
+        }
+        .tx-rail-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 9px;
+            border-radius: 13px;
+            cursor: pointer;
+            background: transparent;
+            border: 1px solid transparent;
+            transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+        }
+        .tx-rail-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .tx-rail-item.active {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(99, 102, 241, 0.16) 100%);
+            border-color: rgba(56, 189, 248, 0.42);
+            box-shadow: 0 6px 18px -4px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.22);
+            transform: translateX(-3px);
+        }
+        .tx-rail-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 18%;
+            bottom: 18%;
+            width: 3.5px;
+            border-radius: 0 4px 4px 0;
+            background: linear-gradient(180deg, #38bdf8, #a855f7);
+            box-shadow: 0 0 8px #38bdf8;
+        }
+        .tx-rail-thumb {
+            width: 34px;
+            height: 44px;
+            border-radius: 7px;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .tx-rail-text {
+            min-width: 0;
+            flex: 1;
+        }
+        .tx-rail-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(241, 245, 249, 0.78);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: color 0.2s ease, font-size 0.2s ease;
+        }
+        .tx-rail-item.active .tx-rail-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #ffffff;
+            text-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
+        }
+        .tx-rail-sub {
+            font-size: 10.5px;
+            color: rgba(148, 163, 184, 0.72);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 1px;
+        }
+        .tx-rail-item.active .tx-rail-sub {
+            color: #7dd3fc;
+        }
+        @media (max-width: 1120px) {
+            .tx-hero-poster-showcase {
+                display: none;
+            }
+        }
+        @media (max-width: 860px) {
+            .tx-hero-stage {
+                flex-direction: column;
+                min-height: 390px;
+                border-radius: 22px;
+            }
+            .tx-hero-bg-panoramic {
+                width: 100%;
+                height: 78%;
+                -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.75) 55%, transparent 100%);
+                mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.75) 55%, transparent 100%);
+            }
+            .tx-hero-vignette {
+                background:
+                    linear-gradient(180deg, rgba(6, 8, 15, 0.35) 0%, rgba(6, 8, 15, 0.55) 42%, rgba(6, 8, 15, 0.96) 82%, #06080f 100%);
+            }
+            .tx-hero-main {
+                max-width: 100%;
+                padding: 16px 16px 12px 16px;
+            }
+            .tx-hero-info-body {
+                padding-top: 28px;
+                margin-bottom: 14px;
+            }
+            .tx-hero-title {
+                font-size: 24px;
+            }
+            .tx-hero-cast {
+                font-size: 12px;
+            }
+            .tx-hero-desc {
+                font-size: 12px;
+                -webkit-line-clamp: 2;
+            }
+            .tx-btn-play {
+                padding: 10px 20px;
+                font-size: 13.5px;
+            }
+            .tx-btn-glass {
+                padding: 9px 14px;
+                font-size: 12.5px;
+            }
+            .tx-hero-rail {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+                padding: 10px 12px;
+                background: rgba(8, 11, 19, 0.86);
+            }
+            .tx-rail-header {
+                display: none;
+            }
+            .tx-rail-list {
+                flex-direction: row;
+                overflow-x: auto;
+                justify-content: flex-start;
+                gap: 8px;
+                scrollbar-width: none;
+            }
+            .tx-rail-list::-webkit-scrollbar {
+                display: none;
+            }
+            .tx-rail-item {
+                flex-shrink: 0;
+                width: 138px;
+                padding: 6px 8px;
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+            }
+            .tx-rail-item.active {
+                transform: none;
+            }
+            .tx-rail-item.active::before {
+                display: none;
+            }
+        }
     </style>
     <!-- 开源中文专业排版引擎 Heti (赫蹏) + 霞鹜文楷屏幕阅读字体 (LXGW WenKai Screen) -->
     <link rel="stylesheet" href="https://unpkg.com/heti/umd/heti.min.css">
@@ -2811,11 +3338,11 @@
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
     <script src="recommend_data.js"></script>
-    <script src="video.js"></script>
+    <script src="video.js?v=20261012_txhero"></script>
 </head>
 <body>
 <header>
-    <div class="brand" onclick="switchNav('history'); switchHistoryTab('shelf');" title="星穹视界 AETHER · 全栖书漫影殿堂">
+    <div class="brand" onclick="switchNav('video');" title="星穹视界 AETHER · 全栖书漫影殿堂">
         <div class="brand-emblem">
             <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -2864,8 +3391,8 @@
     <div class="tab-nav-container">
         <div class="tab-nav" id="mainTabNav">
             <div class="tab-glider" id="tabGlider"></div>
-            <button class="tab-nav-btn active" id="navHistoryBtn" onclick="switchNav('history')">
-                <i class="fas fa-user-astronaut"></i> <span>我的</span>
+            <button class="tab-nav-btn active" id="navVideoBtn" onclick="switchNav('video')">
+                <i class="fas fa-clapperboard"></i> <span>影视首页</span>
             </button>
             <button class="tab-nav-btn" id="navNovelBtn" onclick="switchNav('novel')">
                 <i class="fas fa-book-open"></i> <span>小说专区</span>
@@ -2873,8 +3400,8 @@
             <button class="tab-nav-btn" id="navMangaBtn" onclick="switchNav('manga')">
                 <i class="fas fa-images"></i> <span>漫画专区</span>
             </button>
-            <button class="tab-nav-btn" id="navVideoBtn" onclick="switchNav('video')">
-                <i class="fas fa-clapperboard"></i> <span>影视专区</span>
+            <button class="tab-nav-btn" id="navHistoryBtn" onclick="switchNav('history')">
+                <i class="fas fa-user-astronaut"></i> <span>我的</span>
             </button>
             <button class="tab-nav-btn" id="navChiguaBtn" style="display:none;" onclick="switchNav('chigua')">
                 <i class="fas fa-fire-flame-curved" style="color:#f43f5e;"></i> <span>吃瓜</span>
@@ -2882,8 +3409,8 @@
         </div>
     </div>
 
-    <!-- 第1页：“我的”个人中心（左侧竖向极光透镜 Tab 栏一眼尽览 + 右侧独立面板分开展示） -->
-    <section id="historySection">
+    <!-- “我的”个人中心（左侧竖向极光透镜 Tab 栏一眼尽览 + 右侧独立面板分开展示） -->
+    <section id="historySection" style="display: none;">
         <div class="my-workspace-layout">
             <!-- 左侧竖向 Tab 导航栏：一眼看见全部 4 个分类，点击切换右侧独立视图 -->
             <aside class="my-sidebar-wrap">
@@ -3150,8 +3677,67 @@
         <div id="mangaRecommendSectionsContainer"></div>
     </section>
 
-    <!-- 第4页：影视独立专区 (kanju3 精品热播与全网片源检索) -->
-    <section id="videoSection" style="display: none;">
+    <!-- 默认首页：影视巨幕专区 (腾讯视频级首屏铺满焦点海报墙 + 全网片源秒播) -->
+    <section id="videoSection" style="display: block;">
+        <!-- 🎬 腾讯视频 (v.qq.com) 同款全宽铺满巨幕焦点海报墙 -->
+        <div class="tx-hero-stage" id="txHeroStage" onmouseenter="window.pauseTxHeroCarousel && window.pauseTxHeroCarousel()" onmouseleave="window.resumeTxHeroCarousel && window.resumeTxHeroCarousel()">
+            <!-- 1. 动态高饱和流光全屏铺满底幕 -->
+            <div class="tx-hero-bg-ambient" id="txHeroBgAmbient" style="background-image: url('https://img.lzipic.com/upload/vod/20240516-1/a6531f51b9ed9393d6647aa8d5340ca0.jpg');"></div>
+            <!-- 2. 右侧宽幅巨幕视觉剧照层 -->
+            <div class="tx-hero-bg-panoramic" id="txHeroBgPanoramic" style="background-image: url('https://img.lzipic.com/upload/vod/20240516-1/a6531f51b9ed9393d6647aa8d5340ca0.jpg');"></div>
+            <!-- 3. 多向暗角电影感遮罩 -->
+            <div class="tx-hero-vignette"></div>
+            <!-- 4. 中右侧 3D 悬浮超清原画立牌 -->
+            <div class="tx-hero-poster-showcase" id="txHeroPosterCard" onclick="window.playCurrentTxHero && window.playCurrentTxHero()" title="点击立即播放">
+                <img id="txHeroPosterImg" src="https://img.lzipic.com/upload/vod/20240516-1/a6531f51b9ed9393d6647aa8d5340ca0.jpg" alt="焦点海报" referrerpolicy="no-referrer" />
+                <span class="tx-hero-poster-tag" id="txHeroPosterTag">臻彩 MAX</span>
+            </div>
+
+            <!-- 左侧大片焦点信息主舞台 -->
+            <div class="tx-hero-main">
+                <div class="tx-hero-brand-bar">
+                    <span class="tx-hero-brand-pill"><i class="fas fa-compass"></i> 星穹视界 · AETHER 巨幕院线</span>
+                    <span class="tx-hero-vip-pill"><i class="fas fa-crown"></i> 腾讯臻彩视听 · 全免直连</span>
+                </div>
+                <div class="tx-hero-info-body">
+                    <div class="tx-hero-badges">
+                        <span class="tx-badge-rank" id="txHeroRankBadge"><i class="fas fa-fire"></i> 全网热播 TOP 1</span>
+                        <span class="tx-badge-score" id="txHeroScoreBadge">★ 9.2</span>
+                        <span class="tx-badge-quality">4K HDR · 杜比全景声</span>
+                        <span class="tx-badge-cat" id="txHeroCatBadge">国产剧 · 2024</span>
+                    </div>
+                    <h2 class="tx-hero-title" id="txHeroTitle" onclick="window.playCurrentTxHero && window.playCurrentTxHero()">庆余年 第二季</h2>
+                    <div class="tx-hero-cast" id="txHeroCast">
+                        <span class="tx-ep-highlight" id="txHeroRemark">全36集蓝光秒播</span>
+                        <span>·</span>
+                        <span id="txHeroActors">张若昀 / 李沁 / 陈道明 / 吴刚 / 郭麒麟</span>
+                    </div>
+                    <p class="tx-hero-desc" id="txHeroDesc">该剧改编自猫腻同名畅销小说，承接上季，范闲率领使团回归途中，朝堂暗流汹涌，抱月楼迷局与春闱危机接踵而至，范闲下江南彻底夺回内库！</p>
+                </div>
+                <div class="tx-hero-actions">
+                    <button class="tx-btn-play" id="txHeroPlayBtn" onclick="window.playCurrentTxHero && window.playCurrentTxHero()">
+                        <i class="fas fa-play"></i> 立即播放正片
+                    </button>
+                    <button class="tx-btn-glass" onclick="document.getElementById('videoSearchInput') && document.getElementById('videoSearchInput').focus()">
+                        <i class="fas fa-magnifying-glass"></i> 全网搜片
+                    </button>
+                    <div class="tx-hero-nav-arrows">
+                        <button class="tx-hero-arrow-btn" onclick="window.stepTxHeroSlide && window.stepTxHeroSlide(-1)" title="上一部焦点大片"><i class="fas fa-chevron-left"></i></button>
+                        <button class="tx-hero-arrow-btn" onclick="window.stepTxHeroSlide && window.stepTxHeroSlide(1)" title="下一部焦点大片"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧腾讯视频同款悬浮联动选片导视栏 -->
+            <aside class="tx-hero-rail">
+                <div class="tx-rail-header">
+                    <span><i class="fas fa-bolt"></i> 重磅热播导视</span>
+                    <small style="font-size:10px; opacity:0.75;">悬停预览 · 点击秒播</small>
+                </div>
+                <div class="tx-rail-list" id="txHeroRailList"></div>
+            </aside>
+        </div>
+
         <!-- kanju 搜索栏 -->
         <div class="search-box">
             <div class="search-row">
@@ -4299,7 +4885,7 @@
     let currentCatalog = [];
     let currentChapterIndex = 0;
     let currentBookInfo = null;
-    let previousView = 'history';
+    let previousView = 'video';
     let currentHistoryTab = 'video';
     let currentFontSize = 17;
 
@@ -8058,16 +8644,19 @@
         updateCloudSyncUI(false);
         initLiquidGlassMouseFollower();
         setTimeout(() => {
-            updateTabGlider('history');
+            updateTabGlider('video');
             updateSubnavGlider(currentHistoryTab);
         }, 50);
+        if (typeof window.loadVideoFeed === 'function') {
+            window.loadVideoFeed();
+        }
+        renderHistoryModule();
         try {
             const res = await fetch('/api/info');
             appConfig = await res.json();
         } catch(e) {}
 
         initReaderScrollListener();
-        renderHistoryModule();
 
         // 若已登录云同步通行证，进站后自动静默拉取并合并多端最新进度
         const cloudUser = getCloudUser();
