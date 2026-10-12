@@ -515,30 +515,7 @@
         const picked = [];
         const usedNames = new Set();
 
-        // 优先挑选内置蓝光秒播大片 + 首屏热播大剧组成 7 部腾讯视频焦点剧目
-        const priorityNames = ['庆余年 第二季', '凡人修仙传', '兰香如故', '繁花', '斗破苍穹', '现在就出发 第4季', '仙逆', '狂飙', '我不是大师', '魅影神捕'];
-
-        priorityNames.forEach(pName => {
-            if (picked.length >= 7) return;
-            const idx = list.findIndex(item => item && (item.vod_name === pName || (item.vod_name && item.vod_name.includes(pName))));
-            if (idx !== -1 && !usedNames.has(list[idx].vod_name)) {
-                usedNames.add(list[idx].vod_name);
-                picked.push({ item: list[idx], globalIdx: idx });
-            }
-        });
-
-        // 若不足 7 部，从 KANJU_HOT_LIST 或 flatList 前列补齐
-        (window.KANJU_HOT_LIST || []).forEach(hotItem => {
-            if (picked.length >= 7 || !hotItem || usedNames.has(hotItem.vod_name)) return;
-            let idx = list.findIndex(it => it && it.vod_name === hotItem.vod_name);
-            if (idx === -1) {
-                idx = list.length;
-                list.push(hotItem);
-            }
-            usedNames.add(hotItem.vod_name);
-            picked.push({ item: hotItem, globalIdx: idx });
-        });
-
+        // 直接按首个推荐板块（大家都在看）的顺序从第 1 个推荐影视开始依次提取前 7 部进行全屏铺满展示
         for (let i = 0; i < list.length && picked.length < 7; i++) {
             const it = list[i];
             if (it && it.vod_name && it.vod_pic && !usedNames.has(it.vod_name)) {
@@ -553,17 +530,14 @@
 
         railEl.innerHTML = txHeroSlides.map((entry, idx) => {
             const it = entry.item;
-            const sub = it.vod_remarks || (it.type_name ? `${it.type_name} · ★${it.vod_score || '9.2'}` : '4K 超清热播');
             return `
-                <div class="tx-rail-item ${idx === txHeroActiveIdx ? 'active' : ''}"
+                <div class="tx-thumb-card ${idx === txHeroActiveIdx ? 'active' : ''}"
                      id="txRailItem_${idx}"
                      onmouseenter="window.selectTxHeroSlide(${idx})"
-                     onclick="window.handleTxRailClick(${idx})">
-                    <img class="tx-rail-thumb" src="${it.vod_pic}" alt="${it.vod_name}" referrerpolicy="no-referrer" onerror="this.src='https://api.iconify.design/lucide:film.svg?color=%23888'" />
-                    <div class="tx-rail-text">
-                        <div class="tx-rail-title">${it.vod_name}</div>
-                        <div class="tx-rail-sub">${sub}</div>
-                    </div>
+                     onclick="window.handleTxRailClick(${idx})"
+                     title="${it.vod_name}">
+                    <img src="${it.vod_pic}" alt="${it.vod_name}" referrerpolicy="no-referrer" onerror="this.src='https://api.iconify.design/lucide:film.svg?color=%23888'" />
+                    <div class="tx-thumb-caption">${it.vod_name}</div>
                 </div>
             `;
         }).join('');
@@ -585,7 +559,7 @@
             stageEl.addEventListener('touchend', (e) => {
                 if (e.changedTouches && e.changedTouches.length > 0 && txHeroTouchStartX) {
                     const dx = e.changedTouches[0].clientX - txHeroTouchStartX;
-                    if (Math.abs(dx) > 48) {
+                    if (Math.abs(dx) > 42) {
                         window.stepTxHeroSlide(dx < 0 ? 1 : -1);
                     }
                 }
@@ -604,10 +578,7 @@
 
         const bgAmbient = document.getElementById('txHeroBgAmbient');
         const bgPanoramic = document.getElementById('txHeroBgPanoramic');
-        const posterImg = document.getElementById('txHeroPosterImg');
-        const posterTag = document.getElementById('txHeroPosterTag');
         const rankBadge = document.getElementById('txHeroRankBadge');
-        const scoreBadge = document.getElementById('txHeroScoreBadge');
         const catBadge = document.getElementById('txHeroCatBadge');
         const titleEl = document.getElementById('txHeroTitle');
         const remarkEl = document.getElementById('txHeroRemark');
@@ -617,25 +588,28 @@
         const picUrl = it.vod_pic || '';
         if (bgAmbient) bgAmbient.style.backgroundImage = `url('${picUrl}')`;
         if (bgPanoramic) bgPanoramic.style.backgroundImage = `url('${picUrl}')`;
-        if (posterImg) posterImg.src = picUrl;
-        if (posterTag) posterTag.textContent = it.vod_play_url ? '蓝光秒播' : '4K 臻彩';
-        if (rankBadge) rankBadge.innerHTML = `<i class="fas fa-fire"></i> 热播焦点 TOP ${txHeroActiveIdx + 1}`;
-        if (scoreBadge) scoreBadge.textContent = `★ ${it.vod_score && it.vod_score !== '0.0' ? it.vod_score : '9.3'}`;
-        if (catBadge) catBadge.textContent = `${it.type_name || '精选剧集'} · ${it.vod_year || '2026'}`;
+        if (catBadge) catBadge.innerHTML = `<i class="fas fa-fire"></i> ${it.type_name || '热播剧集'}`;
+        if (rankBadge) rankBadge.innerHTML = `<i class="fas fa-trophy"></i> 热搜总榜第${txHeroActiveIdx + 1}名`;
         if (titleEl) titleEl.textContent = it.vod_name || '正在热播';
         if (remarkEl) remarkEl.textContent = it.vod_remarks || '全集超清连载';
         if (actorsEl) {
-            const actors = (it.vod_actor || '').split(/[,，]/).map(s => s.trim()).filter(Boolean).slice(0, 5).join(' / ');
-            actorsEl.textContent = actors ? `主演：${actors}` : '星穹院线全网聚合直连 · 零广告秒开';
+            const actors = (it.vod_actor || '').split(/[,，]/).map(s => s.trim()).filter(Boolean).slice(0, 4).join(' · ');
+            actorsEl.textContent = actors || `${it.type_name || '精选影视'} · ${it.vod_year || '2026'} · ★${it.vod_score || '9.2'}`;
         }
         if (descEl) {
             const customDesc = TX_HERO_CUSTOM_SYNOPSES[it.vod_name];
-            descEl.textContent = customDesc || cleanHtmlSummary(it.vod_content, `《${it.vod_name}》正在星穹视界巨幕热播中，支持多线路蓝光画质切换、自动跳过片头片尾及跨设备云端续播。`);
+            descEl.textContent = customDesc || cleanHtmlSummary(it.vod_content, `《${it.vod_name}》正在星穹视界热播，支持多线路超清画质秒播与跨端云同步续看。`);
         }
 
         txHeroSlides.forEach((_, i) => {
             const el = document.getElementById('txRailItem_' + i);
-            if (el) el.classList.toggle('active', i === txHeroActiveIdx);
+            if (el) {
+                const isActive = (i === txHeroActiveIdx);
+                el.classList.toggle('active', isActive);
+                if (isActive && window.innerWidth <= 860 && el.scrollIntoView) {
+                    try { el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch (e) {}
+                }
+            }
         });
 
         if (resetTimer) {

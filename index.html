@@ -1390,46 +1390,94 @@
         }
         /* 仿真书页左右翻页模式 (Paginated Book Mode) */
         .reader-wrapper.mode-paginated {
-            height: calc(100vh - 86px);
-            min-height: 520px;
-            overflow: hidden;
+            height: calc(100vh - 96px);
+            max-height: calc(100vh - 96px);
+            min-height: 460px;
+            overflow: hidden !important;
             display: flex;
             flex-direction: column;
-            padding: 26px 36px 42px;
+            padding: 24px 36px 46px;
             user-select: none;
+            position: relative;
+            touch-action: pan-y;
         }
         @media (max-width: 640px) {
             .reader-wrapper.mode-paginated {
-                height: 100vh;
-                height: 100dvh;
-                padding: calc(16px + env(safe-area-inset-top)) 16px calc(36px + env(safe-area-inset-bottom)) !important;
+                height: calc(100vh - 12px) !important;
+                height: calc(100dvh - 12px) !important;
+                max-height: calc(100dvh - 12px) !important;
+                min-height: 0 !important;
+                margin: 6px auto !important;
+                border-radius: 14px;
+                padding: calc(14px + env(safe-area-inset-top)) 16px calc(44px + env(safe-area-inset-bottom)) !important;
             }
         }
         .reader-paginated-viewport {
-            flex: 1;
+            flex: 1 1 auto;
             width: 100%;
-            overflow: hidden;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden !important;
             position: relative;
         }
         .reader-wrapper.mode-paginated .text-stream {
+            width: 100%;
             height: 100%;
-            column-width: calc(var(--reader-max-width, 820px) - 72px);
-            column-gap: 64px;
+            max-width: none !important;
+            overflow: visible !important;
+            overflow-x: visible !important;
+            overflow-y: visible !important;
             column-fill: auto;
-            transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-            padding: 0;
+            transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         .reader-book-footer {
             position: absolute;
-            left: 24px;
-            right: 24px;
-            bottom: 10px;
+            left: 16px;
+            right: 16px;
+            bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            opacity: 0.78;
+            z-index: 15;
+            pointer-events: auto;
+        }
+        .reader-footer-chap {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 0.75;
+        }
+        .reader-footer-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .reader-page-step-btn {
+            background: rgba(128, 128, 128, 0.14);
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            color: inherit;
             font-size: 11.5px;
-            opacity: 0.58;
-            pointer-events: none;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background 0.18s ease, transform 0.15s ease;
+        }
+        .reader-page-step-btn:hover {
+            background: rgba(56, 189, 248, 0.22);
+            border-color: rgba(56, 189, 248, 0.45);
+        }
+        .reader-page-step-btn:active {
+            transform: scale(0.94);
         }
         /* 顶部极细阅读进度条 */
         .reader-top-progress {
@@ -2804,529 +2852,403 @@
         }
 
         /* ============================================================================
-           🎬 腾讯视频 (v.qq.com) 同款首屏全宽铺满巨幕轮播海报墙 (#txHeroStage)
+           🎬 腾讯视频 (v.qq.com) 1:1 首屏第一推荐大片全屏铺满巨幕舞台 (#txHeroStage)
            ============================================================================ */
         .tx-hero-stage {
             position: relative;
             width: 100%;
-            min-height: 446px;
-            border-radius: 26px;
+            height: 520px;
             overflow: hidden;
             margin-bottom: 18px;
-            background: #06080f;
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            border-top-color: rgba(255, 255, 255, 0.32);
-            box-shadow:
-                inset 0 1px 2px rgba(255, 255, 255, 0.25),
-                0 24px 60px -12px rgba(0, 0, 0, 0.78),
-                0 0 40px -10px rgba(56, 189, 248, 0.2);
-            display: flex;
-            align-items: stretch;
-            justify-content: space-between;
+            background: var(--bg-base);
             user-select: none;
             isolation: isolate;
         }
-        /* 第1层：全屏动态高饱和流光背景底幕 (100% 铺满绝无黑边) */
+        /* PC 端突破容器边距，实现像腾讯视频一样的全屏顶天立地无边框铺满，同时左侧边栏呈现毛玻璃透景 */
+        @media (min-width: 1024px) {
+            body:not(.reading-mode) .sidebar {
+                background: rgba(8, 12, 21, 0.56) !important;
+                backdrop-filter: blur(22px) saturate(180%) !important;
+                -webkit-backdrop-filter: blur(22px) saturate(180%) !important;
+                border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+            }
+            .tx-hero-stage {
+                margin-top: -20px;
+                margin-left: -262px;
+                margin-right: -32px;
+                width: calc(100% + 294px);
+                padding-left: 262px;
+                height: 530px;
+                border-radius: 0;
+            }
+        }
+        @media (min-width: 861px) and (max-width: 1023px) {
+            .tx-hero-stage {
+                margin-top: -16px;
+                margin-left: -20px;
+                margin-right: -20px;
+                width: calc(100% + 40px);
+                height: 460px;
+                border-radius: 0;
+            }
+        }
+        /* 第1层：全画幅同色系高饱和氛围底幕 (消除任何比例黑边) */
         .tx-hero-bg-ambient {
             position: absolute;
-            inset: -24px;
+            inset: -32px;
             background-size: cover;
-            background-position: center center;
-            filter: blur(42px) saturate(220%) brightness(0.52);
-            transform: scale(1.18);
-            transition: background-image 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            background-position: center 22%;
+            filter: blur(36px) saturate(195%) brightness(0.62);
+            transform: scale(1.12);
+            transition: background-image 0.55s cubic-bezier(0.16, 1, 0.3, 1);
             z-index: 0;
             pointer-events: none;
         }
-        /* 第2层：右侧宽幅巨幕剧照视觉层 (带柔和边缘羽化遮罩) */
+        /* 第2层：第一推荐影视大图全幅铺满主视觉层 */
         .tx-hero-bg-panoramic {
             position: absolute;
-            top: 0;
-            right: 0;
-            width: 76%;
+            inset: 0;
+            width: 100%;
             height: 100%;
             background-size: cover;
             background-position: center 18%;
-            filter: contrast(1.08) saturate(1.12) brightness(0.86);
-            -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 18%, rgba(0,0,0,0.92) 45%, rgba(0,0,0,0.95) 76%, rgba(0,0,0,0.25) 100%);
-            mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 18%, rgba(0,0,0,0.92) 45%, rgba(0,0,0,0.95) 76%, rgba(0,0,0,0.25) 100%);
-            transition: background-image 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 6s ease-out;
-            transform: scale(1.04);
+            filter: contrast(1.05) saturate(1.08) brightness(0.94);
+            transition: background-image 0.55s cubic-bezier(0.16, 1, 0.3, 1), transform 6s ease-out;
+            transform: scale(1.01);
             z-index: 1;
-            pointer-events: none;
+            cursor: pointer;
         }
         .tx-hero-stage:hover .tx-hero-bg-panoramic {
-            transform: scale(1.08);
+            transform: scale(1.04);
         }
-        /* 第3层：腾讯视频标志性多向暗角渐变遮罩 (保证左侧大字与右侧选片栏绝对清晰) */
+        /* 第3层：腾讯视频同款底部无痕融入背景渐变 + 左下角文字暗角衬底 (不遮挡画面中心与人物) */
         .tx-hero-vignette {
             position: absolute;
             inset: 0;
             background:
-                linear-gradient(90deg, rgba(6, 8, 15, 0.96) 0%, rgba(6, 8, 15, 0.84) 34%, rgba(6, 8, 15, 0.26) 62%, rgba(6, 8, 15, 0.88) 100%),
-                linear-gradient(180deg, rgba(6, 8, 15, 0.42) 0%, transparent 28%, rgba(6, 8, 15, 0.28) 66%, rgba(6, 8, 15, 0.96) 100%);
+                radial-gradient(circle at 18% 82%, rgba(6, 8, 15, 0.78) 0%, rgba(6, 8, 15, 0.35) 36%, transparent 68%),
+                linear-gradient(180deg, rgba(6, 8, 15, 0.18) 0%, transparent 34%, rgba(6, 8, 15, 0.42) 72%, var(--bg-base) 100%);
             z-index: 2;
             pointer-events: none;
         }
-        /* 第4层：中右侧 3D 悬浮超清原画立牌 (解决竖版海报拉伸模糊，兼具立体景深) */
-        .tx-hero-poster-showcase {
+        /* 左下角腾讯视频风格无框纯净信息叠加区 */
+        .tx-hero-bottom-left {
             position: absolute;
-            right: 268px;
-            top: 50%;
-            transform: translateY(-50%) perspective(950px) rotateY(-12deg) rotateZ(1.2deg);
-            width: 186px;
-            aspect-ratio: 2 / 3;
-            border-radius: 18px;
-            overflow: hidden;
-            border: 1.5px solid rgba(255, 255, 255, 0.38);
-            box-shadow:
-                -18px 24px 48px rgba(0, 0, 0, 0.78),
-                0 0 32px rgba(56, 189, 248, 0.28),
-                inset 0 1px 2px rgba(255, 255, 255, 0.55);
-            z-index: 3;
-            cursor: pointer;
-            transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.45s ease;
-        }
-        .tx-hero-poster-showcase:hover {
-            transform: translateY(-52%) perspective(950px) rotateY(-4deg) rotateZ(0deg) scale(1.04);
-            box-shadow:
-                -12px 28px 56px rgba(0, 0, 0, 0.85),
-                0 0 42px rgba(56, 189, 248, 0.48);
-        }
-        .tx-hero-poster-showcase img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-        .tx-hero-poster-tag {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
-            color: #fff;
-            font-size: 10px;
-            font-weight: 800;
-            padding: 2px 8px;
-            border-radius: 999px;
-            box-shadow: 0 4px 12px rgba(234, 88, 12, 0.5);
-            letter-spacing: 0.5px;
-        }
-
-        /* 左侧大片焦点信息主舞台 */
-        .tx-hero-main {
-            position: relative;
+            left: 294px;
+            bottom: 28px;
             z-index: 4;
-            flex: 1;
-            min-width: 0;
-            padding: 28px 24px 26px 30px;
+            max-width: min(520px, calc(100% - 820px));
+            min-width: 280px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            max-width: calc(100% - 250px);
-        }
-        .tx-hero-brand-bar {
-            display: flex;
-            align-items: center;
             gap: 8px;
-            flex-wrap: wrap;
+            pointer-events: auto;
         }
-        .tx-hero-brand-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.8px;
-            background: rgba(15, 23, 42, 0.68);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(125, 211, 252, 0.38);
-            color: #e0f2fe;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+        @media (max-width: 1360px) and (min-width: 1024px) {
+            .tx-hero-bottom-left {
+                max-width: 420px;
+            }
         }
-        .tx-hero-brand-pill i {
-            color: #38bdf8;
-        }
-        .tx-hero-vip-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 10.5px;
-            font-weight: 800;
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.24) 0%, rgba(234, 88, 12, 0.24) 100%);
-            border: 1px solid rgba(251, 191, 36, 0.48);
-            color: #fde68a;
-        }
-        .tx-hero-info-body {
-            margin: auto 0 18px 0;
-            padding-top: 18px;
-            max-width: 500px;
-        }
-        .tx-hero-badges {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-        .tx-badge-rank {
-            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-            color: #fff;
-            font-size: 11px;
-            font-weight: 800;
-            padding: 3px 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .tx-badge-score {
-            background: rgba(16, 185, 129, 0.2);
-            border: 1px solid rgba(16, 185, 129, 0.48);
-            color: #34d399;
-            font-size: 11.5px;
-            font-weight: 800;
-            padding: 2.5px 9px;
-            border-radius: 8px;
-        }
-        .tx-badge-quality {
-            background: rgba(56, 189, 248, 0.16);
-            border: 1px solid rgba(56, 189, 248, 0.38);
-            color: #7dd3fc;
-            font-size: 10.5px;
-            font-weight: 700;
-            padding: 2.5px 8px;
-            border-radius: 8px;
-            letter-spacing: 0.4px;
-        }
-        .tx-badge-cat {
-            color: #cbd5e1;
-            font-size: 12px;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.08);
-            padding: 2.5px 10px;
-            border-radius: 8px;
+        @media (max-width: 1023px) and (min-width: 861px) {
+            .tx-hero-bottom-left {
+                left: 24px;
+                max-width: 45%;
+            }
         }
         .tx-hero-title {
-            font-size: 36px;
+            font-size: 44px;
             font-weight: 900;
-            line-height: 1.15;
-            letter-spacing: 0.5px;
-            margin: 0 0 10px 0;
+            line-height: 1.12;
+            letter-spacing: 1px;
+            margin: 0;
             color: #ffffff;
-            text-shadow: 0 4px 24px rgba(0, 0, 0, 0.85), 0 0 20px rgba(56, 189, 248, 0.22);
+            font-family: 'LXGW WenKai Screen', 'STKaiti', 'KaiTi', 'PingFang SC', serif;
+            text-shadow: 0 4px 22px rgba(0, 0, 0, 0.88), 0 2px 6px rgba(0, 0, 0, 0.95);
             cursor: pointer;
             display: -webkit-box;
             -webkit-line-clamp: 1;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        .tx-hero-cast {
-            font-size: 13px;
-            font-weight: 600;
-            color: #e2e8f0;
-            margin-bottom: 8px;
+        .tx-hero-meta-row {
             display: flex;
             align-items: center;
             gap: 8px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            font-weight: 700;
+            color: #f8fafc;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+        }
+        .tx-meta-fire {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #fff;
+        }
+        .tx-meta-fire i {
+            color: #fb923c;
+        }
+        .tx-meta-gold {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(217, 119, 6, 0.28) 100%);
+            border: 1px solid rgba(251, 191, 36, 0.55);
+            color: #fde68a;
+            font-size: 11.5px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 6px;
+            backdrop-filter: blur(8px);
+        }
+        .tx-meta-ep {
+            color: rgba(241, 245, 249, 0.9);
+            font-weight: 600;
+        }
+        .tx-hero-cast {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: rgba(241, 245, 249, 0.92);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .tx-hero-cast span.tx-ep-highlight {
-            color: #38bdf8;
-            font-weight: 700;
         }
         .tx-hero-desc {
-            font-size: 13px;
-            line-height: 1.65;
-            color: rgba(203, 213, 225, 0.86);
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: rgba(226, 232, 240, 0.88);
+            margin: 0;
+            white-space: nowrap;
             overflow: hidden;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+            text-overflow: ellipsis;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
         }
         .tx-hero-actions {
             display: flex;
             align-items: center;
             gap: 12px;
-            flex-wrap: wrap;
+            margin-top: 6px;
         }
+        /* 腾讯视频同款半透明毛玻璃圆角药丸【立即播放】按钮 */
         .tx-btn-play {
-            background: linear-gradient(135deg, #38bdf8 0%, #2563eb 55%, #7c3aed 100%);
+            background: rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
             color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.48);
-            border-top-color: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.28);
             border-radius: 999px;
-            padding: 12px 28px;
+            padding: 11px 28px;
             font-size: 15px;
-            font-weight: 800;
+            font-weight: 700;
             letter-spacing: 0.5px;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 9px;
-            box-shadow:
-                inset 0 1.5px 2px rgba(255, 255, 255, 0.65),
-                0 10px 28px -4px rgba(37, 99, 235, 0.65),
-                0 0 24px rgba(56, 189, 248, 0.45);
-            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .tx-btn-play:hover {
-            transform: translateY(-2px) scale(1.04);
-            box-shadow:
-                inset 0 2px 3px rgba(255, 255, 255, 0.85),
-                0 14px 34px -4px rgba(37, 99, 235, 0.8),
-                0 0 32px rgba(56, 189, 248, 0.65);
+            background: rgba(255, 255, 255, 0.28);
+            border-color: rgba(255, 255, 255, 0.55);
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
         }
         .tx-btn-play:active {
             transform: scale(0.97);
         }
-        .tx-btn-glass {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            color: #f8fafc;
-            border: 1px solid rgba(255, 255, 255, 0.24);
-            border-radius: 999px;
-            padding: 11px 20px;
-            font-size: 13.5px;
-            font-weight: 600;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            transition: all 0.22s ease;
-        }
-        .tx-btn-glass:hover {
-            background: rgba(255, 255, 255, 0.18);
-            border-color: rgba(255, 255, 255, 0.42);
-            transform: translateY(-1px);
-        }
-        .tx-hero-nav-arrows {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-left: 4px;
-        }
-        .tx-hero-arrow-btn {
-            width: 38px;
-            height: 38px;
+        .tx-btn-circle {
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
-            background: rgba(15, 23, 42, 0.62);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #e2e8f0;
+            background: rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            color: #ffffff;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            font-size: 15px;
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        .tx-hero-arrow-btn:hover {
-            background: rgba(56, 189, 248, 0.25);
-            border-color: rgba(56, 189, 248, 0.6);
-            color: #fff;
-            transform: scale(1.08);
+        .tx-btn-circle:hover {
+            background: rgba(255, 255, 255, 0.26);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.06);
         }
 
-        /* 腾讯视频标志性右侧悬浮选片导视栏 (#txHeroRail) */
-        .tx-hero-rail {
-            position: relative;
+        /* 右下角腾讯视频同款横向半透明海报缩略图卡片矩阵 + 右侧 > 翻页箭头 */
+        .tx-hero-thumb-strip {
+            position: absolute;
+            right: 28px;
+            bottom: 26px;
             z-index: 4;
-            width: 246px;
-            flex-shrink: 0;
-            background: linear-gradient(180deg, rgba(10, 14, 24, 0.76) 0%, rgba(10, 14, 24, 0.88) 100%);
-            backdrop-filter: blur(26px) saturate(180%);
-            -webkit-backdrop-filter: blur(26px) saturate(180%);
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 14px 12px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            gap: 6px;
-        }
-        .tx-rail-header {
-            font-size: 11.5px;
-            font-weight: 800;
-            color: #94a3b8;
-            letter-spacing: 1px;
-            padding: 0 6px 6px 6px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .tx-rail-header span {
-            color: #38bdf8;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .tx-rail-list {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            flex: 1;
-            justify-content: center;
-        }
-        .tx-rail-item {
-            position: relative;
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 7px 9px;
-            border-radius: 13px;
-            cursor: pointer;
-            background: transparent;
-            border: 1px solid transparent;
-            transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .tx-rail-list {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .tx-thumb-card {
+            position: relative;
+            width: 64px;
+            height: 88px;
+            border-radius: 10px;
             overflow: hidden;
+            cursor: pointer;
+            flex-shrink: 0;
+            border: 1.5px solid rgba(255, 255, 255, 0.22);
+            background: rgba(15, 23, 42, 0.55);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+            opacity: 0.76;
+            transition: all 0.26s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .tx-rail-item:hover {
-            background: rgba(255, 255, 255, 0.06);
+        .tx-thumb-card:hover {
+            opacity: 0.95;
+            transform: translateY(-3px);
         }
-        .tx-rail-item.active {
-            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(99, 102, 241, 0.16) 100%);
-            border-color: rgba(56, 189, 248, 0.42);
-            box-shadow: 0 6px 18px -4px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.22);
-            transform: translateX(-3px);
+        .tx-thumb-card.active {
+            opacity: 1;
+            transform: translateY(-5px) scale(1.08);
+            border: 2px solid #ffffff;
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.78), 0 0 16px rgba(255, 255, 255, 0.35);
         }
-        .tx-rail-item.active::before {
-            content: '';
+        .tx-thumb-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .tx-thumb-caption {
             position: absolute;
             left: 0;
-            top: 18%;
-            bottom: 18%;
-            width: 3.5px;
-            border-radius: 0 4px 4px 0;
-            background: linear-gradient(180deg, #38bdf8, #a855f7);
-            box-shadow: 0 0 8px #38bdf8;
+            right: 0;
+            bottom: 0;
+            padding: 12px 4px 4px;
+            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.86) 100%);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .tx-rail-thumb {
+        .tx-thumb-next-btn {
             width: 34px;
-            height: 44px;
-            border-radius: 7px;
-            object-fit: cover;
-            flex-shrink: 0;
+            height: 88px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.48);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.18);
-        }
-        .tx-rail-text {
-            min-width: 0;
-            flex: 1;
-        }
-        .tx-rail-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: rgba(241, 245, 249, 0.78);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            transition: color 0.2s ease, font-size 0.2s ease;
-        }
-        .tx-rail-item.active .tx-rail-title {
-            font-size: 14px;
-            font-weight: 800;
             color: #ffffff;
-            text-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.2s ease;
         }
-        .tx-rail-sub {
-            font-size: 10.5px;
-            color: rgba(148, 163, 184, 0.72);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-top: 1px;
+        .tx-thumb-next-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.45);
         }
-        .tx-rail-item.active .tx-rail-sub {
-            color: #7dd3fc;
-        }
-        @media (max-width: 1120px) {
-            .tx-hero-poster-showcase {
-                display: none;
-            }
-        }
+
+        /* 移动端全面适配：顶部无边框铺满 + 左下精炼文字 + 底部横向缩略图滑条 */
         @media (max-width: 860px) {
             .tx-hero-stage {
-                flex-direction: column;
-                min-height: 390px;
-                border-radius: 22px;
+                margin: -10px -10px 14px -10px;
+                width: calc(100% + 20px);
+                height: 360px;
+                border-radius: 0;
             }
             .tx-hero-bg-panoramic {
-                width: 100%;
-                height: 78%;
-                -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.75) 55%, transparent 100%);
-                mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.75) 55%, transparent 100%);
+                background-position: center 15%;
             }
             .tx-hero-vignette {
                 background:
-                    linear-gradient(180deg, rgba(6, 8, 15, 0.35) 0%, rgba(6, 8, 15, 0.55) 42%, rgba(6, 8, 15, 0.96) 82%, #06080f 100%);
+                    linear-gradient(180deg, rgba(6, 8, 15, 0.15) 0%, transparent 32%, rgba(6, 8, 15, 0.72) 68%, var(--bg-base) 100%);
             }
-            .tx-hero-main {
+            .tx-hero-bottom-left {
+                left: 14px;
+                right: 14px;
+                bottom: 84px;
                 max-width: 100%;
-                padding: 16px 16px 12px 16px;
-            }
-            .tx-hero-info-body {
-                padding-top: 28px;
-                margin-bottom: 14px;
+                min-width: 0;
+                gap: 5px;
             }
             .tx-hero-title {
-                font-size: 24px;
+                font-size: 26px;
+            }
+            .tx-hero-meta-row {
+                font-size: 11.5px;
+                gap: 6px;
+            }
+            .tx-meta-gold {
+                font-size: 10.5px;
+                padding: 1.5px 6px;
             }
             .tx-hero-cast {
                 font-size: 12px;
             }
             .tx-hero-desc {
                 font-size: 12px;
-                -webkit-line-clamp: 2;
+            }
+            .tx-hero-actions {
+                margin-top: 2px;
+                gap: 8px;
             }
             .tx-btn-play {
-                padding: 10px 20px;
-                font-size: 13.5px;
+                padding: 8px 20px;
+                font-size: 13px;
             }
-            .tx-btn-glass {
-                padding: 9px 14px;
-                font-size: 12.5px;
+            .tx-btn-circle {
+                width: 34px;
+                height: 34px;
+                font-size: 13px;
             }
-            .tx-hero-rail {
-                width: 100%;
-                border-left: none;
-                border-top: 1px solid rgba(255, 255, 255, 0.08);
-                padding: 10px 12px;
-                background: rgba(8, 11, 19, 0.86);
-            }
-            .tx-rail-header {
-                display: none;
+            .tx-hero-thumb-strip {
+                left: 14px;
+                right: 14px;
+                bottom: 10px;
+                justify-content: space-between;
             }
             .tx-rail-list {
-                flex-direction: row;
                 overflow-x: auto;
-                justify-content: flex-start;
-                gap: 8px;
                 scrollbar-width: none;
+                gap: 7px;
+                padding: 4px 2px;
+                flex: 1;
             }
             .tx-rail-list::-webkit-scrollbar {
                 display: none;
             }
-            .tx-rail-item {
+            .tx-thumb-card {
+                width: 46px;
+                height: 62px;
+                border-radius: 8px;
+            }
+            .tx-thumb-card.active {
+                transform: translateY(-2px) scale(1.05);
+            }
+            .tx-thumb-caption {
+                font-size: 8.5px;
+                padding: 8px 2px 2px;
+            }
+            .tx-thumb-next-btn {
+                width: 28px;
+                height: 62px;
+                border-radius: 8px;
+                font-size: 13px;
                 flex-shrink: 0;
-                width: 138px;
-                padding: 6px 8px;
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-            }
-            .tx-rail-item.active {
-                transform: none;
-            }
-            .tx-rail-item.active::before {
-                display: none;
             }
         }
     </style>
@@ -3679,63 +3601,40 @@
 
     <!-- 默认首页：影视巨幕专区 (腾讯视频级首屏铺满焦点海报墙 + 全网片源秒播) -->
     <section id="videoSection" style="display: block;">
-        <!-- 🎬 腾讯视频 (v.qq.com) 同款全宽铺满巨幕焦点海报墙 -->
+        <!-- 🎬 腾讯视频 (v.qq.com) 1:1 首屏第一推荐大片全屏铺满巨幕焦点墙 -->
         <div class="tx-hero-stage" id="txHeroStage" onmouseenter="window.pauseTxHeroCarousel && window.pauseTxHeroCarousel()" onmouseleave="window.resumeTxHeroCarousel && window.resumeTxHeroCarousel()">
-            <!-- 1. 动态高饱和流光全屏铺满底幕 -->
-            <div class="tx-hero-bg-ambient" id="txHeroBgAmbient" style="background-image: url('https://img.lzipic.com/upload/vod/20240516-1/a6531f51b9ed9393d6647aa8d5340ca0.jpg');"></div>
-            <!-- 2. 右侧宽幅巨幕视觉剧照层 -->
-            <div class="tx-hero-bg-panoramic" id="txHeroBgPanoramic" style="background-image: url('https://img.lzipic.com/upload/vod/20240516-1/a6531f51b9ed9393d6647aa8d5340ca0.jpg');"></div>
-            <!-- 3. 多向暗角电影感遮罩 -->
+            <!-- 1. 全画幅同色系高饱和流光氛围底幕 -->
+            <div class="tx-hero-bg-ambient" id="txHeroBgAmbient" style="background-image: url('https://gimg0.baidu.com/gimg/app=2001&n=0&g=0n&fmt=webp&src=img.baipiaozhe.com/assets/images/39/395f51655ac5559d3e06f1800cf8f468577e0d98dab315b979bdc8c0b48a60c0.webp');"></div>
+            <!-- 2. 第一推荐影视大图全幅铺满主视觉层 -->
+            <div class="tx-hero-bg-panoramic" id="txHeroBgPanoramic" onclick="window.playCurrentTxHero && window.playCurrentTxHero()" style="background-image: url('https://gimg0.baidu.com/gimg/app=2001&n=0&g=0n&fmt=webp&src=img.baipiaozhe.com/assets/images/39/395f51655ac5559d3e06f1800cf8f468577e0d98dab315b979bdc8c0b48a60c0.webp');"></div>
+            <!-- 3. 底部无痕渐变遮罩 (不遮挡画面主体) -->
             <div class="tx-hero-vignette"></div>
-            <!-- 4. 中右侧 3D 悬浮超清原画立牌 -->
-            <div class="tx-hero-poster-showcase" id="txHeroPosterCard" onclick="window.playCurrentTxHero && window.playCurrentTxHero()" title="点击立即播放">
-                <img id="txHeroPosterImg" src="https://img.lzipic.com/upload/vod/20240516-1/a6531f51b9ed9393d6647aa8d5340ca0.jpg" alt="焦点海报" referrerpolicy="no-referrer" />
-                <span class="tx-hero-poster-tag" id="txHeroPosterTag">臻彩 MAX</span>
-            </div>
 
-            <!-- 左侧大片焦点信息主舞台 -->
-            <div class="tx-hero-main">
-                <div class="tx-hero-brand-bar">
-                    <span class="tx-hero-brand-pill"><i class="fas fa-compass"></i> 星穹视界 · AETHER 巨幕院线</span>
-                    <span class="tx-hero-vip-pill"><i class="fas fa-crown"></i> 腾讯臻彩视听 · 全免直连</span>
+            <!-- 左下角腾讯视频风格无框纯净信息叠加区 -->
+            <div class="tx-hero-bottom-left">
+                <h2 class="tx-hero-title" id="txHeroTitle" onclick="window.playCurrentTxHero && window.playCurrentTxHero()">现在就出发 第4季</h2>
+                <div class="tx-hero-meta-row">
+                    <span class="tx-meta-fire" id="txHeroCatBadge"><i class="fas fa-fire"></i> 大陆综艺</span>
+                    <span class="tx-meta-gold" id="txHeroRankBadge"><i class="fas fa-trophy"></i> 热搜总榜第1名</span>
+                    <span class="tx-meta-ep" id="txHeroRemark">2026-10-11 第1期 下 正片</span>
                 </div>
-                <div class="tx-hero-info-body">
-                    <div class="tx-hero-badges">
-                        <span class="tx-badge-rank" id="txHeroRankBadge"><i class="fas fa-fire"></i> 全网热播 TOP 1</span>
-                        <span class="tx-badge-score" id="txHeroScoreBadge">★ 9.2</span>
-                        <span class="tx-badge-quality">4K HDR · 杜比全景声</span>
-                        <span class="tx-badge-cat" id="txHeroCatBadge">国产剧 · 2024</span>
-                    </div>
-                    <h2 class="tx-hero-title" id="txHeroTitle" onclick="window.playCurrentTxHero && window.playCurrentTxHero()">庆余年 第二季</h2>
-                    <div class="tx-hero-cast" id="txHeroCast">
-                        <span class="tx-ep-highlight" id="txHeroRemark">全36集蓝光秒播</span>
-                        <span>·</span>
-                        <span id="txHeroActors">张若昀 / 李沁 / 陈道明 / 吴刚 / 郭麒麟</span>
-                    </div>
-                    <p class="tx-hero-desc" id="txHeroDesc">该剧改编自猫腻同名畅销小说，承接上季，范闲率领使团回归途中，朝堂暗流汹涌，抱月楼迷局与春闱危机接踵而至，范闲下江南彻底夺回内库！</p>
-                </div>
+                <div class="tx-hero-cast" id="txHeroActors">沈腾 · 白敬亭 · 贾冰 · 王安宇</div>
+                <p class="tx-hero-desc" id="txHeroDesc">沈腾、白敬亭、贾冰、王安宇原班熟人局爆笑回归！山野露营与高能游戏名场面密集轰炸。</p>
                 <div class="tx-hero-actions">
                     <button class="tx-btn-play" id="txHeroPlayBtn" onclick="window.playCurrentTxHero && window.playCurrentTxHero()">
-                        <i class="fas fa-play"></i> 立即播放正片
+                        <i class="fas fa-play"></i> 立即播放
                     </button>
-                    <button class="tx-btn-glass" onclick="document.getElementById('videoSearchInput') && document.getElementById('videoSearchInput').focus()">
-                        <i class="fas fa-magnifying-glass"></i> 全网搜片
+                    <button class="tx-btn-circle" onclick="document.getElementById('videoSearchInput') && document.getElementById('videoSearchInput').focus()" title="全网搜片">
+                        <i class="fas fa-magnifying-glass"></i>
                     </button>
-                    <div class="tx-hero-nav-arrows">
-                        <button class="tx-hero-arrow-btn" onclick="window.stepTxHeroSlide && window.stepTxHeroSlide(-1)" title="上一部焦点大片"><i class="fas fa-chevron-left"></i></button>
-                        <button class="tx-hero-arrow-btn" onclick="window.stepTxHeroSlide && window.stepTxHeroSlide(1)" title="下一部焦点大片"><i class="fas fa-chevron-right"></i></button>
-                    </div>
                 </div>
             </div>
 
-            <!-- 右侧腾讯视频同款悬浮联动选片导视栏 -->
-            <aside class="tx-hero-rail">
-                <div class="tx-rail-header">
-                    <span><i class="fas fa-bolt"></i> 重磅热播导视</span>
-                    <small style="font-size:10px; opacity:0.75;">悬停预览 · 点击秒播</small>
-                </div>
+            <!-- 右下角腾讯视频同款横向半透明海报缩略图卡片矩阵 + > 翻页按钮 -->
+            <div class="tx-hero-thumb-strip">
                 <div class="tx-rail-list" id="txHeroRailList"></div>
-            </aside>
+                <button class="tx-thumb-next-btn" onclick="window.stepTxHeroSlide && window.stepTxHeroSlide(1)" title="下一部推荐"><i class="fas fa-chevron-right"></i></button>
+            </div>
         </div>
 
         <!-- kanju 搜索栏 -->
@@ -6828,6 +6727,8 @@
         } catch (e) {}
     }
 
+    let _paginatedColGap = 64;
+
     function renderNovelIntoContainer(formatted, chapTitle, idx) {
         const container = document.getElementById('readerContainer');
         const bottomPager = document.getElementById('readerBottomPager');
@@ -6845,16 +6746,25 @@
                     <article class="text-stream heti" id="novelArticleStream">
                         ${formatted.headerHtml}
                         ${formatted.bodyHtml}
+                        <span id="paginatedEndSentinel" style="display:inline-block; width:1px; height:1px; vertical-align:bottom;"></span>
                     </article>
                 </div>
                 <div class="reader-book-footer">
-                    <span id="paginatedFooterLeft">${escapeNovelHtml(chapTitle)}</span>
-                    <span id="paginatedFooterRight">第 1 / 1 页 · 点击左右侧翻页</span>
+                    <span class="reader-footer-chap" id="paginatedFooterLeft">${escapeNovelHtml(chapTitle)}</span>
+                    <div class="reader-footer-nav">
+                        <button type="button" class="reader-page-step-btn" onclick="event.stopPropagation(); turnPaginatedPage(-1)">‹ 上一页</button>
+                        <span id="paginatedFooterRight">第 1 / 1 页</span>
+                        <button type="button" class="reader-page-step-btn" onclick="event.stopPropagation(); turnPaginatedPage(1)">下一页 ›</button>
+                    </div>
                 </div>
             `;
             applyHetiTypography();
             _paginatedCurrentPage = 0;
-            requestAnimationFrame(() => recalcPaginatedLayout());
+            window.scrollTo({ top: 0, behavior: 'auto' });
+            requestAnimationFrame(() => {
+                recalcPaginatedLayout();
+                setTimeout(() => recalcPaginatedLayout(), 120);
+            });
         } else {
             if (bottomPager) bottomPager.style.display = 'flex';
             container.innerHTML = formatted.fullScrollHtml;
@@ -6871,32 +6781,56 @@
         const stream = document.getElementById('novelArticleStream');
         if (!viewport || !stream) return;
 
-        const pageWidth = viewport.clientWidth;
-        if (pageWidth <= 0) return;
-        const colGap = 64;
-        stream.style.columnWidth = pageWidth + 'px';
-        stream.style.columnGap = colGap + 'px';
+        const pageWidth = Math.max(1, viewport.clientWidth);
+        const pageHeight = Math.max(1, viewport.clientHeight);
+        if (pageWidth <= 10 || pageHeight <= 10) return;
 
-        const totalScrollWidth = stream.scrollWidth;
-        const stride = pageWidth + colGap;
-        _paginatedTotalPages = Math.max(1, Math.round((totalScrollWidth + colGap) / stride));
+        _paginatedColGap = window.innerWidth <= 640 ? 32 : 64;
+        stream.style.transition = 'none';
+        stream.style.transform = 'none';
+        stream.style.width = pageWidth + 'px';
+        stream.style.height = pageHeight + 'px';
+        stream.style.columnWidth = pageWidth + 'px';
+        stream.style.columnGap = _paginatedColGap + 'px';
+
+        // 强制浏览器同步完成多栏排版并读取最右侧哨兵节点的真实像素跨度
+        void stream.offsetWidth;
+        let contentWidth = stream.scrollWidth;
+        const sentinel = document.getElementById('paginatedEndSentinel');
+        if (sentinel) {
+            const sRect = sentinel.getBoundingClientRect();
+            const stRect = stream.getBoundingClientRect();
+            const measured = Math.ceil(sRect.right - stRect.left);
+            if (measured > contentWidth) contentWidth = measured;
+        }
+
+        const stride = pageWidth + _paginatedColGap;
+        _paginatedTotalPages = Math.max(1, Math.ceil((contentWidth - 4) / stride));
         if (_paginatedCurrentPage >= _paginatedTotalPages) {
             _paginatedCurrentPage = _paginatedTotalPages - 1;
         }
-        applyPaginatedTransform();
+        if (_paginatedCurrentPage < 0) {
+            _paginatedCurrentPage = 0;
+        }
+
+        applyPaginatedTransform(false);
+        requestAnimationFrame(() => {
+            if (stream) stream.style.transition = '';
+        });
     }
 
-    function applyPaginatedTransform() {
+    function applyPaginatedTransform(animate = true) {
         const viewport = document.getElementById('readerPaginatedViewport');
         const stream = document.getElementById('novelArticleStream');
         if (!viewport || !stream) return;
-        const stride = viewport.clientWidth + 64;
+        if (!animate) stream.style.transition = 'none';
+        const stride = viewport.clientWidth + _paginatedColGap;
         const offset = -(_paginatedCurrentPage * stride);
         stream.style.transform = `translate3d(${offset}px, 0, 0)`;
 
         const rightFooter = document.getElementById('paginatedFooterRight');
         if (rightFooter) {
-            rightFooter.innerText = `第 ${_paginatedCurrentPage + 1} / ${_paginatedTotalPages} 页 · 第 ${currentChapterIndex + 1}/${currentCatalog.length} 章`;
+            rightFooter.innerText = `${_paginatedCurrentPage + 1} / ${_paginatedTotalPages} 页`;
         }
         const topBar = document.getElementById('readerTopProgressBar');
         if (topBar) {
@@ -6921,7 +6855,7 @@
             return;
         }
         _paginatedCurrentPage = target;
-        applyPaginatedTransform();
+        applyPaginatedTransform(true);
     }
 
     let _activeChapterFetchController = null;
@@ -7260,6 +7194,10 @@
         }
     }
 
+    let _readerTouchStartX = 0;
+    let _readerTouchStartY = 0;
+    let _lastTouchTurnTime = 0;
+
     function initReaderScrollListener() {
         window.addEventListener('scroll', () => {
             if (!document.body.classList.contains('reading-mode')) return;
@@ -7289,27 +7227,55 @@
                 recalcPaginatedLayout();
             }
         });
+
+        // 移动端左右滑屏翻页手势支持 (仿真翻页模式)
+        const readerEl = document.getElementById('readerContainer');
+        if (readerEl) {
+            readerEl.addEventListener('touchstart', (e) => {
+                if (currentReaderMode !== 'paginated' || !_lastRenderedNovelData) return;
+                if (e.touches && e.touches.length === 1) {
+                    _readerTouchStartX = e.touches[0].clientX;
+                    _readerTouchStartY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            readerEl.addEventListener('touchend', (e) => {
+                if (currentReaderMode !== 'paginated' || !_lastRenderedNovelData || !_readerTouchStartX) return;
+                if (e.changedTouches && e.changedTouches.length === 1) {
+                    const dx = e.changedTouches[0].clientX - _readerTouchStartX;
+                    const dy = e.changedTouches[0].clientY - _readerTouchStartY;
+                    if (Math.abs(dx) > 32 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+                        _lastTouchTurnTime = Date.now();
+                        turnPaginatedPage(dx < 0 ? 1 : -1);
+                    }
+                }
+                _readerTouchStartX = 0;
+                _readerTouchStartY = 0;
+            }, { passive: true });
+        }
     }
 
     function handleReaderContainerClick(e) {
-        if (e && e.target && (e.target.closest('button') || e.target.closest('.modal-card') || e.target.closest('.pager') || e.target.closest('.reader-toolbar'))) {
+        if (Date.now() - _lastTouchTurnTime < 350) return;
+        if (e && e.target && (e.target.closest('button') || e.target.closest('.modal-card') || e.target.closest('.pager') || e.target.closest('.reader-toolbar') || e.target.closest('.reader-book-footer'))) {
             return;
         }
         if (window.getSelection && window.getSelection().toString().trim().length > 0) {
             return;
         }
 
-        // 仿真书页翻页模式下：点击左侧 32% 区域上一页，点击右侧 32% 区域下一页，点击中间 36% 呼出菜单
+        // 仿真书页翻页模式下：点击左侧 36% 区域上一页，点击右侧 36% 区域下一页，点击中间 28% 呼出菜单
         if (currentReaderMode === 'paginated' && _lastRenderedNovelData) {
             const container = document.getElementById('readerContainer');
             if (container && e) {
                 const rect = container.getBoundingClientRect();
-                const relX = (e.clientX - rect.left) / Math.max(1, rect.width);
-                if (relX < 0.32) {
+                const clientX = typeof e.clientX === 'number' ? e.clientX : (rect.left + rect.width / 2);
+                const relX = (clientX - rect.left) / Math.max(1, rect.width);
+                if (relX < 0.36) {
                     turnPaginatedPage(-1);
                     return;
                 }
-                if (relX > 0.68) {
+                if (relX > 0.64) {
                     turnPaginatedPage(1);
                     return;
                 }
