@@ -194,54 +194,76 @@
 ];
 
 
-    // 人性化线路标签格式化 (参考原站，线路1·极速蓝光 [量子源] 杜绝 FEIFAN/FFM3U8 占位符)
-    function formatFriendlyLineName(rawName, index) {
+    // 判断是否为原站主力源（量子、非凡、暴风 —— 速度最快、画质最佳、弹幕时间轴最准）
+    function getRoutePriorityScore(rawName, sampleUrl) {
+        const name = String(rawName || '').trim();
+        const lower = name.toLowerCase();
+        const urlStr = String(sampleUrl || '').toLowerCase();
+        if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz') || urlStr.includes('lzi')) return 100;
+        if (name.includes('非凡') || lower.includes('feifan') || lower.includes('ff') || urlStr.includes('ffzy')) return 95;
+        if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf') || urlStr.includes('bfzy') || urlStr.includes('bvvvv')) return 90;
+        if (name.includes('红牛') || lower.includes('hn') || lower.includes('hongniu')) return 55;
+        if (name.includes('金鹰') || lower.includes('jy') || lower.includes('jinying')) return 50;
+        if (name.includes('百度') || lower.includes('bd') || lower.includes('baidu')) return 45;
+        if (name.includes('360') || lower.includes('360zy')) return 42;
+        if (name.includes('如意') || lower.includes('ry') || lower.includes('ruyi')) return 40;
+        if (name.includes('速播') || lower.includes('subo') || lower.includes('sb')) return 38;
+        if (name.includes('ikun')) return 35;
+        if (name.includes('魔都') || lower.includes('modu') || lower.includes('md')) return 32;
+        if (name.includes('无尽') || lower.includes('wj') || lower.includes('wujin')) return 30;
+        if (name.includes('光速') || lower.includes('gs') || lower.includes('guangsu')) return 28;
+        return 20;
+    }
+
+    // 人性化线路标签格式化 (原站三大主源优先置顶并标注主力弹幕源，其余作为备用专线)
+    function formatFriendlyLineName(rawName, index, sampleUrl) {
         if (!rawName) return '线路' + (index + 1) + ' · 极速专线';
         const name = String(rawName).trim();
         const lower = name.toLowerCase();
-        if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi')) {
-            return '线路' + (index + 1) + ' · 极速蓝光 [量子源] (4K秒播)';
+        const urlStr = String(sampleUrl || '').toLowerCase();
+        if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz')) {
+            return '★ 主线' + (index + 1) + ' · 量子蓝光 (原站秒播·弹幕)';
         }
-        if (name.includes('非凡') || lower.includes('feifan') || lower.includes('ffm3u8') || lower.includes('ff')) {
-            return '线路' + (index + 1) + ' · 超清专线 [非凡源] (1080P)';
+        if (name.includes('非凡') || lower.includes('feifan') || lower.includes('ffm3u8') || lower.includes('ff') || urlStr.includes('ffzy')) {
+            return '★ 主线' + (index + 1) + ' · 非凡超清 (原站1080P·弹幕)';
         }
-        if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf')) {
-            return '线路' + (index + 1) + ' · 稳定直连 [暴风源] (高速防卡)';
+        if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf') || urlStr.includes('bvvvv')) {
+            return '★ 主线' + (index + 1) + ' · 暴风直连 (原站防卡·弹幕)';
         }
         if (name.includes('红牛') || lower.includes('hongniu') || lower.includes('hn') || lower.includes('hnm3u8')) {
-            return '线路' + (index + 1) + ' · 高速专线 [红牛源] (91ms极速)';
+            return '备用' + (index + 1) + ' · 红牛高速专线';
         }
         if (name.includes('金鹰') || lower.includes('jinying') || lower.includes('jy') || lower.includes('jinyingm3u8')) {
-            return '线路' + (index + 1) + ' · 蓝光专线 [金鹰源] (1080P)';
+            return '备用' + (index + 1) + ' · 金鹰蓝光专线';
         }
         if (name.includes('百度') || lower.includes('baidu') || lower.includes('bd') || lower.includes('apibdzy')) {
-            return '线路' + (index + 1) + ' · 超清专线 [百度源]';
+            return '备用' + (index + 1) + ' · 百度超清专线';
         }
         if (name.includes('速播') || lower.includes('subo') || lower.includes('sb')) {
-            return '线路' + (index + 1) + ' · 急速专线 [速播源]';
+            return '备用' + (index + 1) + ' · 速播极速专线';
         }
         if (name.includes('iKun') || name.includes('ikun') || lower.includes('ikun')) {
-            return '线路' + (index + 1) + ' · 超清专线 [iKun源]';
+            return '备用' + (index + 1) + ' · iKun超清专线';
         }
         if (name.includes('如意') || lower.includes('ruyi') || lower.includes('ry')) {
-            return '线路' + (index + 1) + ' · 稳定专线 [如意源]';
+            return '备用' + (index + 1) + ' · 如意稳定专线';
         }
         if (name.includes('魔都') || lower.includes('modu') || lower.includes('md')) {
-            return '线路' + (index + 1) + ' · 动漫剧集 [魔都源]';
+            return '备用' + (index + 1) + ' · 魔都动漫专线';
         }
         if (name.includes('无尽') || lower.includes('wujin') || lower.includes('wj') || lower.includes('wjm3u8')) {
-            return '线路' + (index + 1) + ' · 无尽专线 (海量资源)';
+            return '备用' + (index + 1) + ' · 无尽海量专线';
         }
         if (name.includes('光速') || lower.includes('guangsu') || lower.includes('gs') || lower.includes('gsm3u8')) {
-            return '线路' + (index + 1) + ' · 光速蓝光专线';
+            return '备用' + (index + 1) + ' · 光速蓝光专线';
         }
         if (name.includes('360') || lower.includes('360zy')) {
-            return '线路' + (index + 1) + ' · 360超清专线';
+            return '备用' + (index + 1) + ' · 360超清专线';
         }
         if (/[\u4e00-\u9fa5]/.test(name)) {
-            return '线路' + (index + 1) + ' · ' + name;
+            return '备用' + (index + 1) + ' · ' + name;
         }
-        return '线路' + (index + 1) + ' · 超清专线';
+        return '备用' + (index + 1) + ' · 超清专线';
     }
 
     const VIDEO_HISTORY_KEY = 'openreader_video_history';
@@ -1006,7 +1028,8 @@
         }
 
         window.currentVideo = item;
-        window.currentGroupIdx = 0;
+        window._failedRouteSet = new Set();
+        window._autoSwitchCount = 0;
 
         const playFroms = (item.vod_play_from || '默认线路').split('$$$');
         const playGroups = (item.vod_play_url || '').split('$$$');
@@ -1035,7 +1058,15 @@
             parsedGroups = streamGroups;
         }
 
+        // 严格按优先级排序：原站三大弹幕主源（量子、非凡、暴风）永远排在最前，其余作为备用专线
+        parsedGroups.sort((a, b) => {
+            const scoreA = getRoutePriorityScore(a.name, a.episodes[0] && a.episodes[0].url);
+            const scoreB = getRoutePriorityScore(b.name, b.episodes[0] && b.episodes[0].url);
+            return scoreB - scoreA;
+        });
+
         window.currentVideo.groups = parsedGroups;
+        window.currentGroupIdx = window.selectBestVideoRoute(parsedGroups, targetEpIdx);
 
         const vSection = document.getElementById('videoSection');
         if (vSection) vSection.style.display = 'none';
@@ -1055,7 +1086,7 @@
 
         window.loadVideoComments(item);
         window.renderVideoSourceTabs(parsedGroups);
-        window.renderVideoEpisodes(0);
+        window.renderVideoEpisodes(window.currentGroupIdx);
         window.playVideoEpisode(targetEpIdx);
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -1072,6 +1103,8 @@
                     const extraFroms = (match.vod_play_from || '').split('$$$').filter(Boolean);
                     const extraUrls = (match.vod_play_url || '').split('$$$').filter(Boolean);
                     let added = false;
+                    const currentActiveGroup = window.currentVideo.groups[window.currentGroupIdx];
+                    const currentActiveName = currentActiveGroup ? currentActiveGroup.name : '';
                     extraUrls.forEach((gStr, gIdx) => {
                         const fName = extraFroms[gIdx] || ('备用' + (gIdx + 1));
                         if (window.currentVideo.groups.some(g => g.name === fName)) return;
@@ -1085,6 +1118,15 @@
                         }
                     });
                     if (added) {
+                        window.currentVideo.groups.sort((a, b) => {
+                            const scoreA = getRoutePriorityScore(a.name, a.episodes[0] && a.episodes[0].url);
+                            const scoreB = getRoutePriorityScore(b.name, b.episodes[0] && b.episodes[0].url);
+                            return scoreB - scoreA;
+                        });
+                        if (currentActiveName) {
+                            const newIdx = window.currentVideo.groups.findIndex(g => g.name === currentActiveName);
+                            if (newIdx !== -1) window.currentGroupIdx = newIdx;
+                        }
                         window.renderVideoSourceTabs(window.currentVideo.groups);
                     }
                 })
@@ -1092,7 +1134,140 @@
         }
     };
 
-    // 渲染播放线路标签 (纯透明 Liquid Glass + 鼠标折射光斑与透镜框随动)
+    // 智能选源算法：优先选择原站三大弹幕主源（量子/非凡/暴风）中含有目标集数且未超时的最佳线路
+    window.selectBestVideoRoute = function(groups, targetEpIdx = 0) {
+        if (!groups || groups.length === 0) return 0;
+        const failedSet = window._failedRouteSet || new Set();
+        const bannedNames = window._sessionSlowRouteNames || new Set();
+
+        // 1. 优先在原站主力源 (score >= 90) 中寻找未失败且有该集数的线路
+        for (let i = 0; i < groups.length; i++) {
+            const g = groups[i];
+            const score = getRoutePriorityScore(g.name, g.episodes[0] && g.episodes[0].url);
+            if (score >= 90 && !failedSet.has(i) && !bannedNames.has(g.name) && g.episodes && g.episodes[targetEpIdx]) {
+                return i;
+            }
+        }
+        // 2. 次选任何未失败且有该集数的线路（按优先级顺序）
+        for (let i = 0; i < groups.length; i++) {
+            const g = groups[i];
+            if (!failedSet.has(i) && g.episodes && g.episodes[targetEpIdx]) {
+                return i;
+            }
+        }
+        return 0;
+    };
+
+    // 主动并发测速选源：点击“⚡ 智能选源”按钮时，优先探测原站三大主源延迟并秒切最快源
+    window.smartProbeAndSwitchRoute = async function() {
+        if (!window.currentVideo || !window.currentVideo.groups || window.currentVideo.groups.length === 0) return;
+        const groups = window.currentVideo.groups;
+        const epIdx = window.currentEpisodeIdx || 0;
+        const smartBtn = document.getElementById('smartRouteProbeBtn');
+        if (smartBtn) {
+            smartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>智能测速中...</span>';
+        }
+        if (window.dpInstance && window.dpInstance.notice) {
+            window.dpInstance.notice('⚡ 正在并发探测原站主源与备用节点响应速度...', 2500);
+        }
+
+        const probeGroup = async (g, idx) => {
+            const ep = (g.episodes && g.episodes[epIdx]) || (g.episodes && g.episodes[0]);
+            if (!ep || !ep.url) return { idx, ok: false, latency: 99999, score: 0 };
+            const score = getRoutePriorityScore(g.name, ep.url);
+            const t0 = performance.now();
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 3500);
+            try {
+                const res = await fetch(ep.url, { method: 'GET', signal: ctrl.signal });
+                clearTimeout(timer);
+                if (!res.ok) return { idx, ok: false, latency: 99999, score };
+                const latency = Math.round(performance.now() - t0);
+                try { ctrl.abort(); } catch (e) {}
+                return { idx, ok: true, latency, score };
+            } catch (e) {
+                clearTimeout(timer);
+                return { idx, ok: false, latency: 99999, score };
+            }
+        };
+
+        // 优先并发测试前 6 条线路（包含全部原站三大主源 + 前列高速备用源）
+        const candidates = groups.slice(0, Math.min(groups.length, 6));
+        const results = await Promise.all(candidates.map((g, idx) => probeGroup(g, idx)));
+        const valid = results.filter(r => r.ok);
+
+        if (valid.length > 0) {
+            // 原站主源 (score >= 90) 只要响应正常 (< 2600ms)，永远优先于备用源；同级内取延迟最低者
+            valid.sort((a, b) => {
+                const aPrimary = a.score >= 90 && a.latency < 2600 ? 1 : 0;
+                const bPrimary = b.score >= 90 && b.latency < 2600 ? 1 : 0;
+                if (aPrimary !== bPrimary) return bPrimary - aPrimary;
+                return a.latency - b.latency;
+            });
+            const best = valid[0];
+            window._failedRouteSet = new Set();
+            window.switchPlayGroup(best.idx, epIdx);
+            const bestName = formatFriendlyLineName(groups[best.idx].name, best.idx, groups[best.idx].episodes[0]?.url);
+            if (window.dpInstance && window.dpInstance.notice) {
+                window.dpInstance.notice(`⚡ 智能优选完成：已锁定最快节点 [${bestName}] (${best.latency}ms)`, 3500);
+            }
+        } else {
+            // 若前排节点跨域受限或超时，自动切到下一条未尝试过的线路
+            window.triggerAutoSwitchRoute(epIdx, '测速切换');
+        }
+
+        if (smartBtn) {
+            smartBtn.innerHTML = '<i class="fas fa-bolt"></i> <span>⚡ 智能选源</span>';
+        }
+    };
+
+    // 超时或断流自动切换至下一可用线路（优先原站主源，其次备用源）
+    window.triggerAutoSwitchRoute = function(epIdx, reason = '加载超时') {
+        if (!window.currentVideo || !window.currentVideo.groups) return;
+        const groups = window.currentVideo.groups;
+        const totalGroups = groups.length;
+        if (totalGroups <= 1) return;
+
+        if (!window._failedRouteSet) window._failedRouteSet = new Set();
+        window._failedRouteSet.add(window.currentGroupIdx);
+
+        const curGroup = groups[window.currentGroupIdx];
+        if (curGroup && curGroup.name) {
+            if (!window._sessionSlowRouteNames) window._sessionSlowRouteNames = new Set();
+            window._sessionSlowRouteNames.add(curGroup.name);
+        }
+
+        if ((window._autoSwitchCount || 0) >= totalGroups - 1) {
+            if (window.dpInstance && window.dpInstance.notice) {
+                window.dpInstance.notice('所有线路均已尝试，请手动点击上方其他线路重试', 4000);
+            }
+            return;
+        }
+
+        window._autoSwitchCount = (window._autoSwitchCount || 0) + 1;
+
+        // 寻找下一个未失败且有当前集数的线路（由于 groups 已按主源->备用源排序，顺序查找即可保证主源优先）
+        let nextGroup = -1;
+        for (let i = 0; i < totalGroups; i++) {
+            if (!window._failedRouteSet.has(i) && groups[i].episodes && groups[i].episodes[epIdx]) {
+                nextGroup = i;
+                break;
+            }
+        }
+        if (nextGroup === -1) {
+            nextGroup = (window.currentGroupIdx + 1) % totalGroups;
+        }
+
+        const nextName = formatFriendlyLineName(groups[nextGroup].name, nextGroup, groups[nextGroup].episodes[0]?.url);
+        if (window.dpInstance && window.dpInstance.notice) {
+            window.dpInstance.notice(`当前线路${reason}，已自动切换至: ${nextName}`, 3500);
+        }
+        setTimeout(function () {
+            window.switchPlayGroup(nextGroup, epIdx);
+        }, 200);
+    };
+
+    // 渲染播放线路标签 (纯透明 Liquid Glass + 智能选源按钮 + 鼠标折射光斑与透镜框随动)
     window.renderVideoSourceTabs = function(groups) {
         const tabsBox = document.getElementById('videoPlaySourceTabs');
         if (!tabsBox) return;
@@ -1102,17 +1277,23 @@
         }
 
         tabsBox.className = 'source-route-nav';
+        const smartBtnHtml = `
+            <button class="source-route-btn" id="smartRouteProbeBtn" onclick="window.smartProbeAndSwitchRoute()" title="自动测速并优选原站弹幕主源" style="border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; font-weight: 600;">
+                <i class="fas fa-bolt"></i> <span>⚡ 智能选源</span>
+            </button>
+        `;
         const btnsHtml = groups.map((g, idx) => {
-            const displayName = formatFriendlyLineName(g.name, idx);
+            const sampleUrl = g.episodes && g.episodes[0] ? g.episodes[0].url : '';
+            const displayName = formatFriendlyLineName(g.name, idx, sampleUrl);
             const isAct = idx === window.currentGroupIdx;
             return `
-                <button class="source-route-btn ${isAct ? 'active' : ''}" id="sourceRouteBtn_${idx}" onclick="window.switchPlayGroup(${idx})">
+                <button class="source-route-btn ${isAct ? 'active' : ''}" id="sourceRouteBtn_${idx}" onclick="window.switchPlayGroup(${idx}, window.currentEpisodeIdx || 0)">
                     <i class="fas fa-play-circle"></i> <span>${displayName}</span>
                 </button>
             `;
         }).join('');
 
-        tabsBox.innerHTML = '<div class="source-route-glider" id="sourceRouteGlider"></div>' + btnsHtml;
+        tabsBox.innerHTML = '<div class="source-route-glider" id="sourceRouteGlider"></div>' + smartBtnHtml + btnsHtml;
 
         // 绑定鼠标跟随光效与液态玻璃选中框透镜随动
         if (typeof window.bindLiquidGlassNav === 'function') {
@@ -1164,7 +1345,7 @@
         `).join('');
     };
 
-    // 播放指定集数 (全平台兼容：iOS原生硬解 + Android/PC自适应HLS + 断线自动切源容灾)
+    // 播放指定集数 (全平台兼容：iOS原生硬解 + Android/PC自适应HLS + 6.5秒超时看门狗与断线自动切源容灾)
     window.playVideoEpisode = function(idx) {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
@@ -1172,6 +1353,11 @@
 
         window.currentEpisodeIdx = idx;
         const ep = group.episodes[idx];
+
+        if (window._playbackWatchdogTimer) {
+            clearTimeout(window._playbackWatchdogTimer);
+            window._playbackWatchdogTimer = null;
+        }
 
         // 检查是否有该集的历史播放秒数用于断点续播
         let resumePlaySeconds = 0;
@@ -1191,7 +1377,7 @@
         if (activeBtn) activeBtn.classList.add('read-active');
 
         const badge = document.getElementById('currentEpisodeBadge');
-        if (badge) badge.innerText = formatFriendlyLineName(group.name, window.currentGroupIdx) + ' · ' + ep.title;
+        if (badge) badge.innerText = formatFriendlyLineName(group.name, window.currentGroupIdx, ep.url) + ' · ' + ep.title;
 
         const container = document.getElementById('dplayerContainer');
         if (!container) return;
@@ -1211,12 +1397,33 @@
 
         const videoUrl = ep.url;
         const isHls = videoUrl.includes('.m3u8');
-        const videoTitle = window.currentVideo.vod_name || '';
+        // 优先使用原站标准片名 kanju_title 检索弹幕，确保所有线路弹幕 100% 同步挂载
+        const videoTitle = window.currentVideo.kanju_title || window.currentVideo.vod_name || '';
         const kanjuCardId = window.currentVideo.kanju_id || (String(window.currentVideo.vod_id).startsWith('av_') ? window.currentVideo.vod_id : '');
 
         const ua = navigator.userAgent || '';
         const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isMobile = isIOS || /Android|Mobile|Adr|MicroMessenger|UCBrowser|Quark|baiduboxapp/i.test(ua);
+
+        // 启动 7 秒首帧超时看门狗：若当前线路卡死或超过 7 秒未加载出首帧数据，自动切换至下一优选源
+        const armPlaybackWatchdog = function(videoEl) {
+            if (window._playbackWatchdogTimer) clearTimeout(window._playbackWatchdogTimer);
+            const clearWatchdog = function() {
+                if (window._playbackWatchdogTimer) {
+                    clearTimeout(window._playbackWatchdogTimer);
+                    window._playbackWatchdogTimer = null;
+                }
+                window._autoSwitchCount = 0;
+            };
+            videoEl.addEventListener('loadeddata', clearWatchdog, { once: true });
+            videoEl.addEventListener('canplay', clearWatchdog, { once: true });
+            videoEl.addEventListener('playing', clearWatchdog, { once: true });
+            window._playbackWatchdogTimer = setTimeout(function() {
+                if (!videoEl || videoEl.readyState < 2) {
+                    window.triggerAutoSwitchRoute(idx, '响应超时');
+                }
+            }, 7000);
+        };
 
         window.dpInstance = new DPlayer({
             container: container,
@@ -1240,6 +1447,8 @@
                         video.setAttribute('x5-playsinline', 'true');
                         video.setAttribute('x5-video-player-type', 'h5-page');
 
+                        armPlaybackWatchdog(video);
+
                         // 1. iOS / iPadOS 优先走苹果系统底层原生 HLS 硬件解码 (避开 ManagedMediaSource 与 WebRTC 冲突)
                         if (isIOS && video.canPlayType('application/vnd.apple.mpegurl')) {
                             video.src = videoUrl;
@@ -1247,12 +1456,7 @@
                                 video.play().catch(function () {});
                             }, { once: true });
                             video.addEventListener('error', function () {
-                                const totalGroups = (window.currentVideo && window.currentVideo.groups) ? window.currentVideo.groups.length : 0;
-                                if (totalGroups > 1 && (window._autoSwitchCount || 0) < totalGroups - 1) {
-                                    window._autoSwitchCount = (window._autoSwitchCount || 0) + 1;
-                                    const nextGroup = (window.currentGroupIdx + 1) % totalGroups;
-                                    window.switchPlayGroup(nextGroup, idx);
-                                }
+                                window.triggerAutoSwitchRoute(idx, '连接失败');
                             }, { once: true });
                             return;
                         }
@@ -1267,10 +1471,10 @@
                                 maxBufferLength: isMobile ? 20 : 30,
                                 maxMaxBufferLength: isMobile ? 40 : 60,
                                 backBufferLength: isMobile ? 15 : 30,
-                                manifestLoadingTimeOut: 5500,
+                                manifestLoadingTimeOut: 5000,
                                 manifestLoadingMaxRetry: 1,
-                                levelLoadingTimeOut: 6000,
-                                fragLoadingTimeOut: 9000
+                                levelLoadingTimeOut: 5500,
+                                fragLoadingTimeOut: 7000
                             });
 
                             // 仅在桌面端启用 WebRTC P2P 加速引擎，避免手机 4G/5G NAT 阻塞分片加载
@@ -1343,7 +1547,6 @@
                             hls.loadSource(videoUrl);
                             hls.attachMedia(video);
                             hls.on(window.Hls.Events.MANIFEST_PARSED, function (event, data) {
-                                window._autoSwitchCount = 0;
                                 if (!isMobile && data && data.levels && data.levels.length > 0) {
                                     const highestLevel = data.levels.length - 1;
                                     hls.currentLevel = highestLevel;
@@ -1368,18 +1571,8 @@
                                     video.play().catch(function () {});
                                     return;
                                 }
-                                // 若当前线路节点不通，自动切换到下一条备用线路
-                                const totalGroups = (window.currentVideo && window.currentVideo.groups) ? window.currentVideo.groups.length : 0;
-                                if (totalGroups > 1 && (window._autoSwitchCount || 0) < totalGroups - 1) {
-                                    window._autoSwitchCount = (window._autoSwitchCount || 0) + 1;
-                                    const nextGroup = (window.currentGroupIdx + 1) % totalGroups;
-                                    if (window.dpInstance && window.dpInstance.notice) {
-                                        window.dpInstance.notice('当前线路繁忙，已自动为您切换备用超清线路...', 3000);
-                                    }
-                                    setTimeout(function () {
-                                        window.switchPlayGroup(nextGroup, idx);
-                                    }, 300);
-                                }
+                                // 若当前线路节点不通，调用智能容灾切源
+                                window.triggerAutoSwitchRoute(idx, '节点繁忙');
                             });
 
                             window.currentHlsInstance = hls;
@@ -1387,6 +1580,9 @@
                             video.src = videoUrl;
                             video.addEventListener('loadedmetadata', function () {
                                 video.play().catch(function () {});
+                            }, { once: true });
+                            video.addEventListener('error', function () {
+                                window.triggerAutoSwitchRoute(idx, '加载失败');
                             }, { once: true });
                         } else {
                             video.src = videoUrl;
@@ -1976,6 +2172,10 @@
 
     // 关闭视频播放器，返回影视主视窗
     window.closeVideoPlayer = function() {
+        if (window._playbackWatchdogTimer) {
+            clearTimeout(window._playbackWatchdogTimer);
+            window._playbackWatchdogTimer = null;
+        }
         const drawer = document.getElementById('playerSettingsDrawer');
         const overlay = document.getElementById('drawerOverlay') || document.getElementById('settingsDrawerOverlay');
         if (drawer) drawer.classList.remove('active', 'open');
@@ -1984,6 +2184,10 @@
         if (window.currentP2pEngine) {
             try { window.currentP2pEngine.destroy(); } catch(e){}
             window.currentP2pEngine = null;
+        }
+        if (window.currentHlsInstance) {
+            try { window.currentHlsInstance.destroy(); } catch(e){}
+            window.currentHlsInstance = null;
         }
 
         if (window.dpInstance) {

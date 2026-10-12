@@ -472,13 +472,20 @@ const workerHandler = {
                 } catch(e) {}
             }
 
-            // 2. 如果没有定位到 episodeId，尝试通过 title 快速定位原站真 episodeId
+            // 2. 如果没有定位到 episodeId，尝试通过 title 智能定位原站真 episodeId（支持季数精准匹配）
             if ((!targetEpisodeId || !targetEpisodeId.startsWith('av_')) && title) {
                 try {
+                    const normTitle = title.replace(/第二季/g, '第2季').replace(/第三季/g, '第3季').replace(/第四季/g, '第4季').replace(/第一季/g, '第1季').trim();
                     const cleanTitle = title.replace(/\s+第.*季/g, '').replace(/第.*季/g, '').trim();
-                    const sg = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(cleanTitle || title) + '&limit=3&mode=home&scope=public');
-                    if (sg && sg.suggestions && sg.suggestions[0] && sg.suggestions[0].target) {
-                        const variantId = sg.suggestions[0].target.variant_id;
+                    const sg = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(normTitle || cleanTitle || title) + '&limit=6&mode=home&scope=public');
+                    if (sg && Array.isArray(sg.suggestions)) {
+                        const candidates = sg.suggestions.filter(s => s && s.target && s.target.variant_id);
+                        const bestMatch = candidates.find(s =>
+                            s.target.title === normTitle ||
+                            s.label === normTitle ||
+                            s.target.title === title
+                        ) || candidates[0];
+                        const variantId = bestMatch && bestMatch.target ? bestMatch.target.variant_id : '';
                         if (variantId) {
                             const catalog = await fetchKanjuSigned('/v1/catalog/' + variantId);
                             if (catalog && catalog.episodes && catalog.episodes.length > 0) {
@@ -626,7 +633,7 @@ const workerHandler = {
             });
         }
 
-        // 🎬 影视聚合检索接口 (量子/暴风/非凡/快车 多线路并发聚合与自动容灾)
+        // 🎬 影视聚合检索接口 (原站主力源优先 + 10条高速备用源并发容灾)
         if (url.pathname === '/api/video/search') {
             const wd = (url.searchParams.get('wd') || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
             if (!wd) {
@@ -635,20 +642,22 @@ const workerHandler = {
                 });
             }
 
+            // 第一梯队：原站三大主力源（画质最佳、正片时间轴与原站弹幕100%对齐，最高优先级）
+            // 第二梯队：10条实测高速备用源（当主线超时或缺失时自动无缝接力）
             const apis = [
-                'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/?ac=detail',  // 红牛专线 91ms ★最快
-                'https://jyzyapi.com/provide/vod/from/jinyingm3u8/?ac=detail',            // 金鹰蓝光 221ms ★
-                'https://api.apibdzy.com/api.php/provide/vod/?ac=detail',                 // 百度超清 619ms
-                'https://360zy.com/api.php/provide/vod/?ac=detail',                       // 360超清 686ms
-                'https://cj.rycjapi.com/api.php/provide/vod/?ac=detail',                  // 如意专线 701ms
-                'https://cj.ffzyapi.com/api.php/provide/vod/?ac=detail',                  // 非凡蓝光 750ms
-                'https://subocaiji.com/api.php/provide/vod/?ac=detail',                   // 速播专线 835ms
-                'https://ikunzyapi.com/api.php/provide/vod/?ac=detail',                   // iKun超清 985ms
-                'https://www.mdzyapi.com/api.php/provide/vod/?ac=detail',                 // 魔都专线 1288ms
-                'https://bfzyapi.com/api.php/provide/vod/?ac=detail',                     // 暴风超清 1517ms CORS:*
-                'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',                   // 量子蓝光 1634ms CORS:*
-                'https://api.wujinapi.com/api.php/provide/vod/from/wjm3u8/?ac=detail',    // 无尽专线 1935ms
-                'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/?ac=detail'   // 光速蓝光 1946ms
+                'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',                   // ★原站主线1: 量子蓝光 (CORS:*)
+                'https://cj.ffzyapi.com/api.php/provide/vod/?ac=detail',                  // ★原站主线2: 非凡超清
+                'https://bfzyapi.com/api.php/provide/vod/?ac=detail',                     // ★原站主线3: 暴风专线 (CORS:*)
+                'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/?ac=detail',  // 备用1: 红牛专线
+                'https://jyzyapi.com/provide/vod/from/jinyingm3u8/?ac=detail',            // 备用2: 金鹰蓝光
+                'https://api.apibdzy.com/api.php/provide/vod/?ac=detail',                 // 备用3: 百度超清
+                'https://360zy.com/api.php/provide/vod/?ac=detail',                       // 备用4: 360超清
+                'https://cj.rycjapi.com/api.php/provide/vod/?ac=detail',                  // 备用5: 如意专线
+                'https://subocaiji.com/api.php/provide/vod/?ac=detail',                   // 备用6: 速播专线
+                'https://ikunzyapi.com/api.php/provide/vod/?ac=detail',                   // 备用7: iKun超清
+                'https://www.mdzyapi.com/api.php/provide/vod/?ac=detail',                 // 备用8: 魔都专线
+                'https://api.wujinapi.com/api.php/provide/vod/from/wjm3u8/?ac=detail',    // 备用9: 无尽专线
+                'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/?ac=detail'   // 备用10: 光速蓝光
             ];
 
             const fetchOne = async (base) => {
