@@ -436,15 +436,17 @@
                 const globalIdx = flatList.length;
                 flatList.push(item);
 
-                const pic = item.vod_pic || 'https://api.iconify.design/lucide:film.svg?color=%23555';
+                const rawPic = item.vod_pic || 'https://api.iconify.design/lucide:film.svg?color=%23555';
+                const pic = window.shardBaiduImg ? window.shardBaiduImg(rawPic, globalIdx) : rawPic;
                 const remark = item.vod_remarks || (item.vod_year ? item.vod_year + '年' : '超清正片');
                 const type = item.type_name || '影视';
                 const score = item.vod_score && item.vod_score !== '0.0' ? item.vod_score : '9.1';
+                const loadingAttr = globalIdx < 16 ? 'eager' : 'lazy';
 
                 return `
                     <div class="kanju-poster-card" onclick="window.openVideoDetail(${globalIdx})">
                         <div class="kanju-poster-wrap">
-                            <img src="${pic}" alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='https://api.iconify.design/lucide:film.svg?color=%23888'" />
+                            <img src="${pic}" alt="${item.vod_name}" loading="${loadingAttr}" referrerpolicy="no-referrer" onerror="window.retryBaiduImg ? window.retryBaiduImg(this) : (this.src='https://api.iconify.design/lucide:film.svg?color=%23888')" />
                             <span class="kanju-score-badge">★ ${score}</span>
                             <span class="kanju-poster-badge">${remark}</span>
                             <div class="kanju-play-hover"><i class="fas fa-play"></i></div>
@@ -483,6 +485,32 @@
     };
 
     // =========================================================================
+    // 🚀 百度图片 CDN 多域名分片加速 + 自动故障切换 (突破浏览器单域名 6 并发上限)
+    // =========================================================================
+    window.shardBaiduImg = function(url, seed = 0) {
+        if (!url || typeof url !== 'string') return url || '';
+        if (url.includes('gimg0.baidu.com')) {
+            const idx = Math.abs(Number(seed) || 0) % 4;
+            return url.replace('gimg0.baidu.com', `gimg${idx}.baidu.com`);
+        }
+        return url;
+    };
+
+    window.retryBaiduImg = function(imgEl) {
+        if (!imgEl) return;
+        const curSrc = imgEl.getAttribute('src') || '';
+        const step = Number(imgEl.dataset.retryStep || 0);
+        if (step < 3 && /gimg[0-3]\.baidu\.com/.test(curSrc)) {
+            imgEl.dataset.retryStep = String(step + 1);
+            const nextShard = (step + 1) % 4;
+            imgEl.src = curSrc.replace(/gimg[0-3]\.baidu\.com/, `gimg${nextShard}.baidu.com`);
+            return;
+        }
+        imgEl.onerror = null;
+        imgEl.src = 'https://api.iconify.design/lucide:film.svg?color=%23888';
+    };
+
+    // =========================================================================
     // 🎬 腾讯视频 (v.qq.com) 首屏全宽巨幕轮播海报墙控制器
     // =========================================================================
     let txHeroSlides = [];
@@ -515,6 +543,15 @@
         const picked = [];
         const usedNames = new Set();
 
+        // 清理浏览器可能误填进搜索框的云同步账号
+        const vInput = document.getElementById('videoSearchInput');
+        if (vInput && document.activeElement !== vInput && vInput.value) {
+            const syncUser = localStorage.getItem('sync_username') || '';
+            if (vInput.value === syncUser || vInput.hasAttribute('readonly')) {
+                vInput.value = '';
+            }
+        }
+
         // 1. 优先按首个推荐板块（大家都在看）的顺序，从第 1 个推荐影视开始依次提取带 16:9 原生横版高清巨幕图 (vod_pic_slide / carousel_url) 的剧目
         for (let i = 0; i < list.length && picked.length < 7; i++) {
             const it = list[i];
@@ -537,16 +574,27 @@
         const railEl = document.getElementById('txHeroRailList');
         if (!railEl || txHeroSlides.length === 0) return;
 
+        // 预加载 7 张巨幕高清横图，切换毫秒级响应
+        txHeroSlides.forEach((entry, idx) => {
+            const slideUrl = entry.item && (entry.item.vod_pic_slide || entry.item.vod_pic);
+            if (slideUrl) {
+                const preImg = new Image();
+                preImg.referrerPolicy = 'no-referrer';
+                preImg.src = window.shardBaiduImg(slideUrl, idx);
+            }
+        });
+
         railEl.innerHTML = txHeroSlides.map((entry, idx) => {
             const it = entry.item;
-            const thumbPic = it.vod_pic || it.vod_pic_slide || '';
+            const rawThumbPic = it.vod_pic || it.vod_pic_slide || '';
+            const thumbPic = window.shardBaiduImg(rawThumbPic, idx + 2);
             return `
                 <div class="tx-thumb-card ${idx === txHeroActiveIdx ? 'active' : ''}"
                      id="txRailItem_${idx}"
                      onmouseenter="window.selectTxHeroSlide(${idx})"
                      onclick="window.handleTxRailClick(${idx})"
                      title="${it.vod_name}">
-                    <img src="${thumbPic}" alt="${it.vod_name}" referrerpolicy="no-referrer" onerror="this.src='https://api.iconify.design/lucide:film.svg?color=%23888'" />
+                    <img src="${thumbPic}" alt="${it.vod_name}" referrerpolicy="no-referrer" onerror="window.retryBaiduImg(this)" />
                     <div class="tx-thumb-caption">${it.vod_name}</div>
                 </div>
             `;
@@ -597,8 +645,16 @@
         const descEl = document.getElementById('txHeroDesc');
 
         // 核心：巨幕主舞台优先使用 kanju3 官方 16:9 横版高清轮播大图 (vod_pic_slide / carousel_url)，彻底告别竖版小图拉伸模糊
-        const wideBannerUrl = it.vod_pic_slide || it.vod_pic || '';
-        if (bgAmbient) bgAmbient.style.backgroundImage = `url('${wideBannerUrl}')`;
+        const rawWideBannerUrl = it.vod_pic_slide || it.vod_pic || '';
+        const wideBannerUrl = window.shardBaiduImg(rawWideBannerUrl, txHeroActiveIdx);
+        const ambientBannerUrl = window.shardBaiduImg(rawWideBannerUrl, txHeroActiveIdx + 1);
+        if (bgAmbient) {
+            if (bgAmbient.tagName === 'IMG') {
+                bgAmbient.src = ambientBannerUrl;
+            } else {
+                bgAmbient.style.backgroundImage = `url('${ambientBannerUrl}')`;
+            }
+        }
         if (bannerImg) {
             bannerImg.classList.toggle('is-portrait-fallback', !it.vod_pic_slide);
             bannerImg.src = wideBannerUrl;
