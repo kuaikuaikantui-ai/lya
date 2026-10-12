@@ -228,14 +228,39 @@
         }
     };
 
-    // 保存观看历史
-    window.saveVideoHistory = function(video, groupName, epTitle, epIdx) {
+    // 保存观看历史 (支持集数与集内秒数进度 + 自动触发多端云同步)
+    window.saveVideoHistory = function(video, groupName, epTitle, epIdx, playSeconds = null, silentSync = false) {
         if (!video) return;
         try {
             let history = window.getVideoHistory();
             const vid = video.vod_id || video.id || video.vod_name;
+            const prevRecord = history.find(h => (h.vod_id || h.id || h.vod_name) === vid);
             history = history.filter(h => (h.vod_id || h.id || h.vod_name) !== vid);
-            
+
+            let resolvedSeconds = 0;
+            if (typeof playSeconds === 'number' && playSeconds >= 0) {
+                resolvedSeconds = Math.floor(playSeconds);
+            } else if (prevRecord && prevRecord.ep_idx === (epIdx || 0) && prevRecord.play_seconds > 0) {
+                resolvedSeconds = prevRecord.play_seconds;
+            }
+
+            // 精简 raw_video 避免超大字段拖慢云同步
+            const compactRaw = {
+                vod_id: video.vod_id,
+                vod_name: video.vod_name,
+                vod_sub: video.vod_sub || '',
+                vod_pic: video.vod_pic || '',
+                type_name: video.type_name || '影视',
+                vod_year: video.vod_year || '',
+                vod_remarks: video.vod_remarks || '',
+                vod_score: video.vod_score || '',
+                vod_actor: video.vod_actor || '',
+                vod_content: (video.vod_content || '').slice(0, 300),
+                vod_play_from: video.vod_play_from || '',
+                vod_play_url: video.vod_play_url || '',
+                is_dynamic: video.is_dynamic || false
+            };
+
             const record = {
                 vod_id: vid,
                 vod_name: video.vod_name,
@@ -244,13 +269,17 @@
                 group_name: groupName || '默认线路',
                 ep_title: epTitle || '第1集',
                 ep_idx: epIdx || 0,
+                play_seconds: resolvedSeconds,
                 time: Date.now(),
-                raw_video: video
+                raw_video: compactRaw
             };
             history.unshift(record);
-            if (history.length > 20) history = history.slice(0, 20);
+            if (history.length > 30) history = history.slice(0, 30);
             localStorage.setItem(VIDEO_HISTORY_KEY, JSON.stringify(history));
             window.renderRecentWatchBar();
+            if (!silentSync && typeof window.scheduleCloudSyncPush === 'function') {
+                window.scheduleCloudSyncPush('video');
+            }
         } catch(e) {
             console.error('Save history failed:', e);
         }
@@ -259,8 +288,18 @@
     // 清空观看历史
     window.clearVideoHistory = function() {
         if (confirm('确定要清空全部影视播放记录吗？')) {
+            const list = window.getVideoHistory();
+            if (typeof window.recordCloudDeletion === 'function') {
+                list.forEach(item => {
+                    const key = item.vod_id || item.vod_name;
+                    if (key) window.recordCloudDeletion('vid:' + key);
+                });
+            }
             localStorage.removeItem(VIDEO_HISTORY_KEY);
             window.renderRecentWatchBar();
+            if (typeof window.scheduleCloudSyncPush === 'function') {
+                window.scheduleCloudSyncPush('video_clear');
+            }
         }
     };
 
@@ -801,8 +840,18 @@
         window.currentEpisodeIdx = idx;
         const ep = group.episodes[idx];
 
+        // 检查是否有该集的历史播放秒数用于断点续播
+        let resumePlaySeconds = 0;
+        try {
+            const vidKey = window.currentVideo.vod_id || window.currentVideo.id || window.currentVideo.vod_name;
+            const prevRec = (window.getVideoHistory() || []).find(h => (h.vod_id || h.id || h.vod_name) === vidKey);
+            if (prevRec && Number(prevRec.ep_idx) === Number(idx) && Number(prevRec.play_seconds) > 12) {
+                resumePlaySeconds = Number(prevRec.play_seconds);
+            }
+        } catch (e) {}
+
         // 实时保存观看历史
-        window.saveVideoHistory(window.currentVideo, group.name, ep.title, idx);
+        window.saveVideoHistory(window.currentVideo, group.name, ep.title, idx, resumePlaySeconds);
 
         document.querySelectorAll('#videoEpisodesList .chap-btn').forEach(btn => btn.classList.remove('read-active'));
         const activeBtn = document.getElementById('epBtn_' + idx);
@@ -1098,18 +1147,55 @@
                     introSeconds = isAnimeOrDrama ? 90 : 0;
                 }
 
-                // 监听开始播放触发跳片头
+                // 监听开始播放：恢复跨端观看秒数 或 自动跳片头 + 定期保存播放秒数
                 let hasSkippedIntro = false;
+                let hasResumedTime = false;
+                let lastSavedSec = resumePlaySeconds || 0;
+                let lastCloudPushAt = Date.now();
                 window.dpInstance.on('timeupdate', function() {
-                    if (window.isAutoSkipIntro && !hasSkippedIntro && introSeconds > 10) {
-                        const cur = window.dpInstance.video.currentTime;
+                    if (!window.dpInstance || !window.dpInstance.video) return;
+                    const cur = window.dpInstance.video.currentTime || 0;
+                    const dur = window.dpInstance.video.duration || 0;
+
+                    if (!hasResumedTime && resumePlaySeconds > 12 && cur > 0.2) {
+                        hasResumedTime = true;
+                        hasSkippedIntro = true;
+                        if (!dur || resumePlaySeconds < dur - 15) {
+                            window.dpInstance.seek(resumePlaySeconds);
+                            const mm = String(Math.floor(resumePlaySeconds / 60)).padStart(2, '0');
+                            const ss = String(Math.floor(resumePlaySeconds % 60)).padStart(2, '0');
+                            if (window.dpInstance.notice) {
+                                window.dpInstance.notice(`已为您恢复上次观看进度 (${mm}:${ss})`, 3200);
+                            }
+                            return;
+                        }
+                    }
+
+                    if (window.isAutoSkipIntro && !hasSkippedIntro && introSeconds > 10 && resumePlaySeconds <= 12) {
                         if (cur >= 0 && cur < introSeconds - 1) {
                             hasSkippedIntro = true;
                             window.dpInstance.seek(introSeconds);
                             if (window.dpInstance.notice) {
                                 window.dpInstance.notice('已为你自动跳过片头 (' + introSeconds + '秒)', 3000);
                             }
+                            return;
                         }
+                    }
+
+                    // 每隔 8 秒更新一次本地播放秒数，每隔 28 秒同步一次云端进度
+                    if (cur > 10 && Math.abs(cur - lastSavedSec) >= 8 && window.currentVideo) {
+                        lastSavedSec = Math.floor(cur);
+                        const shouldPushCloud = (Date.now() - lastCloudPushAt > 28000);
+                        if (shouldPushCloud) lastCloudPushAt = Date.now();
+                        window.saveVideoHistory(window.currentVideo, group.name, ep.title, idx, lastSavedSec, !shouldPushCloud);
+                    }
+                });
+
+                window.dpInstance.on('pause', function() {
+                    if (!window.dpInstance || !window.dpInstance.video || !window.currentVideo) return;
+                    const cur = Math.floor(window.dpInstance.video.currentTime || 0);
+                    if (cur > 10) {
+                        window.saveVideoHistory(window.currentVideo, group.name, ep.title, idx, cur, false);
                     }
                 });
 

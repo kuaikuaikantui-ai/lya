@@ -2502,6 +2502,80 @@
                 gap: 6px !important;
             }
         }
+
+        /* ☁️ 轻量多端云同步与通行证样式 */
+        .cloud-sync-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #94a3b8;
+            display: inline-block;
+            transition: all 0.25s ease;
+        }
+        .cloud-sync-dot.online {
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.75);
+        }
+        .cloud-sync-dot.syncing {
+            background: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+            animation: cloudPulse 1s infinite alternate;
+        }
+        @keyframes cloudPulse {
+            from { opacity: 0.45; transform: scale(0.85); }
+            to { opacity: 1; transform: scale(1.2); }
+        }
+        .my-cloud-card {
+            background: var(--glass-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 11px 13px;
+            margin-bottom: 10px;
+            box-shadow: var(--glass-shadow);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.2s ease;
+        }
+        .my-cloud-card:hover {
+            border-color: rgba(56, 189, 248, 0.45);
+        }
+        .my-cloud-card:active {
+            transform: scale(0.985);
+        }
+        .cloud-toast {
+            position: fixed;
+            bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            color: #f8fafc;
+            padding: 9px 16px;
+            border-radius: 999px;
+            font-size: 12.5px;
+            font-weight: 600;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+            z-index: 1200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            max-width: 92vw;
+            white-space: nowrap;
+        }
+        .cloud-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
     <!-- 开源中文专业排版引擎 Heti (赫蹏) + 霞鹜文楷屏幕阅读字体 (LXGW WenKai Screen) -->
     <link rel="stylesheet" href="https://unpkg.com/heti/umd/heti.min.css">
@@ -2521,6 +2595,11 @@
         <span class="badge" id="sourceVerTag">昂哥构建</span>
     </div>
     <div class="header-actions">
+        <button class="btn theme-toggle-btn" id="cloudSyncHeaderBtn" onclick="openCloudSyncModal()" title="轻量登录 · 多端实时同步书架与观看进度">
+            <span class="cloud-sync-dot" id="cloudSyncHeaderDot"></span>
+            <i class="fas fa-cloud" id="cloudSyncHeaderIcon" style="color:var(--accent);"></i>
+            <span id="cloudSyncHeaderLabel">云同步</span>
+        </button>
         <button class="btn theme-toggle-btn" id="chiguaToggleBtn" style="display:none; border-color:rgba(244,63,94,0.45); color:#fb7185;" onclick="toggleChiguaMode()" title="开启/隐藏吃瓜标签"><i class="fas fa-fire-flame-curved"></i> <span id="chiguaToggleLabel">吃瓜:开</span></button>
         <button class="btn theme-toggle-btn" id="themeToggleBtn" onclick="toggleDarkLightMode()" title="切换日间/夜间模式"><i class="fas fa-sun" id="themeIcon"></i> <span id="themeLabel">日间</span></button>
     </div>
@@ -2554,6 +2633,25 @@
         <div class="my-workspace-layout">
             <!-- 左侧竖向 Tab 导航栏：一眼看见全部 4 个分类，点击切换右侧独立视图 -->
             <aside class="my-sidebar-wrap">
+                <!-- ☁️ 多端云同步通行证状态卡片 -->
+                <div class="my-cloud-card" id="myCloudSyncCard" onclick="openCloudSyncModal()" title="点击配置多端云同步账号">
+                    <div style="display:flex; align-items:center; gap:9px; min-width:0;">
+                        <div style="width:32px; height:32px; border-radius:10px; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.32); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fas fa-cloud-arrow-up" id="myCloudCardIcon" style="color:var(--accent); font-size:14px;"></i>
+                        </div>
+                        <div style="min-width:0;">
+                            <div style="font-size:12.5px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                <span id="myCloudCardTitle">多端云同步 · 未登录</span>
+                            </div>
+                            <div id="myCloudCardSub" style="font-size:10.5px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                输入自定义口令，手机/电脑自动同步进度
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn" id="myCloudCardActionBtn" style="padding:4px 9px; font-size:11px; flex-shrink:0;" onclick="event.stopPropagation(); handleQuickCloudCardAction();">
+                        登录
+                    </button>
+                </div>
                 <div class="history-subnav" id="historySubNav">
                     <div class="subnav-glider" id="subnavGlider"></div>
                     <button class="history-subnav-btn active" id="histTabVideo" onclick="switchHistoryTab('video')">
@@ -3230,6 +3328,95 @@
     </div>
 </div>
 
+<!-- ☁️ 轻量多端登录与云同步弹窗 -->
+<div class="modal-overlay" id="cloudSyncModal" onclick="if(event.target===this) closeCloudSyncModal()">
+    <div class="modal-card" style="max-width: 440px;">
+        <div class="modal-head">
+            <span style="font-weight: 700; display:flex; align-items:center; gap:7px;">
+                <i class="fas fa-cloud-bolt" style="color:var(--accent);"></i> 轻量通行证 · 多端进度云同步
+            </span>
+            <button class="btn" style="padding:4px 10px;" onclick="closeCloudSyncModal()">✕</button>
+        </div>
+        <div style="padding: 16px 18px; overflow-y: auto;">
+            <!-- 未登录视图 -->
+            <div id="cloudLoginView">
+                <div style="font-size: 12.5px; color: var(--text-muted); line-height: 1.65; margin-bottom: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.22);">
+                    <i class="fas fa-sparkles" style="color:var(--accent);"></i> <strong>免注册即用：</strong>在手机、平板、电脑输入相同的<strong>通行证账号</strong>与<strong>安全口令</strong>，即可实时双向合并<strong>书架、小说、漫画及影视集数/秒数进度</strong>。
+                </div>
+                <div style="margin-bottom: 11px;">
+                    <label style="display:block; font-size: 12px; font-weight: 600; color: var(--text-main); margin-bottom: 5px;">
+                        <i class="fas fa-user-shield" style="color:var(--accent); margin-right:4px;"></i> 通行证账号 / 昵称
+                    </label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="cloudAccountInput" class="search-input" style="flex:1; padding:9px 12px; font-size:13.5px;" placeholder="例如: angge888 或手机号/常用代号" onkeydown="if(event.key==='Enter') doCloudLogin()" />
+                        <button class="btn" style="padding:8px 11px; font-size:11.5px; flex-shrink:0;" onclick="generateRandomCloudAccount()" title="随机生成一个专属通行证号">
+                            <i class="fas fa-dice"></i> 随机生成
+                        </button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display:block; font-size: 12px; font-weight: 600; color: var(--text-main); margin-bottom: 5px;">
+                        <i class="fas fa-key" style="color:#f59e0b; margin-right:4px;"></i> 安全口令 / PIN码 <span style="font-weight:400; color:var(--text-muted); font-size:11px;">(选填，防止同名撞号)</span>
+                    </label>
+                    <input type="password" id="cloudPinInput" class="search-input" style="width:100%; padding:9px 12px; font-size:13.5px;" placeholder="选填，如 123456（多端需保持一致）" onkeydown="if(event.key==='Enter') doCloudLogin()" />
+                </div>
+                <button class="btn primary" id="cloudLoginSubmitBtn" style="width:100%; padding:10px 16px; font-size:13.5px; justify-content:center;" onclick="doCloudLogin()">
+                    <i class="fas fa-cloud-arrow-up"></i> 一键登录并同步多端进度
+                </button>
+            </div>
+
+            <!-- 已登录视图 -->
+            <div id="cloudLoggedInView" style="display:none;">
+                <div style="padding: 13px 14px; border-radius: 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.28); margin-bottom: 14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
+                        <div style="font-size:14px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:7px;">
+                            <span class="cloud-sync-dot online"></span>
+                            <span id="cloudLoggedAccountLabel">通行证</span>
+                        </div>
+                        <span class="badge" id="cloudSyncStateBadge" style="background:rgba(16,185,129,0.18); color:#10b981; border-color:rgba(16,185,129,0.4);">实时云同步中</span>
+                    </div>
+                    <div id="cloudSyncStatsText" style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+                        正在读取多端同步状态...
+                    </div>
+                    <div id="cloudLastSyncTimeText" style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                        上次同步：刚刚
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-bottom: 12px;">
+                    <button class="btn primary" id="cloudManualSyncBtn" style="flex:1; padding:9px 12px; justify-content:center;" onclick="syncCloudNow(true)">
+                        <i class="fas fa-arrows-rotate"></i> 立即同步
+                    </button>
+                    <button class="btn" style="padding:9px 12px;" onclick="forcePushLocalToCloud()" title="以本机进度为准推送到云端">
+                        <i class="fas fa-cloud-arrow-up"></i> 推送本机
+                    </button>
+                    <button class="btn" style="padding:9px 12px; color:#fb7185; border-color:rgba(244,63,94,0.35);" onclick="doCloudLogout()" title="退出当前通行证（保留本地进度）">
+                        <i class="fas fa-right-from-bracket"></i> 退出
+                    </button>
+                </div>
+            </div>
+
+            <!-- 离线恢复码/跨端直传备份区 -->
+            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--glass-border);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:12px; font-weight:600; color:var(--text-muted);"><i class="fas fa-shield-halved" style="color:var(--accent);"></i> 离线进度快照包 (一键复制/导入)</span>
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn" style="padding:3px 9px; font-size:11px;" onclick="exportLocalProgressCode()"><i class="fas fa-copy"></i> 复制进度码</button>
+                        <button class="btn" style="padding:3px 9px; font-size:11px;" onclick="importLocalProgressCode()"><i class="fas fa-file-import"></i> 粘贴导入</button>
+                    </div>
+                </div>
+                <textarea id="cloudBackupCodeArea" rows="2" class="search-input" style="width:100%; font-size:11px; padding:7px 10px; resize:none; font-family:monospace; display:none;" placeholder="粘贴进度码至此，点击【粘贴导入】即可合并进度..."></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ☁️ 轻量云同步底部浮动提示 -->
+<div class="cloud-toast" id="cloudToastEl">
+    <i class="fas fa-cloud-check" style="color:#10b981;"></i>
+    <span id="cloudToastText">云端进度已同步</span>
+</div>
+
 <script>
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(regs => {
@@ -3904,6 +4091,106 @@
         return false;
     }
 
+    // ====================================================================
+    // ☁️ 轻量通行证与多端进度实时云同步引擎 (书架 + 小说 + 漫画 + 影视集数/秒数 + 阅读偏好)
+    // ====================================================================
+    const CLOUD_USER_KEY = 'open_reader_cloud_user';
+    const CLOUD_DELETED_KEY = 'open_reader_deleted_map';
+    const IMM_FALLBACK_APP_KEY = 'j0uai3hs';
+    let _cloudPushTimer = null;
+    let _isCloudSyncing = false;
+    let _lastCloudSyncTime = 0;
+    let _cloudToastTimer = null;
+
+    function getCloudUser() {
+        try {
+            const raw = localStorage.getItem(CLOUD_USER_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function saveCloudUser(userObj) {
+        if (!userObj) {
+            localStorage.removeItem(CLOUD_USER_KEY);
+        } else {
+            localStorage.setItem(CLOUD_USER_KEY, JSON.stringify(userObj));
+        }
+        updateCloudSyncUI();
+    }
+
+    function getDeletedMap() {
+        try {
+            return JSON.parse(localStorage.getItem(CLOUD_DELETED_KEY) || '{}') || {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveDeletedMap(map) {
+        try {
+            // 仅保留最近 30 天内的删除记录，避免无限膨胀
+            const cutoff = Date.now() - 30 * 86400 * 1000;
+            const cleaned = {};
+            for (const [k, ts] of Object.entries(map || {})) {
+                if (Number(ts) > cutoff) cleaned[k] = Number(ts);
+            }
+            localStorage.setItem(CLOUD_DELETED_KEY, JSON.stringify(cleaned));
+        } catch (e) {}
+    }
+
+    window.recordCloudDeletion = function(itemKey) {
+        if (!itemKey) return;
+        const map = getDeletedMap();
+        map[itemKey] = Date.now();
+        saveDeletedMap(map);
+    };
+
+    function clearCloudDeletion(itemKey) {
+        if (!itemKey) return;
+        const map = getDeletedMap();
+        if (map[itemKey]) {
+            delete map[itemKey];
+            saveDeletedMap(map);
+        }
+    }
+
+    // 根据账号与安全口令生成不可逆的唯一同步标识 uid
+    async function deriveCloudUid(account, pin = '') {
+        const normalized = `${String(account || '').trim().toLowerCase()}::openhappy_v1::${String(pin || '').trim()}`;
+        try {
+            if (window.crypto && window.crypto.subtle) {
+                const buf = new TextEncoder().encode(normalized);
+                const digest = await window.crypto.subtle.digest('SHA-256', buf);
+                const hex = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+                return 'u_' + hex.slice(0, 26);
+            }
+        } catch (e) {}
+        // 兼容非安全上下文的确定性双哈希回退
+        let h1 = 0xdeadbeef ^ normalized.length;
+        let h2 = 0x41c6ce57 ^ normalized.length;
+        for (let i = 0; i < normalized.length; i++) {
+            const ch = normalized.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        return 'u_' + (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+    }
+
+    function showCloudToast(msg, iconClass = 'fa-cloud-check', iconColor = '#10b981') {
+        const toast = document.getElementById('cloudToastEl');
+        if (!toast) return;
+        toast.innerHTML = `<i class="fas ${iconClass}" style="color:${iconColor};"></i><span>${escapeNovelHtml(msg)}</span>`;
+        toast.classList.add('show');
+        if (_cloudToastTimer) clearTimeout(_cloudToastTimer);
+        _cloudToastTimer = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2800);
+    }
+
     // 本地书架与阅读记录
     function getLocalShelf() {
         try {
@@ -3911,8 +4198,9 @@
         } catch(e) { return []; }
     }
 
-    function saveLocalShelf(shelf) {
+    function saveLocalShelf(shelf, skipCloudPush = false) {
         localStorage.setItem('open_reader_shelf', JSON.stringify(shelf));
+        if (!skipCloudPush) window.scheduleCloudSyncPush('shelf');
     }
 
     function getRecentHistory() {
@@ -3921,8 +4209,9 @@
         } catch(e) { return []; }
     }
 
-    function saveRecentHistory(list) {
+    function saveRecentHistory(list, skipCloudPush = false) {
         localStorage.setItem('open_reader_history', JSON.stringify(list));
+        if (!skipCloudPush) window.scheduleCloudSyncPush('history');
     }
 
     function formatTimeAgo(timestamp) {
@@ -3935,15 +4224,27 @@
         return new Date(timestamp).toLocaleDateString();
     }
 
+    function formatPlaySecondsLabel(sec) {
+        const s = Math.floor(Number(sec) || 0);
+        if (s <= 5) return '';
+        const mm = String(Math.floor(s / 60)).padStart(2, '0');
+        const ss = String(s % 60).padStart(2, '0');
+        return `${mm}:${ss}`;
+    }
+
     function updateRecentHistory(book, chapTitle, chapIdx) {
         if (!book || !book.book_name) return;
+        const now = Date.now();
+        clearCloudDeletion('hist:' + book.book_name);
+
         // 同步更新书架中的阅读进度
         let shelf = getLocalShelf();
         const sIdx = shelf.findIndex(b => b.book_name === book.book_name);
         if (sIdx !== -1) {
             shelf[sIdx].lastReadTitle = chapTitle || '第一章';
             shelf[sIdx].lastReadIndex = chapIdx || 0;
-            saveLocalShelf(shelf);
+            shelf[sIdx].updatedAt = now;
+            saveLocalShelf(shelf, true);
         }
         let history = getRecentHistory();
         history = history.filter(b => b.book_name !== book.book_name);
@@ -3951,11 +4252,511 @@
             ...book,
             lastReadTitle: chapTitle || '第一章',
             lastReadIndex: chapIdx || 0,
-            readTime: Date.now()
+            readTime: now
         });
         if (history.length > 80) history.pop();
         saveRecentHistory(history);
     }
+
+    // 打包本机完整进度快照
+    function buildLocalSyncPayload() {
+        const videoHist = (typeof window.getVideoHistory === 'function') ? window.getVideoHistory() : [];
+        return {
+            version: 1,
+            syncTime: Date.now(),
+            shelf: getLocalShelf(),
+            history: getRecentHistory(),
+            videoHistory: videoHist,
+            deletedMap: getDeletedMap(),
+            prefs: {
+                novelTheme: localStorage.getItem('open_novel_theme') || '',
+                novelFontSize: localStorage.getItem('open_novel_font_size') || '',
+                novelFontFamily: localStorage.getItem('open_novel_font_family') || '',
+                novelPageMode: localStorage.getItem('open_novel_page_mode') || ''
+            }
+        };
+    }
+
+    // 智能双向合并：对比本地与云端时间戳及章节进度，绝不丢失更新的阅读或观影记录
+    function mergeCloudAndLocalData(localPayload, cloudPayload) {
+        if (!cloudPayload || typeof cloudPayload !== 'object') return { merged: localPayload, changedLocal: false };
+
+        // 1. 合并删除墓碑记录
+        const mergedDeleted = { ...(localPayload.deletedMap || {}) };
+        for (const [k, ts] of Object.entries(cloudPayload.deletedMap || {})) {
+            if (!mergedDeleted[k] || Number(ts) > Number(mergedDeleted[k])) {
+                mergedDeleted[k] = Number(ts);
+            }
+        }
+
+        // 2. 合并【我的书架】(按 book_name 聚合，保留最新章节进度)
+        const shelfMap = new Map();
+        const pushShelfItem = (item) => {
+            if (!item || !item.book_name) return;
+            const key = item.book_name.trim();
+            const delTs = mergedDeleted['shelf:' + key] || 0;
+            const itemTs = Number(item.updatedAt || item.readTime || 0);
+            if (delTs > 0 && delTs > itemTs) return;
+
+            if (!shelfMap.has(key)) {
+                shelfMap.set(key, { ...item, updatedAt: itemTs || Date.now() });
+            } else {
+                const existing = shelfMap.get(key);
+                const exIdx = Number(existing.lastReadIndex || 0);
+                const newIdx = Number(item.lastReadIndex || 0);
+                const exTs = Number(existing.updatedAt || existing.readTime || 0);
+                if (newIdx > exIdx || (newIdx === exIdx && itemTs > exTs)) {
+                    shelfMap.set(key, {
+                        ...existing,
+                        ...item,
+                        lastReadIndex: newIdx,
+                        lastReadTitle: item.lastReadTitle || existing.lastReadTitle,
+                        updatedAt: Math.max(exTs, itemTs)
+                    });
+                }
+            }
+        };
+        (localPayload.shelf || []).forEach(pushShelfItem);
+        (cloudPayload.shelf || []).forEach(pushShelfItem);
+        const mergedShelf = Array.from(shelfMap.values());
+
+        // 3. 合并【小说与漫画阅读记录】(按 book_name 聚合，取最新阅读时间与最远章节)
+        const histMap = new Map();
+        const pushHistItem = (item) => {
+            if (!item || !item.book_name) return;
+            const key = item.book_name.trim();
+            const delTs = mergedDeleted['hist:' + key] || 0;
+            const itemTs = Number(item.readTime || 0);
+            if (delTs > 0 && delTs > itemTs) return;
+
+            if (!histMap.has(key)) {
+                histMap.set(key, { ...item });
+            } else {
+                const existing = histMap.get(key);
+                const exTs = Number(existing.readTime || 0);
+                const exIdx = Number(existing.lastReadIndex || 0);
+                const newIdx = Number(item.lastReadIndex || 0);
+                if (itemTs > exTs || (itemTs === exTs && newIdx > exIdx)) {
+                    histMap.set(key, {
+                        ...existing,
+                        ...item,
+                        lastReadIndex: (newIdx >= exIdx || itemTs > exTs + 60000) ? newIdx : exIdx,
+                        lastReadTitle: (newIdx >= exIdx || itemTs > exTs + 60000) ? (item.lastReadTitle || existing.lastReadTitle) : existing.lastReadTitle,
+                        readTime: Math.max(exTs, itemTs)
+                    });
+                } else if (newIdx > exIdx) {
+                    existing.lastReadIndex = newIdx;
+                    if (item.lastReadTitle) existing.lastReadTitle = item.lastReadTitle;
+                }
+            }
+        };
+        (localPayload.history || []).forEach(pushHistItem);
+        (cloudPayload.history || []).forEach(pushHistItem);
+        const mergedHistory = Array.from(histMap.values())
+            .sort((a, b) => (Number(b.readTime) || 0) - (Number(a.readTime) || 0))
+            .slice(0, 80);
+
+        // 4. 合并【影视观看记录】(按 vod_id/vod_name 聚合，保留最新集数与秒数进度)
+        const vidMap = new Map();
+        const pushVidItem = (item) => {
+            if (!item || (!item.vod_id && !item.vod_name)) return;
+            const key = String(item.vod_id || item.vod_name).trim();
+            const delTs = mergedDeleted['vid:' + key] || 0;
+            const itemTs = Number(item.time || 0);
+            if (delTs > 0 && delTs > itemTs) return;
+
+            if (!vidMap.has(key)) {
+                vidMap.set(key, { ...item });
+            } else {
+                const existing = vidMap.get(key);
+                const exTs = Number(existing.time || 0);
+                if (itemTs > exTs) {
+                    vidMap.set(key, {
+                        ...existing,
+                        ...item,
+                        raw_video: (item.raw_video && item.raw_video.vod_play_url) ? item.raw_video : (existing.raw_video || item.raw_video)
+                    });
+                } else if (Number(item.ep_idx) === Number(existing.ep_idx) && Number(item.play_seconds || 0) > Number(existing.play_seconds || 0)) {
+                    existing.play_seconds = Number(item.play_seconds);
+                }
+            }
+        };
+        (localPayload.videoHistory || []).forEach(pushVidItem);
+        (cloudPayload.videoHistory || []).forEach(pushVidItem);
+        const mergedVideoHistory = Array.from(vidMap.values())
+            .sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0))
+            .slice(0, 30);
+
+        // 同步书架中对应书籍的最新阅读进度
+        mergedShelf.forEach(sItem => {
+            const matchedHist = histMap.get(sItem.book_name.trim());
+            if (matchedHist && Number(matchedHist.lastReadIndex || 0) > Number(sItem.lastReadIndex || 0)) {
+                sItem.lastReadIndex = matchedHist.lastReadIndex;
+                sItem.lastReadTitle = matchedHist.lastReadTitle || sItem.lastReadTitle;
+            }
+        });
+
+        const merged = {
+            version: 1,
+            syncTime: Date.now(),
+            shelf: mergedShelf,
+            history: mergedHistory,
+            videoHistory: mergedVideoHistory,
+            deletedMap: mergedDeleted,
+            prefs: {
+                ...(cloudPayload.prefs || {}),
+                ...(localPayload.prefs || {})
+            }
+        };
+
+        return { merged };
+    }
+
+    function applyMergedPayloadToLocal(merged) {
+        if (!merged) return;
+        saveDeletedMap(merged.deletedMap || {});
+        saveLocalShelf(merged.shelf || [], true);
+        saveRecentHistory(merged.history || [], true);
+        try {
+            localStorage.setItem('openreader_video_history', JSON.stringify(merged.videoHistory || []));
+        } catch (e) {}
+
+        if (typeof renderHistoryModule === 'function') renderHistoryModule();
+        if (typeof window.renderRecentWatchBar === 'function') window.renderRecentWatchBar();
+        updateCloudSyncUI();
+    }
+
+    // 从云端拉取快照（优先走 /api/sync，静态页面自动回退直连云端 KV）
+    async function fetchCloudSnapshot(uid) {
+        try {
+            const r = await fetch(`/api/sync?uid=${encodeURIComponent(uid)}&_t=${Date.now()}`, {
+                signal: AbortSignal.timeout(6500)
+            });
+            if (r.ok) {
+                const json = await r.json();
+                if (json && json.code === 0) return json.payload || null;
+            }
+        } catch (e) {}
+
+        // 静态托管容灾回退：前端直接读取 Immanuel + Bytebin 或 ntfy 缓存流
+        try {
+            const immRes = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/${IMM_FALLBACK_APP_KEY}/oh_${uid}`, {
+                signal: AbortSignal.timeout(4500)
+            });
+            if (immRes.ok) {
+                const key = (await immRes.text()).replace(/^"|"$/g, '').trim();
+                if (key && key !== 'null') {
+                    const bbRes = await fetch(`https://bytebin.lucko.me/${key}`, { signal: AbortSignal.timeout(4500) });
+                    if (bbRes.ok) return await bbRes.json();
+                }
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    // 推送快照至云端（优先走 /api/sync，静态页面自动回退直连云端 KV）
+    async function pushCloudSnapshot(uid, payload) {
+        payload.syncTime = Date.now();
+        try {
+            const r = await fetch('/api/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid, payload }),
+                keepalive: true,
+                signal: AbortSignal.timeout(7000)
+            });
+            if (r.ok) {
+                const json = await r.json();
+                if (json && json.code === 0) return true;
+            }
+        } catch (e) {}
+
+        // 静态托管容灾回退
+        try {
+            const bbRes = await fetch('https://bytebin.lucko.me/post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(5000)
+            });
+            if (bbRes.ok) {
+                const { key } = await bbRes.json();
+                if (key) {
+                    await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${IMM_FALLBACK_APP_KEY}/oh_${uid}/${key}`, {
+                        method: 'POST',
+                        signal: AbortSignal.timeout(4500)
+                    });
+                    return true;
+                }
+            }
+        } catch (e) {}
+        return false;
+    }
+
+    // 防抖自动推送进度至云端
+    window.scheduleCloudSyncPush = function(reason = 'auto') {
+        updateCloudSyncUI();
+        const user = getCloudUser();
+        if (!user || !user.uid) return;
+
+        if (_cloudPushTimer) clearTimeout(_cloudPushTimer);
+        _cloudPushTimer = setTimeout(async () => {
+            _cloudPushTimer = null;
+            await syncCloudNow(false);
+        }, 1200);
+    };
+
+    // 执行一次完整的【拉取 -> 智能双向合并 -> 推送更新】
+    window.syncCloudNow = async function(isManual = false) {
+        const user = getCloudUser();
+        if (!user || !user.uid) {
+            if (isManual) openCloudSyncModal();
+            return false;
+        }
+        if (_isCloudSyncing) return false;
+        _isCloudSyncing = true;
+        updateCloudSyncUI(true);
+
+        try {
+            const localPayload = buildLocalSyncPayload();
+            const cloudPayload = await fetchCloudSnapshot(user.uid);
+
+            let finalPayload = localPayload;
+            if (cloudPayload) {
+                const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
+                finalPayload = merged;
+                applyMergedPayloadToLocal(merged);
+            }
+
+            const ok = await pushCloudSnapshot(user.uid, finalPayload);
+            if (ok) {
+                _lastCloudSyncTime = Date.now();
+                user.lastSyncAt = _lastCloudSyncTime;
+                saveCloudUser(user);
+                if (isManual) {
+                    showCloudToast('多端进度已双向合并并同步至云端');
+                }
+            } else if (isManual) {
+                showCloudToast('云端节点繁忙，已保存在本地', 'fa-triangle-exclamation', '#f59e0b');
+            }
+            return ok;
+        } catch (e) {
+            if (isManual) showCloudToast('同步异常: ' + e.message, 'fa-circle-exclamation', '#ef4444');
+            return false;
+        } finally {
+            _isCloudSyncing = false;
+            updateCloudSyncUI(false);
+        }
+    };
+
+    window.forcePushLocalToCloud = async function() {
+        const user = getCloudUser();
+        if (!user || !user.uid) return;
+        _isCloudSyncing = true;
+        updateCloudSyncUI(true);
+        try {
+            const payload = buildLocalSyncPayload();
+            const ok = await pushCloudSnapshot(user.uid, payload);
+            if (ok) {
+                _lastCloudSyncTime = Date.now();
+                user.lastSyncAt = _lastCloudSyncTime;
+                saveCloudUser(user);
+                showCloudToast('已将本机进度覆盖推送至云端');
+            }
+        } finally {
+            _isCloudSyncing = false;
+            updateCloudSyncUI(false);
+        }
+    };
+
+    // 刷新顶部导航栏、个人中心侧栏卡片与弹窗的云同步状态展示
+    function updateCloudSyncUI(syncing = false) {
+        const user = getCloudUser();
+        const dot = document.getElementById('cloudSyncHeaderDot');
+        const headerLabel = document.getElementById('cloudSyncHeaderLabel');
+        const cardTitle = document.getElementById('myCloudCardTitle');
+        const cardSub = document.getElementById('myCloudCardSub');
+        const cardBtn = document.getElementById('myCloudCardActionBtn');
+        const cardIcon = document.getElementById('myCloudCardIcon');
+
+        const loginView = document.getElementById('cloudLoginView');
+        const loggedView = document.getElementById('cloudLoggedInView');
+        const loggedAccLabel = document.getElementById('cloudLoggedAccountLabel');
+        const statsText = document.getElementById('cloudSyncStatsText');
+        const lastSyncText = document.getElementById('cloudLastSyncTimeText');
+        const stateBadge = document.getElementById('cloudSyncStateBadge');
+
+        const shelfCount = getLocalShelf().length;
+        const allHist = getRecentHistory();
+        const vidCount = (typeof window.getVideoHistory === 'function') ? window.getVideoHistory().length : 0;
+
+        if (!user || !user.uid) {
+            if (dot) dot.className = 'cloud-sync-dot';
+            if (headerLabel) headerLabel.textContent = '云同步';
+            if (cardTitle) cardTitle.textContent = '多端云同步 · 未登录';
+            if (cardSub) cardSub.textContent = '免注册输入口令，手机/电脑自动同步进度';
+            if (cardBtn) cardBtn.innerHTML = '<i class="fas fa-key"></i> 登录';
+            if (cardIcon) cardIcon.className = 'fas fa-cloud-arrow-up';
+            if (loginView) loginView.style.display = 'block';
+            if (loggedView) loggedView.style.display = 'none';
+            return;
+        }
+
+        const shortName = user.account.length > 8 ? user.account.slice(0, 8) + '…' : user.account;
+        if (dot) dot.className = syncing ? 'cloud-sync-dot syncing' : 'cloud-sync-dot online';
+        if (headerLabel) headerLabel.textContent = syncing ? '同步中…' : shortName;
+        if (cardTitle) cardTitle.textContent = `通行证: ${user.account}`;
+        if (cardSub) {
+            const syncAgo = user.lastSyncAt ? formatTimeAgo(user.lastSyncAt) : '刚刚';
+            cardSub.textContent = syncing ? '正在与云端双向同步进度…' : `已开启多端实时同步 · ${syncAgo}`;
+        }
+        if (cardBtn) cardBtn.innerHTML = syncing ? '<i class="fas fa-spinner fa-spin"></i>' : '<i class="fas fa-arrows-rotate"></i> 同步';
+        if (cardIcon) cardIcon.className = syncing ? 'fas fa-arrows-rotate fa-spin' : 'fas fa-cloud-check';
+
+        if (loginView) loginView.style.display = 'none';
+        if (loggedView) loggedView.style.display = 'block';
+        if (loggedAccLabel) loggedAccLabel.textContent = `通行证：${user.account}`;
+        if (stateBadge) {
+            stateBadge.textContent = syncing ? '正在同步云端…' : '多端实时同步已开启';
+        }
+        if (statsText) {
+            statsText.innerHTML = `当前已保护：<strong>书架 ${shelfCount} 本</strong> · <strong>小说/漫画 ${allHist.length} 条</strong> · <strong>影视 ${vidCount} 部</strong>`;
+        }
+        if (lastSyncText) {
+            lastSyncText.textContent = `上次云端同步：${user.lastSyncAt ? formatTimeAgo(user.lastSyncAt) : '刚刚'}（其它设备用相同账号与口令登录即可无缝续看）`;
+        }
+    }
+
+    window.handleQuickCloudCardAction = function() {
+        const user = getCloudUser();
+        if (user && user.uid) {
+            window.syncCloudNow(true);
+        } else {
+            openCloudSyncModal();
+        }
+    };
+
+    window.openCloudSyncModal = function() {
+        updateCloudSyncUI(_isCloudSyncing);
+        const modal = document.getElementById('cloudSyncModal');
+        if (modal) modal.classList.add('open');
+    };
+
+    window.closeCloudSyncModal = function() {
+        const modal = document.getElementById('cloudSyncModal');
+        if (modal) modal.classList.remove('open');
+    };
+
+    window.generateRandomCloudAccount = function() {
+        const input = document.getElementById('cloudAccountInput');
+        const pinInput = document.getElementById('cloudPinInput');
+        const randNum = Math.floor(100000 + Math.random() * 900000);
+        if (input) input.value = 'oh' + randNum;
+        if (pinInput && !pinInput.value) pinInput.value = String(Math.floor(1000 + Math.random() * 9000));
+    };
+
+    window.doCloudLogin = async function() {
+        const accInput = document.getElementById('cloudAccountInput');
+        const pinInput = document.getElementById('cloudPinInput');
+        const btn = document.getElementById('cloudLoginSubmitBtn');
+        const account = (accInput ? accInput.value : '').trim();
+        const pin = (pinInput ? pinInput.value : '').trim();
+
+        if (account.length < 2) {
+            showCloudToast('请输入至少 2 个字符的通行证账号/昵称', 'fa-circle-exclamation', '#f59e0b');
+            if (accInput) accInput.focus();
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在连接云端并合并多端进度...';
+        }
+
+        try {
+            const uid = await deriveCloudUid(account, pin);
+            saveCloudUser({
+                account,
+                hasPin: Boolean(pin),
+                uid,
+                lastSyncAt: Date.now()
+            });
+            await window.syncCloudNow(false);
+            showCloudToast(`欢迎回来，${account}！多端进度已同步`);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> 一键登录并同步多端进度';
+            }
+            updateCloudSyncUI(false);
+        }
+    };
+
+    window.doCloudLogout = function() {
+        if (!confirm('确定要在此设备退出云同步通行证吗？（本机已有的书架和观看记录仍会保留）')) return;
+        saveCloudUser(null);
+        showCloudToast('已退出云同步通行证', 'fa-info-circle', '#38bdf8');
+    };
+
+    // 离线进度码一键复制与粘贴导入
+    window.exportLocalProgressCode = async function() {
+        const payload = buildLocalSyncPayload();
+        const encoded = 'OHSYNC1:' + btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+        const area = document.getElementById('cloudBackupCodeArea');
+        if (area) {
+            area.style.display = 'block';
+            area.value = encoded;
+            area.select();
+        }
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(encoded);
+                showCloudToast('离线进度快照码已复制到剪贴板');
+                return;
+            }
+        } catch (e) {}
+        document.execCommand('copy');
+        showCloudToast('进度码已生成，可复制保存至其它设备导入');
+    };
+
+    window.importLocalProgressCode = function() {
+        const area = document.getElementById('cloudBackupCodeArea');
+        if (!area) return;
+        if (area.style.display === 'none' || !area.value.trim()) {
+            area.style.display = 'block';
+            area.value = '';
+            area.focus();
+            showCloudToast('请在下方文本框粘贴进度码后再次点击【粘贴导入】', 'fa-paste', '#38bdf8');
+            return;
+        }
+        try {
+            let raw = area.value.trim();
+            if (raw.startsWith('OHSYNC1:')) raw = raw.slice(8);
+            const imported = JSON.parse(decodeURIComponent(escape(atob(raw))));
+            const localPayload = buildLocalSyncPayload();
+            const { merged } = mergeCloudAndLocalData(localPayload, imported);
+            applyMergedPayloadToLocal(merged);
+            window.scheduleCloudSyncPush('import');
+            showCloudToast('进度码导入并智能合并成功！');
+        } catch (e) {
+            showCloudToast('进度码格式无效，请检查是否完整复制', 'fa-circle-exclamation', '#ef4444');
+        }
+    };
+
+    // 页面切回前台/解锁手机时自动拉取其它设备的最新进度
+    document.addEventListener('visibilitychange', () => {
+        const user = getCloudUser();
+        if (!user || !user.uid) return;
+        if (document.visibilityState === 'visible') {
+            if (Date.now() - _lastCloudSyncTime > 15000) {
+                window.syncCloudNow(false);
+            }
+        } else if (document.visibilityState === 'hidden' && _cloudPushTimer) {
+            clearTimeout(_cloudPushTimer);
+            _cloudPushTimer = null;
+            pushCloudSnapshot(user.uid, buildLocalSyncPayload());
+        }
+    });
 
     // 渲染“我的”个人中心（左侧竖向 Tab 实时计数徽章同步 + 右侧独立面板分开展示）
     function renderHistoryModule() {
@@ -3963,6 +4764,7 @@
         renderShelfHistory();
         renderNovelHistory();
         renderMangaHistory();
+        updateCloudSyncUI(_isCloudSyncing);
         setTimeout(() => updateSubnavGlider(currentHistoryTab || 'video'), 30);
     }
 
@@ -4007,6 +4809,7 @@
 
     function removeFromShelfByName(e, bookName) {
         e.stopPropagation();
+        window.recordCloudDeletion('shelf:' + bookName);
         let shelf = getLocalShelf();
         shelf = shelf.filter(b => b.book_name !== bookName);
         saveLocalShelf(shelf);
@@ -4032,12 +4835,13 @@
 
         empty.style.display = 'none';
         grid.innerHTML = list.map((item, idx) => {
-            const raw = item.raw_video || { vod_name: item.vod_name, vod_pic: item.vod_pic, vod_play_url: '', type_name: item.type_name };
+            const secStr = formatPlaySecondsLabel(item.play_seconds);
+            const epBadgeText = (item.ep_title || '观看中') + (secStr ? ` · ${secStr}` : '');
             return `
                 <div class="kanju-poster-card" onclick="window.resumeWatchVideo(${idx}, ${item.ep_idx || 0})" title="点击续播《${item.vod_name}》">
                     <div class="kanju-poster-wrap">
                         <img src="${item.vod_pic || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&auto=format&fit=crop&q=60'}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&auto=format&fit=crop&q=60'" />
-                        <span class="kanju-poster-badge">${item.ep_title || '观看中'}</span>
+                        <span class="kanju-poster-badge">${epBadgeText}</span>
                     </div>
                     <div class="kanju-poster-info">
                         <div class="kanju-poster-title" title="${item.vod_name}">${item.vod_name}</div>
@@ -4168,17 +4972,26 @@
             renderVideoHistory();
         } else if (type === 'shelf') {
             if (!confirm('确定要清空我的书架中的所有收藏吗？')) return;
+            getLocalShelf().forEach(b => b.book_name && window.recordCloudDeletion('shelf:' + b.book_name));
             saveLocalShelf([]);
             renderShelfHistory();
         } else if (type === 'novel') {
             if (!confirm('确定要清空全部小说阅读记录吗？')) return;
             let hist = getRecentHistory();
+            hist.forEach(item => {
+                const isNovel = item.tab === '小说' || (!item.tab && item.source !== '新新漫画' && item.source !== '全面漫画' && item.source !== 'G社漫画');
+                if (isNovel && item.book_name) window.recordCloudDeletion('hist:' + item.book_name);
+            });
             hist = hist.filter(item => item.tab === '漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画');
             saveRecentHistory(hist);
             renderNovelHistory();
         } else if (type === 'manga') {
             if (!confirm('确定要清空全部漫画阅读记录吗？')) return;
             let hist = getRecentHistory();
+            hist.forEach(item => {
+                const isManga = item.tab === '漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画';
+                if (isManga && item.book_name) window.recordCloudDeletion('hist:' + item.book_name);
+            });
             hist = hist.filter(item => item.tab === '小说' || (!item.tab && item.source !== '新新漫画' && item.source !== '全面漫画' && item.source !== 'G社漫画'));
             saveRecentHistory(hist);
             renderMangaHistory();
@@ -4191,6 +5004,7 @@
 
     function removeFromHistoryByName(e, bookName) {
         e.stopPropagation();
+        window.recordCloudDeletion('hist:' + bookName);
         let history = getRecentHistory();
         history = history.filter(b => b.book_name !== bookName);
         saveRecentHistory(history);
@@ -5476,13 +6290,16 @@
         const btn = document.getElementById('shelfToggleBtn');
 
         if (existingIdx !== -1) {
+            window.recordCloudDeletion('shelf:' + currentBookInfo.book_name);
             shelf.splice(existingIdx, 1);
             btn.innerHTML = '<i class="fas fa-plus"></i> 加书架';
         } else {
+            clearCloudDeletion('shelf:' + currentBookInfo.book_name);
             shelf.unshift({
                 ...currentBookInfo,
                 lastReadTitle: currentCatalog[currentChapterIndex]?.title || '未开始',
-                lastReadIndex: currentChapterIndex
+                lastReadIndex: currentChapterIndex,
+                updatedAt: Date.now()
             });
             btn.innerHTML = '<i class="fas fa-check"></i> 已在书架';
         }
@@ -6888,6 +7705,7 @@
         initTheme();
         setNovelTheme(currentNovelTheme);
         syncChiguaSwitchUI();
+        updateCloudSyncUI(false);
         initLiquidGlassMouseFollower();
         setTimeout(() => {
             updateTabGlider('history');
@@ -6900,6 +7718,14 @@
 
         initReaderScrollListener();
         renderHistoryModule();
+
+        // 若已登录云同步通行证，进站后自动静默拉取并合并多端最新进度
+        const cloudUser = getCloudUser();
+        if (cloudUser && cloudUser.uid) {
+            setTimeout(() => {
+                window.syncCloudNow(false);
+            }, 300);
+        }
     }
 
     init();

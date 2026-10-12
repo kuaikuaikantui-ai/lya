@@ -788,6 +788,217 @@ const workerHandler = {
             }
         }
 
+        // ☁️ 轻量多端云同步接口 (支持 Cloudflare KV + Edge Cache + 零配置多节点持久云存储自动容灾)
+        if (url.pathname === '/api/sync') {
+            const IMM_APP_KEY = 'j0uai3hs';
+            const memStore = (globalThis.__OPENHAPPY_SYNC_MEM = globalThis.__OPENHAPPY_SYNC_MEM || new Map());
+            const kvBinding = (env && (env.USER_SYNC_KV || env.OPENHAPPY_KV || env.KV)) || null;
+
+            const sanitizeUid = (raw) => {
+                const clean = String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
+                return clean.length >= 6 ? clean : '';
+            };
+
+            if (request.method === 'GET') {
+                const uid = sanitizeUid(url.searchParams.get('uid'));
+                if (!uid) {
+                    return new Response(JSON.stringify({ code: -1, msg: '缺少有效的同步标识 uid' }), {
+                        status: 400,
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                    });
+                }
+
+                const candidates = [];
+                const pushCandidate = (obj) => {
+                    if (obj && typeof obj === 'object' && (Array.isArray(obj.shelf) || Array.isArray(obj.history) || Array.isArray(obj.videoHistory))) {
+                        candidates.push(obj);
+                    }
+                };
+
+                // 1. 内存热缓存
+                if (memStore.has(uid)) {
+                    pushCandidate(memStore.get(uid));
+                }
+
+                // 2. Cloudflare KV (如已绑定)
+                if (kvBinding) {
+                    try {
+                        const kvRaw = await kvBinding.get('oh_sync_' + uid);
+                        if (kvRaw) pushCandidate(JSON.parse(kvRaw));
+                    } catch (e) {}
+                }
+
+                // 3. Cloudflare Edge Cache
+                try {
+                    if (typeof caches !== 'undefined' && caches.default) {
+                        const cacheReq = new Request('https://sync-cache.openhappy.internal/v1/' + uid);
+                        const cacheRes = await caches.default.match(cacheReq);
+                        if (cacheRes && cacheRes.ok) {
+                            pushCandidate(await cacheRes.json());
+                        }
+                    }
+                } catch (e) {}
+
+                // 4. 零配置全球持久云存储 (Immanuel KeyVal + Bytebin & ntfy 双通道并发拉取)
+                const fetchImmanuelBytebin = async () => {
+                    try {
+                        const r = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/${IMM_APP_KEY}/oh_${uid}`, {
+                            signal: AbortSignal.timeout(4000)
+                        });
+                        if (!r.ok) return null;
+                        const rawVal = (await r.text()).replace(/^"|"$/g, '').trim();
+                        if (!rawVal || rawVal === 'null') return null;
+                        const bbRes = await fetch(`https://bytebin.lucko.me/${rawVal}`, {
+                            signal: AbortSignal.timeout(4500)
+                        });
+                        if (bbRes.ok) return await bbRes.json();
+                    } catch (e) {}
+                    return null;
+                };
+
+                const fetchNtfyBackup = async () => {
+                    try {
+                        const r = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=720h`, {
+                            signal: AbortSignal.timeout(4000)
+                        });
+                        if (!r.ok) return null;
+                        const text = (await r.text()).trim();
+                        if (!text) return null;
+                        const lines = text.split('\n').filter(Boolean);
+                        for (let i = lines.length - 1; i >= 0; i--) {
+                            try {
+                                const evt = JSON.parse(lines[i]);
+                                if (evt && evt.message) {
+                                    const msgObj = JSON.parse(evt.message);
+                                    if (msgObj.bytebinKey) {
+                                        const bbRes = await fetch(`https://bytebin.lucko.me/${msgObj.bytebinKey}`, {
+                                            signal: AbortSignal.timeout(4000)
+                                        });
+                                        if (bbRes.ok) return await bbRes.json();
+                                    }
+                                    if (msgObj.payload) return msgObj.payload;
+                                }
+                            } catch (e) {}
+                        }
+                    } catch (e) {}
+                    return null;
+                };
+
+                const [immData, ntfyData] = await Promise.all([fetchImmanuelBytebin(), fetchNtfyBackup()]);
+                pushCandidate(immData);
+                pushCandidate(ntfyData);
+
+                if (candidates.length === 0) {
+                    return new Response(JSON.stringify({ code: 0, msg: 'empty', payload: null }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                    });
+                }
+
+                // 选取时间戳最新的一份云端快照
+                candidates.sort((a, b) => (b.syncTime || 0) - (a.syncTime || 0));
+                const latest = candidates[0];
+                memStore.set(uid, latest);
+
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', payload: latest }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
+            if (request.method === 'POST') {
+                try {
+                    const body = await request.json();
+                    const uid = sanitizeUid(body.uid);
+                    const payload = body.payload;
+                    if (!uid || !payload || typeof payload !== 'object') {
+                        return new Response(JSON.stringify({ code: -1, msg: '无效的同步数据包' }), {
+                            status: 400,
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                        });
+                    }
+
+                    payload.syncTime = Number(payload.syncTime) || Date.now();
+                    const payloadStr = JSON.stringify(payload);
+
+                    // 1. 写入内存热缓存
+                    memStore.set(uid, payload);
+
+                    // 2. 写入 Cloudflare KV (如已绑定)
+                    if (kvBinding) {
+                        try {
+                            await kvBinding.put('oh_sync_' + uid, payloadStr);
+                        } catch (e) {}
+                    }
+
+                    // 3. 写入 Cloudflare Edge Cache
+                    try {
+                        if (typeof caches !== 'undefined' && caches.default) {
+                            const cacheReq = new Request('https://sync-cache.openhappy.internal/v1/' + uid);
+                            const cacheRes = new Response(payloadStr, {
+                                headers: {
+                                    'Content-Type': 'application/json; charset=utf-8',
+                                    'Cache-Control': 'public, max-age=31536000'
+                                }
+                            });
+                            await caches.default.put(cacheReq, cacheRes);
+                        }
+                    } catch (e) {}
+
+                    // 4. 写入零配置全球持久云存储 (Bytebin + Immanuel KeyVal + ntfy 广播)
+                    let bytebinKey = '';
+                    try {
+                        const bbRes = await fetch('https://bytebin.lucko.me/post', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: payloadStr,
+                            signal: AbortSignal.timeout(5000)
+                        });
+                        if (bbRes.ok) {
+                            const bbJson = await bbRes.json();
+                            bytebinKey = bbJson.key || '';
+                        }
+                    } catch (e) {}
+
+                    const cloudTasks = [];
+                    if (bytebinKey) {
+                        cloudTasks.push(
+                            fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${IMM_APP_KEY}/oh_${uid}/${bytebinKey}`, {
+                                method: 'POST',
+                                signal: AbortSignal.timeout(4500)
+                            }).catch(() => {})
+                        );
+                    }
+                    cloudTasks.push(
+                        fetch(`https://ntfy.sh/oh_sync_${uid}`, {
+                            method: 'POST',
+                            headers: { 'Cache': 'yes' },
+                            body: JSON.stringify({
+                                bytebinKey,
+                                syncTime: payload.syncTime,
+                                payload: payloadStr.length < 3200 ? payload : undefined
+                            }),
+                            signal: AbortSignal.timeout(4500)
+                        }).catch(() => {})
+                    );
+
+                    await Promise.allSettled(cloudTasks);
+
+                    return new Response(JSON.stringify({
+                        code: 0,
+                        msg: 'ok',
+                        syncTime: payload.syncTime,
+                        bytebinKey
+                    }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                    });
+                } catch (e) {
+                    return new Response(JSON.stringify({ code: -1, msg: e.message }), {
+                        status: 500,
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                    });
+                }
+            }
+        }
+
         if (url.pathname === '/api/proxy') {
             const targetUrl = url.searchParams.get('url') || '';
             if (!targetUrl || !/^https?:\/\//i.test(targetUrl)) {
