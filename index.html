@@ -2504,15 +2504,18 @@
                 display: none;
             }
 
-            /* 4. PC端：主内容区右侧全屏铺开，顶部 0 遮挡，视野通透 */
+            /* 4. PC端：主内容区右侧全屏铺开，彻底消除页面左右大面积留白，顶部 0 遮挡，视野通透 */
             main {
-                max-width: 1680px;
-                padding: 20px 32px 52px 262px;
-                margin: 0 auto;
+                max-width: none !important;
+                width: 100% !important;
+                padding: 18px 28px 52px 258px;
+                margin: 0 !important;
             }
             body.reading-mode main {
-                max-width: 1220px;
-                padding: 16px 32px 48px 262px;
+                max-width: none !important;
+                width: 100% !important;
+                padding: 16px 28px 48px 258px;
+                margin: 0 !important;
             }
 
             /* 5. PC端：阅读器菜单同样吸附至左侧边栏，呼出时绝不遮挡正文与漫画主视线 */
@@ -2553,8 +2556,9 @@
                 min-width: 196px;
             }
 
-            .video-grid {
-                grid-template-columns: repeat(auto-fill, minmax(166px, 1fr));
+            .video-grid,
+            .skeleton-grid {
+                grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
                 gap: 18px;
             }
             .grid-list {
@@ -2852,59 +2856,34 @@
         }
 
         /* ============================================================================
-           🎬 腾讯视频 (v.qq.com) 1:1 首屏第一推荐大片全屏铺满巨幕舞台 (#txHeroStage)
+           🎬 腾讯视频 (v.qq.com) 1:1 首屏第一推荐大片巨幕舞台 (#txHeroStage)
            ============================================================================ */
         .tx-hero-stage {
             position: relative;
             width: 100%;
-            height: 520px;
+            height: clamp(390px, 24vw, 446px);
             overflow: hidden;
-            margin-bottom: 18px;
+            margin: 0 0 20px 0;
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.72);
             background: var(--bg-base);
             user-select: none;
             isolation: isolate;
         }
-        /* PC 端突破容器边距，实现像腾讯视频一样的全屏顶天立地无边框铺满，同时左侧边栏呈现毛玻璃透景 */
-        @media (min-width: 1024px) {
-            body:not(.reading-mode) .sidebar {
-                background: rgba(8, 12, 21, 0.56) !important;
-                backdrop-filter: blur(22px) saturate(180%) !important;
-                -webkit-backdrop-filter: blur(22px) saturate(180%) !important;
-                border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-            }
-            .tx-hero-stage {
-                margin-top: -20px;
-                margin-left: -262px;
-                margin-right: -32px;
-                width: calc(100% + 294px);
-                padding-left: 262px;
-                height: 530px;
-                border-radius: 0;
-            }
-        }
-        @media (min-width: 861px) and (max-width: 1023px) {
-            .tx-hero-stage {
-                margin-top: -16px;
-                margin-left: -20px;
-                margin-right: -20px;
-                width: calc(100% + 40px);
-                height: 460px;
-                border-radius: 0;
-            }
-        }
-        /* 第1层：全画幅同色系高饱和氛围底幕 (消除任何比例黑边) */
+        /* 第1层：全画幅同色系高饱和流光底幕 (消除宽屏两侧黑边，与主画面色彩无缝融合) */
         .tx-hero-bg-ambient {
             position: absolute;
-            inset: -32px;
+            inset: -36px;
             background-size: cover;
             background-position: center 22%;
-            filter: blur(36px) saturate(195%) brightness(0.62);
-            transform: scale(1.12);
+            filter: blur(44px) saturate(190%) brightness(0.5);
+            transform: scale(1.14);
             transition: background-image 0.55s cubic-bezier(0.16, 1, 0.3, 1);
             z-index: 0;
             pointer-events: none;
         }
-        /* 第2层：第一推荐影视 16:9 原生横版高清巨幕视觉层 (拒绝竖图拉伸放大) */
+        /* 第2层：第一推荐影视 16:9 原生横版高清巨幕视觉层 (拒绝宽屏强行拉伸放大裁切) */
         .tx-hero-bg-panoramic {
             position: absolute;
             top: 0;
@@ -2915,18 +2894,25 @@
             cursor: pointer;
             overflow: hidden;
         }
-        @media (min-width: 1024px) {
+        /* PC 端：锁定 16:9 黄金原生画幅比例 (860px×430px 约 0.67x 超采样，0 放大、0 裁头)，左右边缘羽化融入流光底幕 */
+        @media (min-width: 861px) {
             .tx-hero-bg-panoramic {
-                left: 262px;
-                -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.65) 5%, #000 14%, #000 100%);
-                mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.65) 5%, #000 14%, #000 100%);
+                top: 0;
+                bottom: 0;
+                left: 50%;
+                right: auto;
+                transform: translateX(-34%);
+                width: min(74%, 860px);
+                height: 100%;
+                -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.22) 8%, rgba(0,0,0,0.68) 18%, rgba(0,0,0,0.94) 28%, #000 36%, #000 74%, rgba(0,0,0,0.94) 82%, rgba(0,0,0,0.68) 90%, rgba(0,0,0,0.22) 96%, transparent 100%);
+                mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.22) 8%, rgba(0,0,0,0.68) 18%, rgba(0,0,0,0.94) 28%, #000 36%, #000 74%, rgba(0,0,0,0.94) 82%, rgba(0,0,0,0.68) 90%, rgba(0,0,0,0.22) 96%, transparent 100%);
             }
         }
         .tx-hero-banner-img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            object-position: center 18%;
+            object-position: center 20%;
             display: block;
             filter: contrast(1.04) saturate(1.06);
             transition: opacity 0.35s ease;
@@ -2934,44 +2920,39 @@
         /* 若某部剧仅有竖版海报无横版剧照时，自动采用居中精致陈列+两侧流光背景，绝不强行拉大糊屏 */
         .tx-hero-banner-img.is-portrait-fallback {
             object-fit: contain;
-            object-position: 68% center;
+            object-position: center center;
         }
         /* 第3层：腾讯视频同款底部无痕融入背景渐变 + 左下角文字暗角衬底 (不遮挡画面中心与人物) */
         .tx-hero-vignette {
             position: absolute;
             inset: 0;
             background:
-                radial-gradient(circle at 18% 82%, rgba(6, 8, 15, 0.72) 0%, rgba(6, 8, 15, 0.28) 34%, transparent 64%),
-                linear-gradient(180deg, rgba(6, 8, 15, 0.14) 0%, transparent 32%, rgba(6, 8, 15, 0.36) 74%, var(--bg-base) 100%);
+                radial-gradient(circle at 16% 80%, rgba(6, 8, 15, 0.78) 0%, rgba(6, 8, 15, 0.32) 36%, transparent 65%),
+                linear-gradient(180deg, rgba(6, 8, 15, 0.12) 0%, transparent 36%, rgba(6, 8, 15, 0.38) 76%, rgba(6, 8, 15, 0.92) 100%);
             z-index: 2;
             pointer-events: none;
         }
         /* 左下角腾讯视频风格无框纯净信息叠加区 */
         .tx-hero-bottom-left {
             position: absolute;
-            left: 294px;
+            left: 36px;
             bottom: 28px;
             z-index: 4;
-            max-width: min(520px, calc(100% - 820px));
+            max-width: min(500px, calc(100% - 620px));
             min-width: 280px;
             display: flex;
             flex-direction: column;
             gap: 8px;
             pointer-events: auto;
         }
-        @media (max-width: 1360px) and (min-width: 1024px) {
+        @media (max-width: 1280px) and (min-width: 861px) {
             .tx-hero-bottom-left {
-                max-width: 420px;
-            }
-        }
-        @media (max-width: 1023px) and (min-width: 861px) {
-            .tx-hero-bottom-left {
-                left: 24px;
-                max-width: 45%;
+                left: 26px;
+                max-width: 44%;
             }
         }
         .tx-hero-title {
-            font-size: 44px;
+            font-size: 40px;
             font-weight: 900;
             line-height: 1.12;
             letter-spacing: 1px;
@@ -3184,6 +3165,8 @@
                 width: calc(100% + 20px);
                 height: clamp(256px, 64vw, 326px);
                 border-radius: 0;
+                border: none;
+                box-shadow: none;
             }
             .tx-hero-banner-img {
                 object-position: center 15%;
