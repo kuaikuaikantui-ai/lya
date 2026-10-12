@@ -695,7 +695,7 @@
         }
         if (descEl) {
             const customDesc = TX_HERO_CUSTOM_SYNOPSES[it.vod_name];
-            descEl.textContent = customDesc || cleanHtmlSummary(it.vod_content, `《${it.vod_name}》正在星穹视界热播，支持多线路超清画质秒播与跨端云同步续看。`);
+            descEl.textContent = customDesc || cleanHtmlSummary(it.vod_content, `《${it.vod_name}》正在宇穹视界热播，支持多线路超清画质秒播与跨端云同步续看。`);
         }
 
         txHeroSlides.forEach((_, i) => {
