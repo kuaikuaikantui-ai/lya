@@ -677,6 +677,16 @@
             transition: all 0.25s cubic-bezier(0.34, 1.35, 0.64, 1);
             box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 4px 12px rgba(0, 0, 0, 0.2);
         }
+        /* 目录弹窗内章节按钮：允许换行，完整显示长标题 */
+        .reader-catalog-wrap .chap-btn {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            word-break: break-all;
+            line-height: 1.4;
+            min-height: 38px;
+            height: auto;
+        }
         .chap-btn:hover {
             color: #ffffff;
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
@@ -3501,6 +3511,176 @@
                 flex-shrink: 0;
             }
         }
+
+        /* ====================================================================
+           小说/漫画阅读弹窗完整章节标题展示 & PC大屏端专属大尺寸适配
+           ==================================================================== */
+        .reader-progress-pill {
+            color: var(--accent);
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11.5px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .reader-chap-title-row {
+            background: rgba(255, 255, 255, 0.045);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 3px solid var(--accent);
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+        }
+        .reader-chap-title-full {
+            margin: 0;
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--text-main);
+            line-height: 1.45;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: unset !important;
+            word-break: break-word;
+        }
+        .reader-tool-btn {
+            padding: 4px 11px;
+            font-size: 11.5px;
+        }
+        #catalogList .chap-btn,
+        .reader-catalog-wrap .chap-btn {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            word-break: break-word;
+            line-height: 1.45;
+            min-height: 38px;
+            height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+        }
+
+        /* PC 端 (≥1024px) 小说与漫画阅读悬浮弹窗、目录弹窗、排版弹窗、换源弹窗全面放大适配 */
+        @media (min-width: 1024px) {
+            body.reading-mode main {
+                max-width: 1080px;
+            }
+            .reader-floating-header {
+                top: 18px;
+                width: calc(100% - 64px);
+                max-width: 1040px;
+                padding: 18px 26px;
+                border-radius: 22px;
+            }
+            .reader-floating-header .reader-header-top {
+                margin-bottom: 12px !important;
+                padding-bottom: 12px !important;
+            }
+            .reader-floating-header .btn {
+                padding: 8px 16px !important;
+                font-size: 13.5px !important;
+                border-radius: 12px;
+            }
+            .reader-progress-pill {
+                font-size: 13px;
+                padding: 5px 14px;
+            }
+            .reader-chap-title-row {
+                padding: 11px 16px;
+                margin-bottom: 12px;
+                border-radius: 12px;
+            }
+            .reader-chap-title-full {
+                font-size: 17.5px;
+                line-height: 1.5;
+            }
+            .reader-toolbar {
+                padding: 10px 16px;
+                border-radius: 14px;
+                font-size: 13.5px;
+                gap: 12px;
+            }
+            .reader-toolbar .palette-btn {
+                width: 24px;
+                height: 24px;
+            }
+            .format-panel {
+                min-width: 390px;
+                padding: 20px 24px;
+                border-radius: 18px;
+                gap: 16px;
+                top: calc(100% + 12px);
+            }
+            .format-panel-row {
+                font-size: 14px;
+                gap: 16px;
+            }
+            .format-chip-btn {
+                padding: 6px 14px;
+                font-size: 13px;
+                border-radius: 10px;
+            }
+            #curFontSizeLabel,
+            #curLineHeightLabel {
+                font-size: 13.5px !important;
+                min-width: 42px !important;
+            }
+            /* PC 端章节目录弹窗放大适配 */
+            #readerCatalogModal .modal-card {
+                width: 86vw !important;
+                max-width: 1120px !important;
+                max-height: 86vh !important;
+                border-radius: 24px;
+            }
+            #readerCatalogModal .modal-head {
+                padding: 18px 26px;
+            }
+            #readerCatalogModal .modal-head > span {
+                font-size: 17px !important;
+            }
+            #readerCatalogModal .modal-head .btn {
+                padding: 7px 16px !important;
+                font-size: 13.5px !important;
+            }
+            #readerCatalogModal .reader-catalog-wrap {
+                padding: 18px 24px !important;
+            }
+            #readerCatalogModalList.catalog-grid,
+            #catalogList.catalog-grid {
+                grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+                gap: 12px;
+            }
+            .reader-catalog-wrap .chap-btn,
+            #catalogList .chap-btn {
+                font-size: 13.5px;
+                padding: 10px 16px;
+                min-height: 44px;
+                border-radius: 14px;
+            }
+            /* PC 端换源弹窗与通用弹窗放大适配 */
+            #sourceModal .modal-card {
+                width: 80vw !important;
+                max-width: 640px !important;
+                max-height: 82vh !important;
+                border-radius: 22px;
+            }
+            #sourceModal .modal-head {
+                padding: 18px 24px;
+                font-size: 16px;
+            }
+            #sourceModal .source-switch-list {
+                padding: 16px 20px;
+                gap: 10px;
+            }
+            #sourceModal .switch-item {
+                padding: 14px 18px;
+                font-size: 14px;
+                border-radius: 12px;
+            }
+        }
     </style>
     <!-- 开源中文专业排版引擎 Heti (赫蹏) + 霞鹜文楷屏幕阅读字体 (LXGW WenKai Screen) -->
     <link rel="stylesheet" href="https://unpkg.com/heti/umd/heti.min.css">
@@ -4136,23 +4316,27 @@
     <section id="readerView" style="display:none;">
         <div class="reader-top-progress" id="readerTopProgressBar"></div>
         <div class="reader-floating-header" id="readerFloatingHeader">
-            <div class="view-header" style="margin-bottom: 8px;">
-                <button class="btn" onclick="showView('detail')"><i class="fas fa-arrow-left"></i> 详情</button>
-                <h3 id="readerChapTitle" style="font-size: 14px; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">章节标题</h3>
-                <div style="display:flex; gap:6px;">
+            <div class="view-header reader-header-top" style="margin-bottom: 8px; padding-bottom: 8px;">
+                <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                    <button class="btn" onclick="showView('detail')"><i class="fas fa-arrow-left"></i> 详情</button>
+                    <span id="readProgressText" class="reader-progress-pill">进度更新中...</span>
+                </div>
+                <div class="reader-top-actions" style="display:flex; gap:6px; flex-shrink:0;">
                     <button class="btn" onclick="readChapter(currentChapterIndex, true)" title="强制刷新当前章节"><i class="fas fa-sync-alt"></i></button>
                     <button class="btn" onclick="openReaderCatalogModal()" title="章节目录"><i class="fas fa-list-ul"></i> 目录</button>
                     <button class="btn" onclick="openSwitchSourceModal()"><i class="fas fa-random"></i> 换源</button>
                 </div>
             </div>
 
+            <div class="reader-chap-title-row">
+                <h3 id="readerChapTitle" class="reader-chap-title-full">章节标题</h3>
+            </div>
+
             <div class="reader-toolbar" id="readerToolbar" style="margin-bottom: 0;">
-                <span id="readProgressText" style="color:var(--text-muted); font-size:11px; max-width:28%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">进度更新中...</span>
-                
                 <!-- 快捷翻章 -->
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <button class="btn" style="padding:3px 9px; font-size:11px;" onclick="prevChapter()"><i class="fas fa-chevron-left"></i> 上一章</button>
-                    <button class="btn" style="padding:3px 9px; font-size:11px;" onclick="nextChapter()">下一章 <i class="fas fa-chevron-right"></i></button>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button class="btn reader-tool-btn" onclick="prevChapter()"><i class="fas fa-chevron-left"></i> 上一章</button>
+                    <button class="btn reader-tool-btn" onclick="nextChapter()">下一章 <i class="fas fa-chevron-right"></i></button>
                 </div>
 
                 <!-- 快捷背景色切换 -->
@@ -4254,7 +4438,7 @@
                     <button class="btn" style="padding:4px 12px;" onclick="closeReaderCatalogModal()">✕</button>
                 </div>
             </div>
-            <div style="padding: 12px 14px; overflow-y: auto; flex: 1; min-height: 0;">
+            <div class="reader-catalog-wrap" style="padding: 12px 14px; overflow-y: auto; flex: 1; min-height: 0;">
                 <div id="readerCatalogModalList" class="catalog-grid" style="max-height: none; overflow: visible;"></div>
             </div>
         </div>
@@ -4955,6 +5139,74 @@
                     headers: { 'Content-Type': 'application/json; charset=utf-8' }
                 });
             }
+        }
+
+        // 6. 纯静态环境下影视搜索跨域直连保底 (支持 CORS:* 的量子与暴风蓝光源)
+        if (pathname === '/api/video/search') {
+            const wd = (url.searchParams.get('wd') || '').trim();
+            if (!wd) {
+                return new Response(JSON.stringify({ code: 0, list: [] }), {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+            const directVodApis = [
+                'https://bfzyapi.com/api.php/provide/vod/?ac=detail',
+                'https://cj.lziapi.com/api.php/provide/vod/?ac=detail'
+            ];
+            const settled = await Promise.allSettled(directVodApis.map(async base => {
+                const { signal, clear } = createTimeoutSignal(3500);
+                try {
+                    const r = await window.__rawFetch(base + '&wd=' + encodeURIComponent(wd), { signal });
+                    clear();
+                    if (!r.ok) return [];
+                    const j = await r.json();
+                    return Array.isArray(j.list) ? j.list : [];
+                } catch (e) {
+                    clear();
+                    return [];
+                }
+            }));
+            const mergedMap = new Map();
+            settled.forEach(res => {
+                if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+                    res.value.forEach(item => {
+                        if (!item || !item.vod_name || !item.vod_play_url) return;
+                        const rawFroms = (item.vod_play_from || '').split('$$$').filter(Boolean);
+                        const rawUrls = (item.vod_play_url || '').split('$$$').filter(Boolean);
+                        const validFroms = [];
+                        const validUrls = [];
+                        rawUrls.forEach((u, idx) => {
+                            if (u && (u.includes('.m3u8') || u.includes('.mp4'))) {
+                                validFroms.push(rawFroms[idx] || ('线路' + (idx + 1)));
+                                validUrls.push(u);
+                            }
+                        });
+                        if (validUrls.length === 0) return;
+                        const key = item.vod_name.trim();
+                        if (!mergedMap.has(key)) {
+                            mergedMap.set(key, {
+                                ...item,
+                                vod_play_from: validFroms.join('$$$'),
+                                vod_play_url: validUrls.join('$$$')
+                            });
+                        } else {
+                            const existing = mergedMap.get(key);
+                            const existingFroms = (existing.vod_play_from || '').split('$$$').filter(Boolean);
+                            validFroms.forEach((nf, idx) => {
+                                if (!existingFroms.includes(nf) && validUrls[idx]) {
+                                    existingFroms.push(nf);
+                                    existing.vod_play_from += '$$$' + nf;
+                                    existing.vod_play_url += '$$$' + validUrls[idx];
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+            const list = Array.from(mergedMap.values());
+            return new Response(JSON.stringify({ code: 0, msg: 'ok', total: list.length, list }), {
+                headers: { 'Content-Type': 'application/json; charset=utf-8' }
+            });
         }
 
         return window.__rawFetch(input, initOptions);

@@ -636,15 +636,24 @@ const workerHandler = {
             }
 
             const apis = [
-                'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',
-                'https://bfzyapi.com/api.php/provide/vod/?ac=detail',
-                'https://api.ffzyapi.com/api.php/provide/vod/?ac=detail',
-                'https://jszyapi.com/api.php/provide/vod/?ac=detail'
+                'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/?ac=detail',  // 红牛专线 91ms ★最快
+                'https://jyzyapi.com/provide/vod/from/jinyingm3u8/?ac=detail',            // 金鹰蓝光 221ms ★
+                'https://api.apibdzy.com/api.php/provide/vod/?ac=detail',                 // 百度超清 619ms
+                'https://360zy.com/api.php/provide/vod/?ac=detail',                       // 360超清 686ms
+                'https://cj.rycjapi.com/api.php/provide/vod/?ac=detail',                  // 如意专线 701ms
+                'https://cj.ffzyapi.com/api.php/provide/vod/?ac=detail',                  // 非凡蓝光 750ms
+                'https://subocaiji.com/api.php/provide/vod/?ac=detail',                   // 速播专线 835ms
+                'https://ikunzyapi.com/api.php/provide/vod/?ac=detail',                   // iKun超清 985ms
+                'https://www.mdzyapi.com/api.php/provide/vod/?ac=detail',                 // 魔都专线 1288ms
+                'https://bfzyapi.com/api.php/provide/vod/?ac=detail',                     // 暴风超清 1517ms CORS:*
+                'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',                   // 量子蓝光 1634ms CORS:*
+                'https://api.wujinapi.com/api.php/provide/vod/from/wjm3u8/?ac=detail',    // 无尽专线 1935ms
+                'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/?ac=detail'   // 光速蓝光 1946ms
             ];
 
             const fetchOne = async (base) => {
                 const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 4500);
+                const timer = setTimeout(() => controller.abort(), 2600);
                 try {
                     const targetUrl = base + '&wd=' + encodeURIComponent(wd);
                     const r = await fetch(targetUrl, {
@@ -668,18 +677,33 @@ const workerHandler = {
                 if (res.status === 'fulfilled' && Array.isArray(res.value)) {
                     res.value.forEach(item => {
                         if (!item || !item.vod_name || !item.vod_play_url) return;
+                        const rawFroms = (item.vod_play_from || '').split('$$$').filter(Boolean);
+                        const rawUrls = (item.vod_play_url || '').split('$$$').filter(Boolean);
+                        const validFroms = [];
+                        const validUrls = [];
+                        rawUrls.forEach((u, idx) => {
+                            if (u && (u.includes('.m3u8') || u.includes('.mp4'))) {
+                                validFroms.push(rawFroms[idx] || ('线路' + (idx + 1)));
+                                validUrls.push(u);
+                            }
+                        });
+                        if (validUrls.length === 0) return;
+
                         const key = item.vod_name.trim();
                         if (!mergedMap.has(key)) {
-                            mergedMap.set(key, { ...item });
+                            mergedMap.set(key, {
+                                ...item,
+                                vod_play_from: validFroms.join('$$$'),
+                                vod_play_url: validUrls.join('$$$')
+                            });
                         } else {
                             const existing = mergedMap.get(key);
                             const existingFroms = (existing.vod_play_from || '').split('$$$').filter(Boolean);
-                            const newFroms = (item.vod_play_from || '').split('$$$').filter(Boolean);
-                            const newUrls = (item.vod_play_url || '').split('$$$').filter(Boolean);
-                            newFroms.forEach((nf, idx) => {
-                                if (!existingFroms.includes(nf) && newUrls[idx]) {
+                            validFroms.forEach((nf, idx) => {
+                                if (!existingFroms.includes(nf) && validUrls[idx]) {
+                                    existingFroms.push(nf);
                                     existing.vod_play_from = (existing.vod_play_from ? existing.vod_play_from + '$$$' : '') + nf;
-                                    existing.vod_play_url = (existing.vod_play_url ? existing.vod_play_url + '$$$' : '') + newUrls[idx];
+                                    existing.vod_play_url = (existing.vod_play_url ? existing.vod_play_url + '$$$' : '') + validUrls[idx];
                                 }
                             });
                             if (!existing.vod_pic && item.vod_pic) existing.vod_pic = item.vod_pic;

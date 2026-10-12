@@ -208,8 +208,35 @@
         if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf')) {
             return '线路' + (index + 1) + ' · 稳定直连 [暴风源] (高速防卡)';
         }
-        if (name.includes('红牛') || lower.includes('hongniu') || lower.includes('hn')) {
-            return '线路' + (index + 1) + ' · 备用专线 [红牛源]';
+        if (name.includes('红牛') || lower.includes('hongniu') || lower.includes('hn') || lower.includes('hnm3u8')) {
+            return '线路' + (index + 1) + ' · 高速专线 [红牛源] (91ms极速)';
+        }
+        if (name.includes('金鹰') || lower.includes('jinying') || lower.includes('jy') || lower.includes('jinyingm3u8')) {
+            return '线路' + (index + 1) + ' · 蓝光专线 [金鹰源] (1080P)';
+        }
+        if (name.includes('百度') || lower.includes('baidu') || lower.includes('bd') || lower.includes('apibdzy')) {
+            return '线路' + (index + 1) + ' · 超清专线 [百度源]';
+        }
+        if (name.includes('速播') || lower.includes('subo') || lower.includes('sb')) {
+            return '线路' + (index + 1) + ' · 急速专线 [速播源]';
+        }
+        if (name.includes('iKun') || name.includes('ikun') || lower.includes('ikun')) {
+            return '线路' + (index + 1) + ' · 超清专线 [iKun源]';
+        }
+        if (name.includes('如意') || lower.includes('ruyi') || lower.includes('ry')) {
+            return '线路' + (index + 1) + ' · 稳定专线 [如意源]';
+        }
+        if (name.includes('魔都') || lower.includes('modu') || lower.includes('md')) {
+            return '线路' + (index + 1) + ' · 动漫剧集 [魔都源]';
+        }
+        if (name.includes('无尽') || lower.includes('wujin') || lower.includes('wj') || lower.includes('wjm3u8')) {
+            return '线路' + (index + 1) + ' · 无尽专线 (海量资源)';
+        }
+        if (name.includes('光速') || lower.includes('guangsu') || lower.includes('gs') || lower.includes('gsm3u8')) {
+            return '线路' + (index + 1) + ' · 光速蓝光专线';
+        }
+        if (name.includes('360') || lower.includes('360zy')) {
+            return '线路' + (index + 1) + ' · 360超清专线';
         }
         if (/[\u4e00-\u9fa5]/.test(name)) {
             return '线路' + (index + 1) + ' · ' + name;
@@ -984,7 +1011,7 @@
         const playFroms = (item.vod_play_from || '默认线路').split('$$$');
         const playGroups = (item.vod_play_url || '').split('$$$');
 
-        const parsedGroups = [];
+        let parsedGroups = [];
         playGroups.forEach((groupStr, gIdx) => {
             const fromName = playFroms[gIdx] || ('线路' + (gIdx + 1));
             const episodes = groupStr.split('#').filter(Boolean).map(e => {
@@ -1002,12 +1029,11 @@
             }
         });
 
-        // 优先将含 m3u8 的高清直链排在最前
-        parsedGroups.sort((a, b) => {
-            const aHas = a.episodes.some(e => e.url.includes('.m3u8')) ? 1 : 0;
-            const bHas = b.episodes.some(e => e.url.includes('.m3u8')) ? 1 : 0;
-            return bHas - aHas;
-        });
+        // 过滤掉非直链的网页分享组，仅保留可直接播放的 .m3u8 / .mp4 视频流线路
+        const streamGroups = parsedGroups.filter(g => g.episodes.some(e => e.url.includes('.m3u8') || e.url.includes('.mp4')));
+        if (streamGroups.length > 0) {
+            parsedGroups = streamGroups;
+        }
 
         window.currentVideo.groups = parsedGroups;
 
@@ -1032,6 +1058,38 @@
         window.renderVideoEpisodes(0);
         window.playVideoEpisode(targetEpIdx);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // 若是内置热播底包卡片（初始线路较少），后台静默并发检索全网13大源并动态追加备用线路
+        if (!item._enriched && parsedGroups.length <= 3 && item.vod_name) {
+            item._enriched = true;
+            const cleanQ = item.vod_name.replace(/\s+第.*季/g, '').replace(/第.*季/g, '').trim();
+            fetch('/api/video/search?wd=' + encodeURIComponent(cleanQ))
+                .then(r => r.ok ? r.json() : null)
+                .then(sData => {
+                    if (!sData || !Array.isArray(sData.list) || !window.currentVideo || window.currentVideo.vod_name !== item.vod_name) return;
+                    const match = sData.list.find(it => it.vod_name === item.vod_name || it.vod_name.includes(cleanQ)) || sData.list[0];
+                    if (!match || !match.vod_play_url) return;
+                    const extraFroms = (match.vod_play_from || '').split('$$$').filter(Boolean);
+                    const extraUrls = (match.vod_play_url || '').split('$$$').filter(Boolean);
+                    let added = false;
+                    extraUrls.forEach((gStr, gIdx) => {
+                        const fName = extraFroms[gIdx] || ('备用' + (gIdx + 1));
+                        if (window.currentVideo.groups.some(g => g.name === fName)) return;
+                        const eps = gStr.split('#').filter(Boolean).map(e => {
+                            const pair = e.split('$');
+                            return { title: pair[0] || '正片', url: pair[1] || pair[0] };
+                        });
+                        if (eps.some(e => e.url.includes('.m3u8') || e.url.includes('.mp4'))) {
+                            window.currentVideo.groups.push({ name: fName, episodes: eps });
+                            added = true;
+                        }
+                    });
+                    if (added) {
+                        window.renderVideoSourceTabs(window.currentVideo.groups);
+                    }
+                })
+                .catch(() => {});
+        }
     };
 
     // 渲染播放线路标签 (纯透明 Liquid Glass + 鼠标折射光斑与透镜框随动)
@@ -1209,10 +1267,10 @@
                                 maxBufferLength: isMobile ? 20 : 30,
                                 maxMaxBufferLength: isMobile ? 40 : 60,
                                 backBufferLength: isMobile ? 15 : 30,
-                                manifestLoadingTimeOut: 10000,
-                                manifestLoadingMaxRetry: 2,
-                                levelLoadingTimeOut: 10000,
-                                fragLoadingTimeOut: 15000
+                                manifestLoadingTimeOut: 5500,
+                                manifestLoadingMaxRetry: 1,
+                                levelLoadingTimeOut: 6000,
+                                fragLoadingTimeOut: 9000
                             });
 
                             // 仅在桌面端启用 WebRTC P2P 加速引擎，避免手机 4G/5G NAT 阻塞分片加载
