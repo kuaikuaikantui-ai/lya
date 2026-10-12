@@ -2388,26 +2388,53 @@
             caret-color: var(--text-main);
         }
 
+        /* PC 端专属影视分类快捷纵列：默认在移动/平板端隐藏，仅在 PC 左侧透明功能栏显示 */
+        .pc-side-channel-list {
+            display: none;
+        }
+
         @media (min-width: 1024px) {
-            /* 1. PC端：左上侧边栏高定半透明毛玻璃铭牌盒 (透出底层巨幕流光色彩，1:1 还原腾讯视频左侧通透导航) */
+            /* 0. PC端左侧边缘极柔和垂直暗色羽化遮罩：无任何边框与割裂线，既让底层巨幕流光透出，又确保左侧透明文字清晰锐利 */
+            body:not(.light-mode)::after {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 200px;
+                background: linear-gradient(90deg, rgba(6, 8, 15, 0.56) 0%, rgba(6, 8, 15, 0.24) 66%, transparent 100%);
+                pointer-events: none;
+                z-index: 88;
+            }
+            body.reading-mode::after {
+                display: none !important;
+            }
+
+            /* 1. PC端：左上角品牌区 100% 纯透明无框悬浮 (1:1 还原腾讯视频左上角纯净 Logo，彻底去除外框、底线与背景盒) */
             header {
                 position: fixed;
-                top: 18px;
-                left: 18px;
-                width: 224px;
-                max-width: 224px;
+                top: 20px;
+                left: 22px;
+                width: 164px;
+                max-width: 164px;
                 margin: 0;
                 flex-direction: column;
-                align-items: stretch;
-                gap: 11px;
-                padding: 14px;
-                border-radius: 24px;
+                align-items: flex-start;
+                gap: 0;
+                padding: 4px 6px !important;
+                border-radius: 0 !important;
                 z-index: 100;
                 box-sizing: border-box;
-                background: rgba(10, 15, 28, 0.42) !important;
-                backdrop-filter: blur(28px) saturate(190%) !important;
-                -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                background: transparent !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                overflow: visible !important;
+            }
+            header::before,
+            header::after {
+                display: none !important;
             }
             header .brand {
                 display: flex;
@@ -2418,102 +2445,219 @@
                 gap: 10px;
                 width: 100%;
                 min-width: 0;
-                padding-bottom: 11px;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            }
-            body.light-mode header .brand {
-                border-bottom-color: rgba(15, 23, 42, 0.08);
+                padding-bottom: 0 !important;
+                border-bottom: none !important;
             }
             header .brand-emblem {
-                width: 36px;
-                height: 36px;
-                border-radius: 11px;
+                width: 34px;
+                height: 34px;
+                border-radius: 10px;
             }
             header .brand-title-text {
-                font-size: 15.5px;
+                font-size: 18px;
+                font-weight: 800;
+                letter-spacing: 0.8px;
             }
-            header .brand-crest {
-                margin-left: auto;
-                font-size: 8.5px;
-                padding: 1.5px 6px;
-            }
+            /* PC 端隐藏冗余角标与副标题，保持腾讯视频左上角同款极简大气的品牌视觉 */
+            header .brand-crest,
             header .brand-sub {
-                font-size: 9.5px;
-                letter-spacing: 0.7px;
+                display: none !important;
             }
+            /* PC 端将云同步与日夜切换化身为左栏底部无框透明功能项，不再卡在 Logo 下方当胶囊框 */
             header .header-actions {
-                width: 100%;
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-                gap: 7px;
+                position: fixed;
+                left: 22px;
+                bottom: 18px;
+                width: 156px;
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 2px;
+                z-index: 100;
             }
             header .header-actions .theme-toggle-btn {
                 width: 100%;
-                justify-content: center;
-                padding: 6px 8px;
-                font-size: 11.5px;
-                border-radius: 14px;
+                justify-content: flex-start !important;
+                padding: 8px 10px !important;
+                font-size: 13px !important;
+                font-weight: 500 !important;
+                border-radius: 10px !important;
+                background: transparent !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                color: rgba(241, 245, 249, 0.72) !important;
+                text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
+                gap: 9px !important;
                 white-space: nowrap;
+                transform: none !important;
+            }
+            header .header-actions .theme-toggle-btn:hover {
+                color: #38bdf8 !important;
+                background: rgba(255, 255, 255, 0.06) !important;
+                transform: translateX(3px) !important;
+            }
+            body.light-mode header .header-actions .theme-toggle-btn {
+                color: #475569 !important;
+                text-shadow: none !important;
+            }
+            body.light-mode header .header-actions .theme-toggle-btn:hover {
+                color: #2563eb !important;
+                background: rgba(15, 23, 42, 0.05) !important;
             }
 
-            /* 2. PC端：主导航栏（我的/小说/漫画/影视）改为左侧竖向半透明毛玻璃导航栏，透出巨幕背景色彩 */
+            /* 2. PC端：左侧全透明无框竖向功能导航栏（1:1 对标腾讯视频左侧透明列表，彻底去除背景框与滑块框） */
             .tab-nav-container {
                 position: fixed;
-                top: 136px;
-                left: 18px;
-                width: 224px;
+                top: 76px;
+                left: 22px;
+                width: 156px;
                 margin: 0;
                 z-index: 95;
-                display: block;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
             }
             .tab-nav {
                 flex-direction: column;
                 width: 100%;
                 max-width: none;
-                padding: 8px !important;
-                border-radius: 22px !important;
-                gap: 5px;
-                background: rgba(10, 15, 28, 0.42) !important;
-                backdrop-filter: blur(28px) saturate(190%) !important;
-                -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                padding: 0 !important;
+                border-radius: 0 !important;
+                gap: 2px;
+                background: transparent !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                overflow: visible !important;
+            }
+            .tab-nav::before,
+            .tab-glider {
+                display: none !important;
             }
             .tab-nav-btn {
                 width: 100%;
                 justify-content: flex-start !important;
-                padding: 11px 16px !important;
-                border-radius: 16px !important;
-                font-size: 13.5px !important;
+                padding: 9px 10px !important;
+                border-radius: 10px !important;
+                font-size: 14.5px !important;
+                font-weight: 500 !important;
+                color: rgba(241, 245, 249, 0.78) !important;
+                text-shadow: 0 1px 8px rgba(0, 0, 0, 0.68) !important;
                 gap: 10px !important;
                 text-align: left;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
             }
             .tab-nav-btn i {
                 width: 18px;
                 text-align: center;
                 font-size: 14px;
+                opacity: 0.88;
             }
             .tab-nav-btn:hover {
-                transform: translateX(2px) !important;
+                color: #ffffff !important;
+                background: rgba(255, 255, 255, 0.06) !important;
+                transform: translateX(3px) !important;
             }
             .tab-nav-btn.active {
+                color: #2dd4bf !important;
+                font-weight: 700 !important;
+                text-shadow: 0 0 16px rgba(45, 212, 191, 0.55), 0 1px 8px rgba(0, 0, 0, 0.75) !important;
+                background: transparent !important;
                 transform: none !important;
             }
-            .tab-glider {
-                width: calc(100% - 16px);
-                height: 42px;
-                border-radius: 16px !important;
+            .tab-nav-btn.active i {
+                color: #2dd4bf !important;
+                opacity: 1;
+            }
+            body.light-mode .tab-nav-btn {
+                color: #475569 !important;
+                text-shadow: none !important;
+            }
+            body.light-mode .tab-nav-btn:hover {
+                color: #0f172a !important;
+                background: rgba(15, 23, 42, 0.05) !important;
+            }
+            body.light-mode .tab-nav-btn.active {
+                color: #2563eb !important;
+                text-shadow: none !important;
+            }
+            body.light-mode .tab-nav-btn.active i {
+                color: #2563eb !important;
             }
 
-            /* 3. PC端：“我的”子导航（影视记录/我的书架/小说记录/漫画记录）紧随主导航下方同列停靠在左侧 */
+            /* PC 端左侧腾讯视频同款影视子频道纵列（电视剧/电影/综艺/韩剧/日剧/美剧等无框透明直达列表） */
+            .pc-side-channel-list {
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
+                margin-top: 4px;
+                padding-top: 6px;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+            body.light-mode .pc-side-channel-list {
+                border-top-color: rgba(15, 23, 42, 0.08);
+            }
+            .pc-side-channel-btn {
+                background: transparent;
+                border: none;
+                outline: none;
+                color: rgba(241, 245, 249, 0.72);
+                text-shadow: 0 1px 8px rgba(0, 0, 0, 0.68);
+                font-size: 13.5px;
+                font-weight: 500;
+                padding: 8px 10px;
+                border-radius: 10px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                text-align: left;
+                transition: all 0.2s ease;
+                user-select: none;
+            }
+            .pc-side-channel-btn i {
+                width: 18px;
+                text-align: center;
+                font-size: 13px;
+                opacity: 0.75;
+            }
+            .pc-side-channel-btn:hover {
+                color: #ffffff;
+                background: rgba(255, 255, 255, 0.06);
+                transform: translateX(3px);
+            }
+            .pc-side-channel-btn.active {
+                color: #2dd4bf;
+                font-weight: 700;
+                text-shadow: 0 0 14px rgba(45, 212, 191, 0.5);
+            }
+            body.light-mode .pc-side-channel-btn {
+                color: #64748b;
+                text-shadow: none;
+            }
+            body.light-mode .pc-side-channel-btn:hover {
+                color: #0f172a;
+                background: rgba(15, 23, 42, 0.05);
+            }
+            body.light-mode .pc-side-channel-btn.active {
+                color: #2563eb;
+            }
+
+            /* 3. PC端：“我的”子导航（影视记录/我的书架/小说记录/漫画记录）同样采用无框透明风格紧随主导航下方 */
             .my-workspace-layout {
                 display: block;
             }
             .my-sidebar-wrap {
                 position: fixed;
-                top: 340px;
-                left: 18px;
-                width: 224px;
-                max-height: calc(100vh - 356px);
+                top: 280px;
+                left: 22px;
+                width: 156px;
+                max-height: calc(100vh - 380px);
                 overflow-y: auto;
                 scrollbar-width: none;
                 z-index: 90;
@@ -2521,18 +2665,49 @@
             .my-sidebar-wrap::-webkit-scrollbar {
                 display: none;
             }
+            .my-sidebar-wrap .my-cloud-card {
+                display: none !important;
+            }
+            .my-sidebar-wrap .history-subnav {
+                background: transparent !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 6px 0 0 0 !important;
+                border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+                border-radius: 0 !important;
+            }
+            .my-sidebar-wrap .subnav-glider,
+            .my-sidebar-wrap .history-subnav::before {
+                display: none !important;
+            }
+            .my-sidebar-wrap .history-subnav-btn {
+                padding: 8px 10px !important;
+                border-radius: 10px !important;
+                background: transparent !important;
+                color: rgba(241, 245, 249, 0.72) !important;
+            }
+            .my-sidebar-wrap .history-subnav-btn:hover {
+                color: #ffffff !important;
+                background: rgba(255, 255, 255, 0.06) !important;
+            }
+            .my-sidebar-wrap .history-subnav-btn.active {
+                color: #2dd4bf !important;
+                font-weight: 700 !important;
+            }
 
-            /* 4. PC端：主内容区右侧全屏铺开，彻底消除页面左右大面积留白，顶部 0 遮挡，视野通透 */
+            /* 4. PC端：主内容区右侧全屏铺开，与巨幕标题同轴对齐在 206px */
             main {
                 max-width: none !important;
                 width: 100% !important;
-                padding: 18px 28px 52px 258px;
+                padding: 18px 28px 52px 206px;
                 margin: 0 !important;
             }
             body.reading-mode main {
                 max-width: none !important;
                 width: 100% !important;
-                padding: 16px 28px 48px 258px;
+                padding: 16px 28px 48px 206px;
                 margin: 0 !important;
             }
 
@@ -2540,8 +2715,8 @@
             .reader-floating-header {
                 left: 18px !important;
                 top: 18px !important;
-                width: 224px !important;
-                max-width: 224px !important;
+                width: 184px !important;
+                max-width: 184px !important;
                 transform: translateX(0) translateY(0) !important;
                 padding: 14px !important;
                 border-radius: 22px !important;
@@ -2889,14 +3064,14 @@
             user-select: none;
             isolation: isolate;
         }
-        /* PC 端：1:1 复刻腾讯视频全视口顶天立地无边框巨幕 (100vw × 73vh)，左侧直接延伸至毛玻璃导航栏底层透出流光色彩 */
+        /* PC 端：1:1 复刻腾讯视频全视口顶天立地无边框巨幕 (100vw × 73vh)，左侧直接延伸至全透明导航栏底层透出流光色彩 */
         @media (min-width: 1024px) {
             .tx-hero-stage {
                 margin-top: -18px;
-                margin-left: -258px;
+                margin-left: -206px;
                 margin-right: -28px;
                 margin-bottom: 0;
-                width: calc(100% + 286px);
+                width: calc(100% + 234px);
                 height: clamp(540px, 73vh, 730px);
                 border-radius: 0;
                 border: none;
@@ -3016,10 +3191,10 @@
             .tx-hero-bg-panoramic {
                 top: 0;
                 bottom: 0;
-                left: 190px;
+                left: 175px;
                 right: 2%;
                 width: auto;
-                max-width: min(calc(100% - 205px), calc(73vh * 2.04));
+                max-width: min(calc(100% - 190px), calc(73vh * 2.04));
                 margin: 0 auto;
                 height: 100%;
                 -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 5%, rgba(0,0,0,0.82) 11%, #000 17%, #000 86%, rgba(0,0,0,0.82) 92%, rgba(0,0,0,0.35) 97%, transparent 100%);
@@ -3050,13 +3225,13 @@
             z-index: 2;
             pointer-events: none;
         }
-        /* 左下角腾讯视频风格无框纯净信息叠加区 */
+        /* 左下角腾讯视频风格无框纯净信息叠加区 (与下方海报墙左边缘 206px 同轴对齐) */
         .tx-hero-bottom-left {
             position: absolute;
-            left: 266px;
+            left: 206px;
             bottom: 54px;
             z-index: 4;
-            max-width: min(540px, calc(100% - 820px));
+            max-width: min(540px, calc(100% - 760px));
             min-width: 280px;
             display: flex;
             flex-direction: column;
@@ -3388,7 +3563,7 @@
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
     <script src="recommend_data.js"></script>
-    <script src="video.js?v=20261012_txhero_hd"></script>
+    <script src="video.js?v=20261012_txside"></script>
 </head>
 <body>
 <header>
@@ -3455,6 +3630,33 @@
             </button>
             <button class="tab-nav-btn" id="navChiguaBtn" style="display:none;" onclick="switchNav('chigua')">
                 <i class="fas fa-fire-flame-curved" style="color:#f43f5e;"></i> <span>吃瓜</span>
+            </button>
+        </div>
+        <!-- PC 端专属：腾讯视频同款左侧全透明影视子频道直达栏 -->
+        <div class="pc-side-channel-list" id="pcVideoChannelList">
+            <button type="button" class="pc-side-channel-btn" onclick="window.jumpToVideoSection('大家都在看', this)">
+                <i class="fas fa-fire-flame-curved"></i> <span>热播推荐</span>
+            </button>
+            <button type="button" class="pc-side-channel-btn" onclick="window.jumpToVideoSection('国产新剧', this)">
+                <i class="fas fa-tv"></i> <span>电视剧</span>
+            </button>
+            <button type="button" class="pc-side-channel-btn" onclick="window.jumpToVideoSection('高分电影', this)">
+                <i class="fas fa-film"></i> <span>电影</span>
+            </button>
+            <button type="button" class="pc-side-channel-btn" onclick="window.jumpToVideoSection('院线热映', this)">
+                <i class="fas fa-ticket"></i> <span>院线热映</span>
+            </button>
+            <button type="button" class="pc-side-channel-btn" onclick="window.jumpToVideoSection('韩剧在追', this)">
+                <i class="fas fa-heart"></i> <span>韩剧在追</span>
+            </button>
+            <button type="button" class="pc-side-channel-btn" onclick="window.jumpToVideoSection('日剧上新', this)">
+                <i class="fas fa-moon"></i> <span>日剧上新</span>
+            </button>
+            <button type="button" class="pc-side-channel-btn" onclick="window.jumpToVideoSection('美剧续看', this)">
+                <i class="fas fa-globe"></i> <span>美剧续看</span>
+            </button>
+            <button type="button" class="pc-side-channel-btn" onclick="window.jumpToVideoSection('电影热播', this)">
+                <i class="fas fa-trophy"></i> <span>口碑榜单</span>
             </button>
         </div>
     </div>
@@ -4312,21 +4514,23 @@
     };
     checkEntryDisclaimer();
 
-    // PC端左侧三段式边栏动态防重叠对齐 (根据 header 与主导航实际渲染高度自动留出 14px 间距)
+    // PC端左侧无框全透明边栏动态防重叠对齐 (紧贴左上角品牌 Logo 下方展开)
     function syncPcLeftSidebarLayout() {
         const headerEl = document.querySelector('header');
+        const brandEl = document.querySelector('header .brand');
         const navContainer = document.querySelector('.tab-nav-container');
+        const mainNav = document.getElementById('mainTabNav');
         const subSidebar = document.querySelector('.my-sidebar-wrap');
         if (!headerEl || !navContainer) return;
         if (window.innerWidth >= 1024 && !document.body.classList.contains('reading-mode')) {
-            const hRect = headerEl.getBoundingClientRect();
-            const navTop = Math.max(116, Math.round(hRect.bottom + 14));
+            const bRect = (brandEl || headerEl).getBoundingClientRect();
+            const navTop = Math.max(70, Math.round(bRect.bottom + 14));
             navContainer.style.top = navTop + 'px';
-            const nRect = navContainer.getBoundingClientRect();
+            const mRect = (mainNav || navContainer).getBoundingClientRect();
             if (subSidebar) {
-                const subTop = Math.max(330, Math.round(nRect.bottom + 14));
+                const subTop = Math.max(250, Math.round(mRect.bottom + 8));
                 subSidebar.style.top = subTop + 'px';
-                subSidebar.style.maxHeight = `calc(100vh - ${subTop + 18}px)`;
+                subSidebar.style.maxHeight = `calc(100vh - ${subTop + 110}px)`;
             }
         } else {
             navContainer.style.top = '';
@@ -6000,6 +6204,12 @@
         document.getElementById('navVideoBtn').classList.toggle('active', isVideo);
         const chiguaBtn = document.getElementById('navChiguaBtn');
         if (chiguaBtn) chiguaBtn.classList.toggle('active', isChigua);
+
+        const pcChList = document.getElementById('pcVideoChannelList');
+        if (pcChList) {
+            pcChList.style.display = isHistory ? 'none' : '';
+            document.querySelectorAll('#pcVideoChannelList .pc-side-channel-btn').forEach(b => b.classList.remove('active'));
+        }
 
         const sections = [
             { el: document.getElementById('historySection'), active: isHistory },

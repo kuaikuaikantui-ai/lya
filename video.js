@@ -463,7 +463,7 @@
             }).join('');
 
             html += `
-                <div class="kanju-section-block" style="margin-bottom: 30px;">
+                <div class="kanju-section-block" data-sec-title="${sec.title}" style="margin-bottom: 30px; scroll-margin-top: 24px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
                         <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
                             <h4 style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:7px; color:var(--text-main);">
@@ -482,6 +482,30 @@
         window.currentVideoList = flatList;
         container.innerHTML = html;
         window.initTxHeroCarousel(flatList);
+    };
+
+    window.jumpToVideoSection = function(secTitle, btnEl) {
+        const videoSec = document.getElementById('videoSection');
+        if (!videoSec || videoSec.style.display === 'none') {
+            if (typeof window.switchNav === 'function') window.switchNav('video');
+        }
+        const searchBlock = document.getElementById('videoSearchResultBlock');
+        if (searchBlock && searchBlock.style.display !== 'none' && typeof window.clearVideoSearch === 'function') {
+            window.clearVideoSearch();
+        }
+        document.querySelectorAll('#pcVideoChannelList .pc-side-channel-btn').forEach(b => {
+            b.classList.toggle('active', b === btnEl);
+        });
+        setTimeout(() => {
+            if (!secTitle || secTitle === 'TOP') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+            const target = document.querySelector(`.kanju-section-block[data-sec-title="${secTitle}"]`);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 40);
     };
 
     // =========================================================================
