@@ -1457,58 +1457,44 @@
             overscroll-behavior-y: none !important;
         }
 
-        /* 苹果原生覆盖翻页效果 (Apple Books Page Cover Transition) */
-        .apple-page-cover {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            overflow: hidden !important;
-            z-index: 6 !important;
-            pointer-events: none !important;
-            will-change: transform !important;
-            box-shadow: -14px 0 36px -4px rgba(0, 0, 0, 0.32), -4px 0 12px -2px rgba(0, 0, 0, 0.16) !important;
-        }
-        .apple-page-cover.theme-parchment { background-color: #f4ece1 !important; }
-        .apple-page-cover.theme-mint { background-color: #e8f5e9 !important; }
-        .apple-page-cover.theme-daylight { background-color: #ffffff !important; }
-        .apple-page-cover.theme-night { background-color: #0d0f14 !important; }
-        .apple-page-cover.theme-slate { background-color: #1e2330 !important; }
-
-        /* 全屏阅读背景主题渗透 (彻底消灭底部安全区小黑条) */
+        /* 全屏阅读背景主题渗透 (彻底消灭底部安全区小黑条，全屏沉浸) */
         html.reading-theme-parchment,
         body.reading-mode.reading-theme-parchment,
         body.reading-mode.reading-theme-parchment main,
-        body.reading-mode.reading-theme-parchment #readerView {
+        body.reading-mode.reading-theme-parchment #readerView,
+        body.reading-mode.reading-theme-parchment .reader-wrapper {
             background-color: #f4ece1 !important;
             background-image: none !important;
         }
         html.reading-theme-mint,
         body.reading-mode.reading-theme-mint,
         body.reading-mode.reading-theme-mint main,
-        body.reading-mode.reading-theme-mint #readerView {
+        body.reading-mode.reading-theme-mint #readerView,
+        body.reading-mode.reading-theme-mint .reader-wrapper {
             background-color: #e8f5e9 !important;
             background-image: none !important;
         }
         html.reading-theme-daylight,
         body.reading-mode.reading-theme-daylight,
         body.reading-mode.reading-theme-daylight main,
-        body.reading-mode.reading-theme-daylight #readerView {
+        body.reading-mode.reading-theme-daylight #readerView,
+        body.reading-mode.reading-theme-daylight .reader-wrapper {
             background-color: #ffffff !important;
             background-image: none !important;
         }
         html.reading-theme-night,
         body.reading-mode.reading-theme-night,
         body.reading-mode.reading-theme-night main,
-        body.reading-mode.reading-theme-night #readerView {
+        body.reading-mode.reading-theme-night #readerView,
+        body.reading-mode.reading-theme-night .reader-wrapper {
             background-color: #0d0f14 !important;
             background-image: none !important;
         }
         html.reading-theme-slate,
         body.reading-mode.reading-theme-slate,
         body.reading-mode.reading-theme-slate main,
-        body.reading-mode.reading-theme-slate #readerView {
+        body.reading-mode.reading-theme-slate #readerView,
+        body.reading-mode.reading-theme-slate .reader-wrapper {
             background-color: #1e2330 !important;
             background-image: none !important;
         }
@@ -7549,7 +7535,11 @@
         const viewport = document.getElementById('readerPaginatedViewport');
         const stream = document.getElementById('novelArticleStream');
         if (!viewport || !stream) return;
-        if (!animate) stream.style.transition = 'none';
+        if (!animate) {
+            stream.style.transition = 'none';
+        } else {
+            stream.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+        }
         const stride = viewport.clientWidth + _paginatedColGap;
         const offset = -(_paginatedCurrentPage * stride);
         stream.style.transform = `translate3d(${offset}px, 0, 0)`;
@@ -7569,105 +7559,8 @@
         }
     }
 
-    let _isPageCoverAnimating = false;
-
-    // 苹果原生纸张覆盖翻页过渡 (Apple Books Page Cover Transition: 右侧覆入 / 右侧移出 + 纸张边缘立体深邃投影 + 底层视差暗化)
-    function performAppleCoverTransition(fromPage, toPage, delta, onComplete) {
-        const viewport = document.getElementById('readerPaginatedViewport');
-        const stream = document.getElementById('novelArticleStream');
-        if (!viewport || !stream) {
-            _paginatedCurrentPage = toPage;
-            applyPaginatedTransform(false);
-            if (onComplete) onComplete();
-            return;
-        }
-
-        // 移除任何未完成的历史覆盖层
-        const oldCover = document.getElementById('applePageCover');
-        if (oldCover) oldCover.remove();
-
-        const pageWidth = viewport.clientWidth;
-        const stride = pageWidth + _paginatedColGap;
-        const readerWrap = document.getElementById('readerContainer');
-        const themeClass = readerWrap ? (Array.from(readerWrap.classList).find(c => c.startsWith('theme-')) || 'theme-parchment') : 'theme-parchment';
-
-        // 创建顶层苹果原生覆盖纸页 (带左侧立体深邃投影与真实纸张背景)
-        const cover = document.createElement('div');
-        cover.id = 'applePageCover';
-        cover.className = `apple-page-cover ${themeClass}`;
-
-        const clone = stream.cloneNode(true);
-        clone.id = 'novelArticleStreamCoverClone';
-        clone.style.transition = 'none';
-        clone.style.pointerEvents = 'none';
-        cover.appendChild(clone);
-        viewport.appendChild(cover);
-
-        _isPageCoverAnimating = true;
-
-        if (delta > 0) {
-            // 下一页：新页面从右侧滑入 (100% -> 0)，携左边缘纸张深邃投影覆盖在当前页之上
-            clone.style.transform = `translate3d(${-toPage * stride}px, 0, 0)`;
-            cover.style.transition = 'none';
-            cover.style.transform = 'translate3d(100%, 0, 0)';
-
-            // 底层原页面轻微向左产生 12% 视差位移并略微暗化，营造真实书本质感
-            stream.style.transition = 'none';
-            stream.style.transform = `translate3d(${-fromPage * stride}px, 0, 0)`;
-
-            void cover.offsetWidth; // 触发回流
-
-            cover.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-            stream.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease';
-            cover.style.transform = 'translate3d(0, 0, 0)';
-            stream.style.transform = `translate3d(${-fromPage * stride - pageWidth * 0.12}px, 0, 0)`;
-            stream.style.filter = 'brightness(0.94)';
-
-            setTimeout(() => {
-                _paginatedCurrentPage = toPage;
-                stream.style.transition = 'none';
-                stream.style.filter = '';
-                stream.style.transform = `translate3d(${-toPage * stride}px, 0, 0)`;
-                cover.remove();
-                _isPageCoverAnimating = false;
-                applyPaginatedTransform(false);
-                if (onComplete) onComplete();
-            }, 310);
-        } else {
-            // 上一页：当前页从顶层向右滑出 (0 -> 100%)，露出底下早已就绪的上一页
-            clone.style.transform = `translate3d(${-fromPage * stride}px, 0, 0)`;
-            cover.style.transition = 'none';
-            cover.style.transform = 'translate3d(0, 0, 0)';
-
-            // 底层目标上一页初始处于轻微偏左与微暗状态，滑开时平滑归位
-            stream.style.transition = 'none';
-            stream.style.transform = `translate3d(${-toPage * stride - pageWidth * 0.12}px, 0, 0)`;
-            stream.style.filter = 'brightness(0.94)';
-
-            void cover.offsetWidth;
-
-            cover.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-            stream.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease';
-            cover.style.transform = 'translate3d(100%, 0, 0)';
-            stream.style.transform = `translate3d(${-toPage * stride}px, 0, 0)`;
-            stream.style.filter = 'brightness(1)';
-
-            setTimeout(() => {
-                _paginatedCurrentPage = toPage;
-                stream.style.transition = 'none';
-                stream.style.filter = '';
-                stream.style.transform = `translate3d(${-toPage * stride}px, 0, 0)`;
-                cover.remove();
-                _isPageCoverAnimating = false;
-                applyPaginatedTransform(false);
-                if (onComplete) onComplete();
-            }, 310);
-        }
-    }
-
     function turnPaginatedPage(delta) {
         if (currentReaderMode !== 'paginated') return;
-        if (_isPageCoverAnimating) return;
         const target = _paginatedCurrentPage + delta;
         if (target < 0) {
             // 向前翻越章节边界：进入上一章最后一页（保持阅读倒退上下文连续性）
@@ -7700,8 +7593,9 @@
             return;
         }
 
-        // 同章节内：执行苹果原生纸页覆盖过渡 (Page Cover Transition)
-        performAppleCoverTransition(_paginatedCurrentPage, target, delta);
+        // 同章节内：纯粹、无闪烁、文字立即可见的高性能平滑硬件加速翻页
+        _paginatedCurrentPage = target;
+        applyPaginatedTransform(true);
     }
 
     let _activeChapterFetchController = null;
