@@ -1352,28 +1352,35 @@
             font-size: 12px;
             opacity: 0.65;
         }
-        /* 仿真书页左右翻页模式 (Paginated Book Mode) - 彻底锁定垂直方向，防止上下移动与弹性拉扯 */
+        /* 沉浸式阅读模式全局修正 */
+        body.reading-mode {
+            padding-bottom: 0 !important;
+            margin: 0 !important;
+            min-height: 100vh;
+        }
+        body.reading-mode::before,
+        body.reading-mode::after {
+            display: none !important;
+        }
+
+        /* 仿真书页左右翻页模式 (Paginated Book Mode) - 纯粹锁定垂直方向，零晃动、零上下偏移 */
         html.reader-locked-paginated,
         body.reading-mode.reader-mode-paginated {
             overflow: hidden !important;
             height: 100% !important;
-            max-height: 100dvh !important;
             overscroll-behavior: none !important;
             overscroll-behavior-y: none !important;
             touch-action: pan-x !important;
         }
-        body.reading-mode.reader-mode-paginated main {
-            height: 100% !important;
-            max-height: 100dvh !important;
-            overflow: hidden !important;
-        }
+        body.reading-mode.reader-mode-paginated main,
         body.reading-mode.reader-mode-paginated #readerView {
-            padding-top: 0 !important;
             height: 100% !important;
-            max-height: 100dvh !important;
+            min-height: 100vh;
             overflow: hidden !important;
             display: flex;
             flex-direction: column;
+            padding: 0 !important;
+            margin: 0 !important;
         }
         .reader-wrapper.mode-paginated {
             height: calc(100vh - 96px);
@@ -1390,55 +1397,17 @@
             overscroll-behavior-y: none !important;
         }
         @media (max-width: 640px) {
-            body.reading-mode.reader-mode-paginated {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                bottom: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                height: 100dvh !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow: hidden !important;
-            }
-            body.reading-mode.reader-mode-paginated main {
-                height: 100% !important;
-                height: 100dvh !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                overflow: hidden !important;
-            }
-            body.reading-mode.reader-mode-paginated #readerView {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                bottom: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                height: 100dvh !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow: hidden !important;
-                display: flex !important;
-                flex-direction: column !important;
-                z-index: 20 !important;
-            }
             .reader-wrapper.mode-paginated {
                 width: 100% !important;
+                height: 100vh !important;
                 height: 100% !important;
-                height: 100dvh !important;
-                max-height: none !important;
+                max-height: 100vh !important;
                 min-height: 0 !important;
                 margin: 0 !important;
                 border-radius: 0 !important;
                 border: none !important;
                 box-shadow: none !important;
-                padding: calc(14px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom)) !important;
+                padding: calc(14px + env(safe-area-inset-top)) 16px calc(38px + env(safe-area-inset-bottom)) !important;
                 touch-action: pan-x !important;
                 overscroll-behavior: none !important;
                 overscroll-behavior-y: none !important;
@@ -1457,8 +1426,23 @@
             overscroll-behavior-y: none !important;
         }
 
+        /* 左右翻页模式下的章节标题：紧凑优雅，不挤占首屏宝贵空间 */
+        .reader-wrapper.mode-paginated .novel-chapter-header {
+            margin-bottom: 14px !important;
+            padding-bottom: 8px !important;
+        }
+        .reader-wrapper.mode-paginated .novel-chapter-header .novel-book-badge,
+        .reader-wrapper.mode-paginated .novel-chapter-header .novel-chapter-meta {
+            display: none !important;
+        }
+        .reader-wrapper.mode-paginated .novel-chapter-header .novel-chapter-title {
+            margin: 4px 0 6px 0 !important;
+            font-size: calc(var(--reader-font-size) * 1.25) !important;
+        }
+
         /* 全屏阅读背景主题渗透 (彻底消灭底部安全区小黑条，全屏沉浸) */
         html.reading-theme-parchment,
+        html.reading-theme-parchment body,
         body.reading-mode.reading-theme-parchment,
         body.reading-mode.reading-theme-parchment main,
         body.reading-mode.reading-theme-parchment #readerView,
@@ -1467,6 +1451,7 @@
             background-image: none !important;
         }
         html.reading-theme-mint,
+        html.reading-theme-mint body,
         body.reading-mode.reading-theme-mint,
         body.reading-mode.reading-theme-mint main,
         body.reading-mode.reading-theme-mint #readerView,
@@ -1475,6 +1460,7 @@
             background-image: none !important;
         }
         html.reading-theme-daylight,
+        html.reading-theme-daylight body,
         body.reading-mode.reading-theme-daylight,
         body.reading-mode.reading-theme-daylight main,
         body.reading-mode.reading-theme-daylight #readerView,
@@ -1483,6 +1469,7 @@
             background-image: none !important;
         }
         html.reading-theme-night,
+        html.reading-theme-night body,
         body.reading-mode.reading-theme-night,
         body.reading-mode.reading-theme-night main,
         body.reading-mode.reading-theme-night #readerView,
@@ -1491,6 +1478,7 @@
             background-image: none !important;
         }
         html.reading-theme-slate,
+        html.reading-theme-slate body,
         body.reading-mode.reading-theme-slate,
         body.reading-mode.reading-theme-slate main,
         body.reading-mode.reading-theme-slate #readerView,
@@ -1507,7 +1495,7 @@
             overflow-x: visible !important;
             overflow-y: visible !important;
             column-fill: auto;
-            transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+            transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
             will-change: transform;
             margin: 0 !important;
             padding: 0 !important;
@@ -1516,7 +1504,7 @@
             position: absolute;
             left: 16px;
             right: 16px;
-            bottom: calc(6px + env(safe-area-inset-bottom));
+            bottom: calc(8px + env(safe-area-inset-bottom));
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -4940,11 +4928,9 @@
             document.body.classList.remove('reading-theme-' + t);
             document.documentElement.classList.remove('reading-theme-' + t);
         });
-        if (document.body.classList.contains('reading-mode')) {
-            document.body.classList.add('reading-theme-' + themeName);
-            document.documentElement.classList.add('reading-theme-' + themeName);
-            updateThemeColorMeta(themeName);
-        }
+        document.body.classList.add('reading-theme-' + themeName);
+        document.documentElement.classList.add('reading-theme-' + themeName);
+        updateThemeColorMeta(themeName);
         document.querySelectorAll('.palette-btn').forEach(btn => {
             btn.classList.toggle('active', btn.classList.contains(themeName));
         });
@@ -8075,6 +8061,11 @@
 
     function showView(name) {
         const isReader = (name === 'reader');
+        const isPaginatedMode = isReader && (currentReaderMode === 'paginated');
+        document.body.classList.toggle('reading-mode', isReader);
+        document.body.classList.toggle('reader-mode-paginated', isPaginatedMode);
+        document.documentElement.classList.toggle('reader-locked-paginated', isPaginatedMode);
+
         if (!isReader) {
             if (_activeChapterFetchController) {
                 try { _activeChapterFetchController.abort(); } catch (e) {}
@@ -8088,11 +8079,8 @@
             updateThemeColorMeta(null);
         } else {
             setNovelTheme(currentNovelTheme);
+            window.scrollTo({ top: 0, behavior: 'auto' });
         }
-        const isPaginatedMode = isReader && (currentReaderMode === 'paginated');
-        document.body.classList.toggle('reading-mode', isReader);
-        document.body.classList.toggle('reader-mode-paginated', isPaginatedMode);
-        document.documentElement.classList.toggle('reader-locked-paginated', isPaginatedMode);
 
         document.getElementById('historySection').style.display = 'none';
         document.getElementById('novelSection').style.display = 'none';
