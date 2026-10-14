@@ -1352,7 +1352,29 @@
             font-size: 12px;
             opacity: 0.65;
         }
-        /* 仿真书页左右翻页模式 (Paginated Book Mode) */
+        /* 仿真书页左右翻页模式 (Paginated Book Mode) - 彻底锁定垂直方向，防止上下移动与弹性拉扯 */
+        html.reader-locked-paginated,
+        body.reading-mode.reader-mode-paginated {
+            overflow: hidden !important;
+            height: 100% !important;
+            max-height: 100dvh !important;
+            overscroll-behavior: none !important;
+            overscroll-behavior-y: none !important;
+            touch-action: pan-x !important;
+        }
+        body.reading-mode.reader-mode-paginated main {
+            height: 100% !important;
+            max-height: 100dvh !important;
+            overflow: hidden !important;
+        }
+        body.reading-mode.reader-mode-paginated #readerView {
+            padding-top: 0 !important;
+            height: 100% !important;
+            max-height: 100dvh !important;
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+        }
         .reader-wrapper.mode-paginated {
             height: calc(100vh - 96px);
             max-height: calc(100vh - 96px);
@@ -1363,17 +1385,22 @@
             padding: 24px 36px 46px;
             user-select: none;
             position: relative;
-            touch-action: pan-y;
+            touch-action: pan-x !important;
+            overscroll-behavior: none !important;
+            overscroll-behavior-y: none !important;
         }
         @media (max-width: 640px) {
             .reader-wrapper.mode-paginated {
-                height: calc(100vh - 12px) !important;
-                height: calc(100dvh - 12px) !important;
-                max-height: calc(100dvh - 12px) !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
                 min-height: 0 !important;
-                margin: 6px auto !important;
-                border-radius: 14px;
-                padding: calc(14px + env(safe-area-inset-top)) 16px calc(44px + env(safe-area-inset-bottom)) !important;
+                margin: 0 auto !important;
+                border-radius: 0 !important;
+                padding: calc(14px + env(safe-area-inset-top)) 16px calc(38px + env(safe-area-inset-bottom)) !important;
+                touch-action: pan-x !important;
+                overscroll-behavior: none !important;
+                overscroll-behavior-y: none !important;
             }
         }
         .reader-paginated-viewport {
@@ -1383,6 +1410,9 @@
             min-height: 0;
             overflow: hidden !important;
             position: relative;
+            touch-action: pan-x !important;
+            overscroll-behavior: none !important;
+            overscroll-behavior-y: none !important;
         }
         .reader-wrapper.mode-paginated .text-stream {
             width: 100%;
@@ -6394,7 +6424,8 @@
 
     // 核心独立页面切换 (1.我的 2.小说 3.漫画 4.影视 5.隐藏吃瓜)
     function switchNav(nav) {
-        document.body.classList.remove('reading-mode');
+        document.body.classList.remove('reading-mode', 'reader-mode-paginated');
+        document.documentElement.classList.remove('reader-locked-paginated');
         const isHistory = (nav === 'history');
         const isNovel = (nav === 'novel');
         const isManga = (nav === 'manga');
@@ -7274,16 +7305,20 @@
     }
 
     let _paginatedColGap = 64;
+    let _targetInitialPage = 'first';
 
-    function renderNovelIntoContainer(formatted, chapTitle, idx) {
+    function renderNovelIntoContainer(formatted, chapTitle, idx, initialPage = 'first') {
         const container = document.getElementById('readerContainer');
         const bottomPager = document.getElementById('readerBottomPager');
         if (!container) return;
 
-        _lastRenderedNovelData = { formatted, chapTitle, idx };
+        _targetInitialPage = initialPage || _targetInitialPage || 'first';
+        _lastRenderedNovelData = { formatted, chapTitle, idx, initialPage: _targetInitialPage };
 
         const isPaginated = (currentReaderMode === 'paginated');
         container.classList.toggle('mode-paginated', isPaginated);
+        document.body.classList.toggle('reader-mode-paginated', isPaginated);
+        document.documentElement.classList.toggle('reader-locked-paginated', isPaginated);
 
         if (isPaginated) {
             if (bottomPager) bottomPager.style.display = 'none';
@@ -7305,7 +7340,7 @@
                 </div>
             `;
             applyHetiTypography();
-            _paginatedCurrentPage = 0;
+            _paginatedCurrentPage = (_targetInitialPage === 'last') ? 9999 : 0;
             window.scrollTo({ top: 0, behavior: 'auto' });
             requestAnimationFrame(() => {
                 recalcPaginatedLayout();
@@ -7315,8 +7350,12 @@
             if (bottomPager) bottomPager.style.display = 'flex';
             container.innerHTML = formatted.fullScrollHtml;
             applyHetiTypography();
-            window.scrollTo({ top: 0, behavior: 'auto' });
-            lastScrollTop = 0;
+            if (_targetInitialPage === 'last') {
+                window.scrollTo({ top: document.body.scrollHeight || 999999, behavior: 'auto' });
+            } else {
+                window.scrollTo({ top: 0, behavior: 'auto' });
+            }
+            lastScrollTop = window.scrollY || 0;
             updateScrollReadingProgress();
         }
     }
@@ -7352,11 +7391,19 @@
 
         const stride = pageWidth + _paginatedColGap;
         _paginatedTotalPages = Math.max(1, Math.ceil((contentWidth - 4) / stride));
-        if (_paginatedCurrentPage >= _paginatedTotalPages) {
+        if (_targetInitialPage === 'last') {
             _paginatedCurrentPage = _paginatedTotalPages - 1;
-        }
-        if (_paginatedCurrentPage < 0) {
-            _paginatedCurrentPage = 0;
+            _targetInitialPage = 'first';
+        } else if (typeof _targetInitialPage === 'number') {
+            _paginatedCurrentPage = Math.min(_paginatedTotalPages - 1, Math.max(0, _targetInitialPage));
+            _targetInitialPage = 'first';
+        } else {
+            if (_paginatedCurrentPage >= _paginatedTotalPages) {
+                _paginatedCurrentPage = _paginatedTotalPages - 1;
+            }
+            if (_paginatedCurrentPage < 0) {
+                _paginatedCurrentPage = 0;
+            }
         }
 
         applyPaginatedTransform(false);
@@ -7393,11 +7440,33 @@
         if (currentReaderMode !== 'paginated') return;
         const target = _paginatedCurrentPage + delta;
         if (target < 0) {
-            if (currentChapterIndex > 0) prevChapter();
+            // 向前翻越章节边界：进入上一章最后一页（保持阅读倒退上下文连续性）
+            if (currentChapterIndex > 0) {
+                const prevChap = currentCatalog[currentChapterIndex - 1];
+                if (typeof showCloudToast === 'function') {
+                    showCloudToast(`已翻回上一章末尾：${prevChap ? prevChap.title : ''}`, 'fa-history', '#38bdf8');
+                }
+                readChapter(currentChapterIndex - 1, false, 'last');
+            } else {
+                if (typeof showCloudToast === 'function') {
+                    showCloudToast('已经是第一章第一页了', 'fa-info-circle', '#f59e0b');
+                }
+            }
             return;
         }
         if (target >= _paginatedTotalPages) {
-            if (currentChapterIndex < currentCatalog.length - 1) nextChapter();
+            // 向后翻越章节边界：进入下一章第 1 页（醒目呈现新章节标题与开头正文）
+            if (currentChapterIndex < currentCatalog.length - 1) {
+                const nextChap = currentCatalog[currentChapterIndex + 1];
+                if (typeof showCloudToast === 'function') {
+                    showCloudToast(`进入新章节：${nextChap ? nextChap.title : ''}`, 'fa-book-open', '#38bdf8');
+                }
+                readChapter(currentChapterIndex + 1, false, 'first');
+            } else {
+                if (typeof showCloudToast === 'function') {
+                    showCloudToast('已经是全书最后一章了', 'fa-check-circle', '#10b981');
+                }
+            }
             return;
         }
         _paginatedCurrentPage = target;
@@ -7512,11 +7581,12 @@
         }, 700);
     }
 
-    async function readChapter(idx, forceRefresh = false) {
+    async function readChapter(idx, forceRefresh = false, initialPage = 'first') {
         const chap = currentCatalog[idx];
         if (!chap) return;
 
         currentChapterIndex = idx;
+        _targetInitialPage = initialPage || 'first';
         const reqToken = ++_currentReadRequestToken;
 
         // 取消上一次尚未完成的章节请求并中断旧章节仍在下载的 <img> 连接
@@ -7599,7 +7669,7 @@
             const cleanedText = cleanAdContent(data ? data.content : '');
             if (cleanedText && cleanedText.length > 0 && !isPaywallOrAdText(cleanedText)) {
                 const formatted = formatNovelContentToHtml(cleanedText, chap.title, currentBookInfo);
-                renderNovelIntoContainer(formatted, chap.title, idx);
+                renderNovelIntoContainer(formatted, chap.title, idx, initialPage);
                 prefetchNextNovelChapter(idx + 1);
                 return;
             }
@@ -7641,12 +7711,34 @@
         }
     }
 
-    function prevChapter() {
-        if (currentChapterIndex > 0) readChapter(currentChapterIndex - 1);
+    // 主动点击上一章（属于跳章操作）：按行业规范跳转至目标章节第 1 页
+    function prevChapter(isManualJump = true) {
+        if (currentChapterIndex > 0) {
+            const targetChap = currentCatalog[currentChapterIndex - 1];
+            if (isManualJump && typeof showCloudToast === 'function') {
+                showCloudToast(`跳转至上一章：${targetChap ? targetChap.title : ''}`, 'fa-step-backward', '#38bdf8');
+            }
+            readChapter(currentChapterIndex - 1, false, 'first');
+        } else {
+            if (typeof showCloudToast === 'function') {
+                showCloudToast('已经是第一章了', 'fa-info-circle', '#f59e0b');
+            }
+        }
     }
 
-    function nextChapter() {
-        if (currentChapterIndex < currentCatalog.length - 1) readChapter(currentChapterIndex + 1);
+    // 主动点击下一章（属于跳章操作）：按行业规范跳转至目标章节第 1 页
+    function nextChapter(isManualJump = true) {
+        if (currentChapterIndex < currentCatalog.length - 1) {
+            const targetChap = currentCatalog[currentChapterIndex + 1];
+            if (isManualJump && typeof showCloudToast === 'function') {
+                showCloudToast(`跳转至下一章：${targetChap ? targetChap.title : ''}`, 'fa-step-forward', '#38bdf8');
+            }
+            readChapter(currentChapterIndex + 1, false, 'first');
+        } else {
+            if (typeof showCloudToast === 'function') {
+                showCloudToast('已经是最后一章了', 'fa-check-circle', '#10b981');
+            }
+        }
     }
 
     // 阅读器内快捷目录抽屉
@@ -7785,12 +7877,20 @@
                 }
             }, { passive: true });
 
+            readerEl.addEventListener('touchmove', (e) => {
+                if (currentReaderMode !== 'paginated' || !_lastRenderedNovelData) return;
+                // 左右仿真书页模式下全面拦截垂直滑动，彻底防止移动端页面上下晃动/弹性拉伸
+                if (e.cancelable) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
             readerEl.addEventListener('touchend', (e) => {
                 if (currentReaderMode !== 'paginated' || !_lastRenderedNovelData || !_readerTouchStartX) return;
                 if (e.changedTouches && e.changedTouches.length === 1) {
                     const dx = e.changedTouches[0].clientX - _readerTouchStartX;
                     const dy = e.changedTouches[0].clientY - _readerTouchStartY;
-                    if (Math.abs(dx) > 32 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+                    if (Math.abs(dx) > 32 && Math.abs(dx) > Math.abs(dy) * 0.8) {
                         _lastTouchTurnTime = Date.now();
                         turnPaginatedPage(dx < 0 ? 1 : -1);
                     }
@@ -7856,7 +7956,10 @@
             }
             abortActiveReaderImages();
         }
+        const isPaginatedMode = isReader && (currentReaderMode === 'paginated');
         document.body.classList.toggle('reading-mode', isReader);
+        document.body.classList.toggle('reader-mode-paginated', isPaginatedMode);
+        document.documentElement.classList.toggle('reader-locked-paginated', isPaginatedMode);
 
         document.getElementById('historySection').style.display = 'none';
         document.getElementById('novelSection').style.display = 'none';
@@ -7879,7 +7982,8 @@
     }
 
     function goBackFromDetail() {
-        document.body.classList.remove('reading-mode');
+        document.body.classList.remove('reading-mode', 'reader-mode-paginated');
+        document.documentElement.classList.remove('reader-locked-paginated');
         switchNav(previousView);
     }
 
@@ -7952,6 +8056,10 @@
         currentReaderMode = (mode === 'paginated') ? 'paginated' : 'scroll';
         localStorage.setItem('reader_layout_mode', currentReaderMode);
         updateFormatLabels();
+        const isReading = document.body.classList.contains('reading-mode');
+        const isPaginated = isReading && (currentReaderMode === 'paginated');
+        document.body.classList.toggle('reader-mode-paginated', isPaginated);
+        document.documentElement.classList.toggle('reader-locked-paginated', isPaginated);
         if (_lastRenderedNovelData) {
             renderNovelIntoContainer(_lastRenderedNovelData.formatted, _lastRenderedNovelData.chapTitle, _lastRenderedNovelData.idx);
         }
