@@ -7268,7 +7268,9 @@
     let _lastRenderedNovelData = null;
     let _readerCatalogReversed = false;
 
-    let currentReaderMode = localStorage.getItem('reader_layout_mode') || 'scroll';
+    // 小说用户专属排版偏好（独立存储，默认左右书页仿真翻页，绝不受漫画上下卷轴影响）
+    let novelReaderMode = localStorage.getItem('novel_layout_mode') || 'paginated';
+    let currentReaderMode = novelReaderMode;
     let currentReaderFont = localStorage.getItem('reader_font_family_key') || 'wenkai';
     let currentParaSpacing = localStorage.getItem('reader_para_spacing') || '1.15em';
     let currentReaderMaxWidth = localStorage.getItem('reader_max_width') || '820px';
@@ -7465,6 +7467,9 @@
 
         _targetInitialPage = initialPage || _targetInitialPage || 'first';
         _lastRenderedNovelData = { formatted, chapTitle, idx, initialPage: _targetInitialPage };
+
+        // 确保小说始终应用小说专属排版偏好（默认左右翻页，不被漫画的上下滚动覆盖）
+        currentReaderMode = novelReaderMode || 'paginated';
 
         const isPaginated = (currentReaderMode === 'paginated');
         container.classList.toggle('mode-paginated', isPaginated);
@@ -7820,6 +7825,9 @@
             // 2. 小说纯文本 -> 开源级智能分段重排与赫蹏排版
             const cleanedText = cleanAdContent(data ? data.content : '');
             if (cleanedText && cleanedText.length > 0 && !isPaywallOrAdText(cleanedText)) {
+                // 彻底恢复小说用户的专属排版（默认左右翻页，绝不受前次漫画上下卷轴影响）
+                currentReaderMode = novelReaderMode || 'paginated';
+                container.classList.remove('manga-reader-mode');
                 const formatted = formatNovelContentToHtml(cleanedText, chap.title, currentBookInfo);
                 renderNovelIntoContainer(formatted, chap.title, idx, initialPage);
                 prefetchNextNovelChapter(idx + 1);
@@ -8094,6 +8102,10 @@
 
     function showView(name) {
         const isReader = (name === 'reader');
+        const isManga = (currentBookInfo && currentBookInfo.tab === '漫画');
+        if (isReader) {
+            currentReaderMode = isManga ? 'scroll' : (novelReaderMode || 'paginated');
+        }
         const isPaginatedMode = isReader && (currentReaderMode === 'paginated');
         document.body.classList.toggle('reading-mode', isReader);
         document.body.classList.toggle('reader-mode-paginated', isPaginatedMode);
@@ -8208,13 +8220,20 @@
     }
 
     function setReaderLayoutMode(mode) {
-        if (currentBookInfo && currentBookInfo.tab === '漫画') {
+        const isManga = (currentBookInfo && currentBookInfo.tab === '漫画');
+        if (isManga) {
+            // 漫画强制上下卷轴沉浸模式；在此点击仅更新并保存小说偏好，不打乱漫画阅读
             currentReaderMode = 'scroll';
+            novelReaderMode = (mode === 'paginated') ? 'paginated' : 'scroll';
+            localStorage.setItem('novel_layout_mode', novelReaderMode);
+            localStorage.setItem('reader_layout_mode', novelReaderMode);
             updateFormatLabels();
             return;
         }
-        currentReaderMode = (mode === 'paginated') ? 'paginated' : 'scroll';
-        localStorage.setItem('reader_layout_mode', currentReaderMode);
+        novelReaderMode = (mode === 'paginated') ? 'paginated' : 'scroll';
+        currentReaderMode = novelReaderMode;
+        localStorage.setItem('novel_layout_mode', novelReaderMode);
+        localStorage.setItem('reader_layout_mode', novelReaderMode);
         updateFormatLabels();
         const isReading = document.body.classList.contains('reading-mode');
         const isPaginated = isReading && (currentReaderMode === 'paginated');
@@ -8285,7 +8304,12 @@
         if (lineLbl) lineLbl.innerText = currentLineHeight.toFixed(2).replace(/\.00$/, '.0').replace(/(\.\d)0$/, '$1');
 
         document.querySelectorAll('[data-rmode]').forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-rmode') === currentReaderMode);
+            const btnMode = btn.getAttribute('data-rmode');
+            if (isManga) {
+                btn.classList.toggle('active', btnMode === 'scroll');
+            } else {
+                btn.classList.toggle('active', btnMode === (novelReaderMode || 'paginated'));
+            }
         });
         document.querySelectorAll('[data-rfont]').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-rfont') === currentReaderFont);
