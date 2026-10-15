@@ -7644,6 +7644,9 @@
                     img.removeAttribute('src');
                 }
             });
+            if (typeof clearMangaPreloadCache === 'function') {
+                clearMangaPreloadCache(15);
+            }
         } catch (e) {}
     }
 
@@ -7727,12 +7730,92 @@
         return { code: -1, msg: lastErr || '章节请求超时，请点击重试或换源', images: [], content: '' };
     }
 
+    // ====================================================================
+    // 漫画与小说高性能双轨智能预加载引擎
+    // ====================================================================
+    const _mangaPreloadImgCache = new Map(); // key: url, value: Image object
+    let _lastMangaPreloadedChapterIdx = -1;
+
+    // 清理或重置漫画预加载池（保障移动端内存轻量，避免无上限累加）
+    function clearMangaPreloadCache(keepRecent = 20) {
+        if (_mangaPreloadImgCache.size > keepRecent) {
+            const keysToRemove = Array.from(_mangaPreloadImgCache.keys()).slice(0, _mangaPreloadImgCache.size - keepRecent);
+            keysToRemove.forEach(k => {
+                const img = _mangaPreloadImgCache.get(k);
+                if (img) {
+                    img.onload = null;
+                    img.onerror = null;
+                    img.src = '';
+                }
+                _mangaPreloadImgCache.delete(k);
+            });
+        }
+    }
+
+    // 后台闲时预加载单张图片（采用 no-referrer 与 async 解码，利用浏览器 HTTP 缓存池）
+    function preloadSingleMangaImage(url) {
+        if (!url || typeof url !== 'string' || _mangaPreloadImgCache.has(url)) return;
+        try {
+            const img = new Image();
+            img.decoding = 'async';
+            img.referrerPolicy = 'no-referrer';
+            img.onload = () => {
+                if (_mangaPreloadImgCache.size > 60) clearMangaPreloadCache(30);
+            };
+            img.onerror = () => {
+                _mangaPreloadImgCache.delete(url);
+            };
+            img.src = url;
+            _mangaPreloadImgCache.set(url, img);
+        } catch (e) {}
+    }
+
+    // 批量平滑闲时预加载图片（小步慢跑，不与当前前台阅读页抢夺并发连接）
+    function preloadMangaImagesBatch(urls, maxCount = 8) {
+        if (!Array.isArray(urls) || urls.length === 0) return;
+        const targetUrls = urls.slice(0, maxCount).filter(u => !_mangaPreloadImgCache.has(u));
+        if (targetUrls.length === 0) return;
+
+        let curIdx = 0;
+        function loadNext() {
+            if (curIdx >= targetUrls.length) return;
+            const u = targetUrls[curIdx++];
+            preloadSingleMangaImage(u);
+            setTimeout(loadNext, 120);
+        }
+
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(() => loadNext(), { timeout: 1200 });
+        } else {
+            setTimeout(loadNext, 400);
+        }
+    }
+
+    // 智能预加载下一章（小说元数据预取 + 漫画全量元数据及首批原画深度预热）
+    function prefetchNextChapter(nextIdx, isDeepPreload = false) {
+        if (!currentBookInfo || nextIdx < 0 || nextIdx >= currentCatalog.length) return;
+        const isManga = (currentBookInfo.tab === '漫画');
+
+        setTimeout(async () => {
+            try {
+                // 1. 预拉取下一章节的 API 数据并写入 _novelChapterCache 内存池
+                const data = await fetchChapterDataWithCache(nextIdx, false);
+                if (!data) return;
+
+                // 2. 如果是漫画且包含图片，立即对下一话的前置图片进行静默后台预加载
+                if (isManga && Array.isArray(data.images) && data.images.length > 0) {
+                    _lastMangaPreloadedChapterIdx = nextIdx;
+                    // 默认预热前 6 张，若为滑动到底部的深度冲刺则预热前 12 张
+                    const count = isDeepPreload ? 12 : 6;
+                    preloadMangaImagesBatch(data.images, count);
+                }
+            } catch (e) {}
+        }, 500);
+    }
+
+    // 兼容旧接口别名
     function prefetchNextNovelChapter(nextIdx) {
-        if (nextIdx < 0 || nextIdx >= currentCatalog.length) return;
-        // 仅预取下一章的 JSON 元数据（绝不预创建 <img> 抢占当前章图片带宽）
-        setTimeout(() => {
-            fetchChapterDataWithCache(nextIdx, false).catch(() => {});
-        }, 700);
+        prefetchNextChapter(nextIdx, false);
     }
 
     async function readChapter(idx, forceRefresh = false, initialPage = 'first') {
@@ -7811,14 +7894,14 @@
                     container.innerHTML = `
                         ${rescuedBanner}
                         <div class="img-stream">
-                            ${data.images.map((img, i) => `<img src="${escapeNovelHtml(img)}" data-orig-src="${escapeNovelHtml(img)}" loading="${i < 3 ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer" onload="this.setAttribute('data-loaded','1')" onerror="window.retryMangaImg(this)" />`).join('')}
+                            ${data.images.map((img, i) => `<img src="${escapeNovelHtml(img)}" data-orig-src="${escapeNovelHtml(img)}" loading="${i < 5 ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer" onload="this.setAttribute('data-loaded','1')" onerror="window.retryMangaImg(this)" />`).join('')}
                         </div>
                     `;
                 }
                 window.scrollTo({ top: 0, behavior: 'auto' });
                 lastScrollTop = 0;
                 updateScrollReadingProgress();
-                prefetchNextNovelChapter(idx + 1);
+                prefetchNextChapter(idx + 1, false);
                 return;
             }
 
@@ -7830,7 +7913,7 @@
                 container.classList.remove('manga-reader-mode');
                 const formatted = formatNovelContentToHtml(cleanedText, chap.title, currentBookInfo);
                 renderNovelIntoContainer(formatted, chap.title, idx, initialPage);
-                prefetchNextNovelChapter(idx + 1);
+                prefetchNextChapter(idx + 1, false);
                 return;
             }
 
@@ -7981,6 +8064,13 @@
         const progEl = document.getElementById('readProgressText');
         if (progEl && currentCatalog.length > 0) {
             progEl.innerText = `第 ${currentChapterIndex + 1}/${currentCatalog.length} 章 · ${pct}%`;
+        }
+
+        // 漫画滚动冲刺预加载：阅读至后半段(≥60%)时，触发下一话原画深度预热
+        if (currentBookInfo && currentBookInfo.tab === '漫画') {
+            if (pct >= 60 && _lastMangaPreloadedChapterIdx !== currentChapterIndex + 1) {
+                prefetchNextChapter(currentChapterIndex + 1, true);
+            }
         }
     }
 
