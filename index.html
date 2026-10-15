@@ -347,6 +347,88 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         }
 
+        /* 图三简洁胶囊搜索框（纯净极简药丸框，右侧放大镜，彻底去除旧按钮与高饱和光效） */
+        .tx-top-search-wrap {
+            width: 100%;
+            margin: 8px 0 14px 0;
+            position: relative;
+            z-index: 50;
+        }
+        .tx-capsule-search {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: 44px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 0 16px 0 20px;
+            box-sizing: border-box;
+            transition: all 0.25s ease;
+        }
+        .tx-capsule-search:hover,
+        .tx-capsule-search:focus-within {
+            background: rgba(255, 255, 255, 0.13);
+            border-color: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }
+        body.light-mode .tx-capsule-search {
+            background: rgba(15, 23, 42, 0.05);
+            border-color: rgba(15, 23, 42, 0.12);
+        }
+        body.light-mode .tx-capsule-search:hover,
+        body.light-mode .tx-capsule-search:focus-within {
+            background: rgba(15, 23, 42, 0.08);
+            border-color: rgba(15, 23, 42, 0.22);
+        }
+        .tx-capsule-input {
+            flex: 1;
+            height: 100%;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            color: #ffffff;
+            font-size: 14px;
+            padding: 0;
+            letter-spacing: 0.2px;
+            caret-color: #00d1c1;
+        }
+        body.light-mode .tx-capsule-input {
+            color: #0f172a;
+        }
+        .tx-capsule-input::placeholder {
+            color: rgba(255, 255, 255, 0.45);
+        }
+        body.light-mode .tx-capsule-input::placeholder {
+            color: rgba(15, 23, 42, 0.45);
+        }
+        .tx-capsule-search-btn {
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            padding: 0 4px;
+            margin: 0;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 16px;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        body.light-mode .tx-capsule-search-btn {
+            color: rgba(15, 23, 42, 0.5);
+        }
+        .tx-capsule-search-btn:hover {
+            color: #00d1c1 !important;
+            transform: scale(1.12);
+        }
+
         .search-row {
             display: flex;
             gap: 10px;
@@ -2385,8 +2467,8 @@
                 top: 0;
                 left: 0;
                 bottom: 0;
-                width: 200px;
-                background: linear-gradient(90deg, rgba(6, 8, 15, 0.56) 0%, rgba(6, 8, 15, 0.24) 66%, transparent 100%);
+                width: 300px;
+                background: linear-gradient(90deg, rgba(6, 8, 15, 0.6) 0%, rgba(6, 8, 15, 0.28) 70%, transparent 100%);
                 pointer-events: none;
                 z-index: 88;
             }
@@ -2398,9 +2480,9 @@
             header {
                 position: fixed;
                 top: 20px;
-                left: 22px;
-                width: 164px;
-                max-width: 164px;
+                left: 28px;
+                width: 230px;
+                max-width: 230px;
                 margin: 0;
                 flex-direction: column;
                 align-items: flex-start;
@@ -2451,20 +2533,20 @@
             /* PC 端将云同步与日夜切换化身为左栏底部无框透明功能项，不再卡在 Logo 下方当胶囊框 */
             header .header-actions {
                 position: fixed;
-                left: 22px;
+                left: 28px;
                 bottom: 18px;
-                width: 156px;
+                width: 230px;
                 display: flex;
                 flex-direction: column;
                 align-items: stretch;
-                gap: 2px;
+                gap: 4px;
                 z-index: 100;
             }
             header .header-actions .theme-toggle-btn {
                 width: 100%;
                 justify-content: flex-start !important;
-                padding: 8px 10px !important;
-                font-size: 13px !important;
+                padding: 10px 16px !important;
+                font-size: 14px !important;
                 font-weight: 500 !important;
                 border-radius: 10px !important;
                 background: transparent !important;
@@ -2474,7 +2556,7 @@
                 box-shadow: none !important;
                 color: rgba(241, 245, 249, 0.72) !important;
                 text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
-                gap: 9px !important;
+                gap: 12px !important;
                 white-space: nowrap;
                 transform: none !important;
             }
@@ -2496,13 +2578,13 @@
             .tab-nav-container {
                 position: fixed;
                 top: 76px;
-                left: 22px;
-                width: 156px;
+                left: 28px;
+                width: 230px;
                 margin: 0;
                 z-index: 95;
                 display: flex;
                 flex-direction: column;
-                gap: 6px;
+                gap: 8px;
             }
             .tab-nav {
                 flex-direction: column;
@@ -2510,7 +2592,7 @@
                 max-width: none;
                 padding: 0 !important;
                 border-radius: 0 !important;
-                gap: 2px;
+                gap: 3px;
                 background: transparent !important;
                 backdrop-filter: none !important;
                 -webkit-backdrop-filter: none !important;
@@ -2525,13 +2607,13 @@
             .tab-nav-btn {
                 width: 100%;
                 justify-content: flex-start !important;
-                padding: 9px 10px !important;
+                padding: 11px 16px !important;
                 border-radius: 10px !important;
-                font-size: 15px !important;
+                font-size: 15.5px !important;
                 font-weight: 400 !important;
                 color: #8e959e !important;
                 text-shadow: none !important;
-                gap: 12px !important;
+                gap: 14px !important;
                 text-align: left;
                 background: transparent !important;
                 border: none !important;
@@ -2541,7 +2623,7 @@
             .tab-nav-btn i {
                 width: 20px;
                 text-align: center;
-                font-size: 15px;
+                font-size: 16px;
                 color: #8e959e !important;
                 opacity: 1;
                 transition: color 0.15s ease;
@@ -2585,9 +2667,9 @@
             .pc-side-channel-list {
                 display: flex;
                 flex-direction: column;
-                gap: 2px;
-                margin-top: 6px;
-                padding-top: 8px;
+                gap: 3px;
+                margin-top: 8px;
+                padding-top: 10px;
                 border-top: 1px solid rgba(255, 255, 255, 0.08);
             }
             body.light-mode .pc-side-channel-list {
@@ -2599,14 +2681,14 @@
                 outline: none !important;
                 color: #8e959e !important;
                 text-shadow: none !important;
-                font-size: 14px;
+                font-size: 14.5px;
                 font-weight: 400;
-                padding: 8px 10px;
+                padding: 9.5px 16px;
                 border-radius: 8px;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
-                gap: 12px;
+                gap: 14px;
                 text-align: left;
                 transition: color 0.15s ease;
                 user-select: none;
@@ -2614,7 +2696,7 @@
             .pc-side-channel-btn i {
                 width: 20px;
                 text-align: center;
-                font-size: 14px;
+                font-size: 15px;
                 color: #8e959e !important;
                 opacity: 1;
                 transition: color 0.15s ease;
@@ -2654,9 +2736,9 @@
             }
             .my-sidebar-wrap {
                 position: fixed;
-                top: 280px;
-                left: 22px;
-                width: 156px;
+                top: 275px;
+                left: 28px;
+                width: 230px;
                 max-height: calc(100vh - 380px);
                 overflow-y: auto;
                 scrollbar-width: none;
@@ -2683,7 +2765,7 @@
                 display: none !important;
             }
             .my-sidebar-wrap .history-subnav-btn {
-                padding: 8px 10px !important;
+                padding: 10px 16px !important;
                 border-radius: 8px !important;
                 background: transparent !important;
                 color: #8e959e !important;
@@ -2714,17 +2796,17 @@
                 color: #00d1c1 !important;
             }
 
-            /* 4. PC端：主内容区右侧全屏铺开，与巨幕标题同轴对齐在 206px */
+            /* 4. PC端：主内容区右侧全屏铺开，与巨幕标题同轴对齐在 290px */
             main {
                 max-width: none !important;
                 width: 100% !important;
-                padding: 18px 28px 52px 206px;
+                padding: 20px 36px 60px 290px !important;
                 margin: 0 !important;
             }
             body.reading-mode main {
                 max-width: none !important;
                 width: 100% !important;
-                padding: 16px 28px 48px 206px;
+                padding: 16px 36px 48px 290px !important;
                 margin: 0 !important;
             }
 
@@ -2813,51 +2895,50 @@
             }
             .history-subnav {
                 display: flex !important;
-                flex-direction: row !important;
-                align-items: center !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
                 justify-content: flex-start !important;
-                overflow-x: auto !important;
-                white-space: nowrap !important;
-                gap: 18px !important;
-                padding: 4px 2px 10px 2px !important;
+                gap: 8px !important;
+                padding: 0 !important;
                 width: 100% !important;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-                scrollbar-width: none !important;
+                border: none !important;
+                margin-bottom: 16px !important;
                 background: transparent !important;
-                border-radius: 0 !important;
-                border-top: none !important;
-                border-left: none !important;
-                border-right: none !important;
                 box-shadow: none !important;
             }
             .history-subnav::-webkit-scrollbar {
                 display: none;
             }
             .history-subnav-btn {
-                display: inline-flex !important;
+                display: flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
-                gap: 6px !important;
-                padding: 6px 4px !important;
-                background: transparent !important;
-                border: none !important;
+                justify-content: space-between !important;
+                width: 100% !important;
+                padding: 12px 14px !important;
+                border-radius: 12px !important;
+                background: rgba(255, 255, 255, 0.035) !important;
+                border: 1px solid rgba(255, 255, 255, 0.07) !important;
                 box-shadow: none !important;
-                border-radius: 0 !important;
-                font-size: 15px !important;
+                font-size: 14.5px !important;
                 font-weight: 400 !important;
                 color: #8e959e !important;
-                flex-shrink: 0 !important;
-                position: relative !important;
                 text-align: left !important;
                 cursor: pointer;
-                width: auto !important;
+                box-sizing: border-box !important;
+                transition: all 0.2s ease;
+            }
+            .history-subnav-btn:hover {
+                color: #ffffff !important;
+                background: rgba(255, 255, 255, 0.06) !important;
             }
             .history-subnav-btn.active {
                 color: #00d1c1 !important;
-                font-size: 15px !important;
+                font-size: 14.5px !important;
                 font-weight: 600 !important;
                 text-shadow: none !important;
-                background: transparent !important;
+                background: rgba(0, 209, 193, 0.08) !important;
+                border-color: rgba(0, 209, 193, 0.25) !important;
             }
             .history-subnav-btn.active::after {
                 display: none !important;
@@ -2866,26 +2947,42 @@
                 display: inline-flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
-                gap: 6px !important;
+                gap: 10px !important;
             }
             .history-subnav-btn .my-tab-left i {
-                font-size: 14px !important;
+                font-size: 15px !important;
                 color: #8e959e !important;
+                width: 18px;
+                text-align: center;
             }
             .history-subnav-btn.active .my-tab-left i {
                 color: #00d1c1 !important;
             }
             .my-tab-count {
-                font-size: 10.5px !important;
-                padding: 1px 6px !important;
+                font-size: 11px !important;
+                padding: 2px 8px !important;
                 border-radius: 999px !important;
                 background: rgba(255, 255, 255, 0.06) !important;
                 border: 1px solid rgba(255, 255, 255, 0.08) !important;
                 color: #8e959e !important;
             }
             .history-subnav-btn.active .my-tab-count {
-                background: rgba(0, 209, 193, 0.12) !important;
+                background: rgba(0, 209, 193, 0.14) !important;
                 border-color: rgba(0, 209, 193, 0.28) !important;
+                color: #00d1c1 !important;
+            }
+            body.light-mode .history-subnav-btn {
+                background: rgba(15, 23, 42, 0.03) !important;
+                border-color: rgba(15, 23, 42, 0.07) !important;
+                color: #64748b !important;
+            }
+            body.light-mode .history-subnav-btn:hover {
+                background: rgba(15, 23, 42, 0.06) !important;
+                color: #0f172a !important;
+            }
+            body.light-mode .history-subnav-btn.active {
+                background: rgba(0, 209, 193, 0.08) !important;
+                border-color: rgba(0, 209, 193, 0.25) !important;
                 color: #00d1c1 !important;
             }
             .subnav-glider,
@@ -3226,11 +3323,11 @@
         /* PC 端：1:1 复刻腾讯视频全视口顶天立地无边框巨幕 (100vw × 73vh)，左侧直接延伸至全透明导航栏底层透出流光色彩 */
         @media (min-width: 1024px) {
             .tx-hero-stage {
-                margin-top: -18px;
-                margin-left: -206px;
-                margin-right: -28px;
+                margin-top: 0;
+                margin-left: -290px;
+                margin-right: -36px;
                 margin-bottom: 0;
-                width: calc(100% + 234px);
+                width: calc(100% + 326px);
                 height: clamp(540px, 73vh, 730px);
                 border-radius: 0;
                 border: none;
@@ -3242,74 +3339,19 @@
                 z-index: 6;
                 margin-top: -32px;
             }
-            /* PC 端搜索框与热搜词化身为腾讯视频同款右上角悬浮毛玻璃搜索胶囊，聚焦/悬停时展开热搜下拉面板，彻底告别中间傻大白条 */
+            /* PC 端搜索框：居中简洁胶囊风格（类似图三无按钮纯净药丸框+右侧放大镜） */
+            .tx-top-search-wrap,
             .tx-pc-top-search-wrap {
-                position: absolute;
-                top: 4px;
-                right: 6px;
-                width: min(440px, 38vw);
-                z-index: 30;
-            }
-            .tx-pc-top-search-wrap .search-box {
-                margin: 0 !important;
-                padding: 5px 6px 5px 16px !important;
-                border-radius: 999px !important;
-                background: rgba(10, 15, 28, 0.48) !important;
-                backdrop-filter: blur(26px) saturate(190%) !important;
-                -webkit-backdrop-filter: blur(26px) saturate(190%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.18) !important;
-                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
-                transition: all 0.25s ease;
-            }
-            .tx-pc-top-search-wrap:hover .search-box,
-            .tx-pc-top-search-wrap:focus-within .search-box {
-                background: rgba(12, 18, 34, 0.76) !important;
-                border-color: rgba(56, 189, 248, 0.45) !important;
-                box-shadow: 0 16px 38px rgba(0, 0, 0, 0.65), 0 0 20px rgba(56, 189, 248, 0.2) !important;
-            }
-            .tx-pc-top-search-wrap .search-input {
-                background: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
-                padding: 7px 6px !important;
-                font-size: 13px !important;
-                color: #f8fafc !important;
-            }
-            .tx-pc-top-search-wrap .search-row button.btn.primary {
-                border-radius: 999px !important;
-                padding: 7px 18px !important;
-                font-size: 12.5px !important;
-            }
-            .tx-pc-top-search-wrap .kanju-suggestions-box {
-                position: absolute;
-                top: calc(100% + 8px);
-                left: 0;
-                right: 0;
-                margin: 0 !important;
-                padding: 14px 16px !important;
-                border-radius: 20px !important;
-                background: rgba(10, 15, 28, 0.88) !important;
-                backdrop-filter: blur(30px) saturate(200%) !important;
-                -webkit-backdrop-filter: blur(30px) saturate(200%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.16) !important;
-                box-shadow: 0 22px 48px rgba(0, 0, 0, 0.78) !important;
-                opacity: 0;
-                visibility: hidden;
-                transform: translateY(-6px);
-                pointer-events: none;
-                transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-            }
-            .tx-pc-top-search-wrap:hover .kanju-suggestions-box,
-            .tx-pc-top-search-wrap:focus-within .kanju-suggestions-box {
-                opacity: 1;
-                visibility: visible;
-                transform: translateY(0);
-                pointer-events: auto;
+                position: relative;
+                width: 100%;
+                max-width: 520px;
+                margin: 4px auto 16px auto;
+                z-index: 50;
             }
         }
         @media (min-width: 861px) and (max-width: 1023px) {
             .tx-hero-stage {
-                margin-top: -14px;
+                margin-top: 0;
                 margin-left: -20px;
                 margin-right: -20px;
                 width: calc(100% + 40px);
@@ -3350,10 +3392,10 @@
             .tx-hero-bg-panoramic {
                 top: 0;
                 bottom: 0;
-                left: 175px;
+                left: 250px;
                 right: 2%;
                 width: auto;
-                max-width: min(calc(100% - 190px), calc(73vh * 2.04));
+                max-width: min(calc(100% - 265px), calc(73vh * 2.04));
                 margin: 0 auto;
                 height: 100%;
                 -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 5%, rgba(0,0,0,0.82) 11%, #000 17%, #000 86%, rgba(0,0,0,0.82) 92%, rgba(0,0,0,0.35) 97%, transparent 100%);
@@ -3384,10 +3426,10 @@
             z-index: 2;
             pointer-events: none;
         }
-        /* 左下角腾讯视频风格无框纯净信息叠加区 (与下方海报墙左边缘 206px 同轴对齐) */
+        /* 左下角腾讯视频风格无框纯净信息叠加区 (与下方海报墙左边缘 290px 同轴对齐) */
         .tx-hero-bottom-left {
             position: absolute;
-            left: 206px;
+            left: 290px;
             bottom: 54px;
             z-index: 4;
             max-width: min(540px, calc(100% - 760px));
@@ -4107,20 +4149,6 @@
     </div>
 </header>
 
-<!-- 移动端专属横向纯文字频道栏 (对标腾讯视频App短视频/首页/电视剧纯文字横滑，非按钮) -->
-<div class="mobile-channel-strip" id="mobileChannelStrip">
-    <span class="mobile-channel-item active" onclick="window.jumpToVideoSection('大家都在看', this)">热播推荐</span>
-    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('国产新剧', this)">电视剧</span>
-    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('高分电影', this)">电影</span>
-    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('大陆综艺', this)">综艺</span>
-    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('动漫', this)">动漫</span>
-    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('院线热映', this)">院线热映</span>
-    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('韩剧在追', this)">韩剧在追</span>
-    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('日剧上新', this)">日剧上新</span>
-    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('美剧续看', this)">美剧续看</span>
-    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('电影热播', this)">口碑榜单</span>
-</div>
-
 <main>
     <!-- 顶部液态玻璃分段导航 (物理弹簧水滴拉伸透镜 + 鼠标/触控随动) -->
     <div class="tab-nav-container">
@@ -4315,9 +4343,11 @@
     <!-- 第2页：小说独立专区 (独立搜索框、独立小说源、原生带图推荐书城) -->
     <section id="novelSection" style="display: none;">
         <div class="search-box">
-            <div class="search-row">
-                <input type="search" id="novelSearchInput" name="novel_q_search" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" class="search-input" placeholder="输入小说书名、主角名搜索 (如: 剑来, 十日终焉, 凡人修仙传)..." value="" onkeydown="if(event.key==='Enter')doNovelSearch()" />
-                <button class="btn primary" onclick="doNovelSearch()"><i class="fas fa-search"></i> 搜小说</button>
+            <div class="tx-capsule-search" style="margin-bottom: 12px;">
+                <input type="search" id="novelSearchInput" name="novel_q_search" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" class="tx-capsule-input" placeholder="输入小说书名、主角名搜索 (如: 剑来, 十日终焉, 凡人修仙传)..." value="" onkeydown="if(event.key==='Enter')doNovelSearch()" />
+                <button type="button" class="tx-capsule-search-btn" onclick="doNovelSearch()" title="搜索小说">
+                    <i class="fas fa-magnifying-glass"></i>
+                </button>
             </div>
             <div class="filter-row">
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质小说源：</label>
@@ -4385,9 +4415,11 @@
     <!-- 第3页：漫画独立专区 (独立搜索框、独立漫画源、原生带图推荐漫城) -->
     <section id="mangaSection" style="display: none;">
         <div class="search-box">
-            <div class="search-row">
-                <input type="search" id="mangaSearchInput" name="manga_q_search" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" class="search-input" placeholder="输入漫画作品名 (如: 秘密教学, 一人之下, 咒术回战)..." value="" onkeydown="if(event.key==='Enter')doMangaSearch()" />
-                <button class="btn primary" onclick="doMangaSearch()"><i class="fas fa-search"></i> 搜漫画</button>
+            <div class="tx-capsule-search" style="margin-bottom: 12px;">
+                <input type="search" id="mangaSearchInput" name="manga_q_search" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" class="tx-capsule-input" placeholder="输入漫画作品名 (如: 秘密教学, 一人之下, 咒术回战)..." value="" onkeydown="if(event.key==='Enter')doMangaSearch()" />
+                <button type="button" class="tx-capsule-search-btn" onclick="doMangaSearch()" title="搜索漫画">
+                    <i class="fas fa-magnifying-glass"></i>
+                </button>
             </div>
             <div class="filter-row">
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质漫画源：</label>
@@ -4446,6 +4478,16 @@
 
     <!-- 默认首页：影视巨幕专区 (腾讯视频级首屏铺满焦点海报墙 + 全网片源秒播) -->
     <section id="videoSection" style="display: block;">
+        <!-- 视频专区简洁胶囊搜索框 (对标腾讯视频App居顶搜索，图三纯净胶囊，右侧放大镜，按回车或点放大镜即搜) -->
+        <div class="tx-top-search-wrap" id="txPcTopSearchWrap">
+            <div class="tx-capsule-search">
+                <input type="search" id="videoSearchInput" name="video_q_search" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" class="tx-capsule-input" placeholder="输入片名搜索电影、热播剧、国漫、韩剧..." value="" onkeydown="if(event.key==='Enter')window.doVideoSearch()" />
+                <button type="button" class="tx-capsule-search-btn" onclick="window.doVideoSearch()" title="搜索片源">
+                    <i class="fas fa-magnifying-glass"></i>
+                </button>
+            </div>
+        </div>
+
         <!-- 🎬 腾讯视频 (v.qq.com) 1:1 首屏第一推荐大片全屏铺满巨幕焦点墙 -->
         <div class="tx-hero-stage" id="txHeroStage" onmouseenter="window.pauseTxHeroCarousel && window.pauseTxHeroCarousel()" onmouseleave="window.resumeTxHeroCarousel && window.resumeTxHeroCarousel()">
             <!-- 1. 真实 <img> 全画幅同色系高饱和流光侧翼底幕 (referrerpolicy="no-referrer" 确保 100% 加载) -->
@@ -4481,47 +4523,6 @@
             <div class="tx-hero-thumb-strip">
                 <div class="tx-rail-list" id="txHeroRailList"></div>
                 <button class="tx-thumb-next-btn" onclick="window.stepTxHeroSlide && window.stepTxHeroSlide(1)" title="下一部推荐"><i class="fas fa-chevron-right"></i></button>
-            </div>
-        </div>
-
-        <!-- PC 端右上角悬浮毛玻璃搜索胶囊 + 热搜下拉面板 (移动端保持原位流式布局) -->
-        <div class="tx-pc-top-search-wrap" id="txPcTopSearchWrap">
-            <!-- kanju 搜索栏 -->
-            <div class="search-box">
-                <div class="search-row">
-                    <input type="search" id="videoSearchInput" name="video_q_search" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" class="search-input" placeholder="输入片名搜索电影、热播剧、国漫、韩剧..." value="" onkeydown="if(event.key==='Enter')window.doVideoSearch()" />
-                    <button class="btn primary" onclick="window.doVideoSearch()"><i class="fas fa-search"></i> 搜全网</button>
-                </div>
-            </div>
-
-            <!-- 热门影片/看点标签 -->
-            <div class="kanju-suggestions-box">
-                <div class="kanju-suggestion-row">
-                    <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热门影片:</span>
-                    <div class="kanju-suggestion-chips" id="kanjuHotChips">
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('庆余年')">庆余年2</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('繁花')">繁花</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('狂飙')">狂飙</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('抓娃娃')">抓娃娃</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('周处除三害')">周处除三害</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('边水往事')">边水往事</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('玫瑰的故事')">玫瑰的故事</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('墨雨云间')">墨雨云间</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('凡人修仙传')">凡人修仙传</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('飞驰人生2')">飞驰人生2</button>
-                        <button class="kanju-chip" onclick="window.quickSearchVideo('唐朝诡事录')">唐朝诡事录</button>
-                    </div>
-                </div>
-                <div class="kanju-suggestion-row">
-                    <span class="kanju-suggestion-label"><i class="fas fa-compass" style="color:var(--accent);"></i> 推荐看点:</span>
-                    <div class="kanju-suggestion-chips">
-                        <button class="kanju-chip sub" onclick="window.quickSearchVideo('修仙')">热血修仙</button>
-                        <button class="kanju-chip sub" onclick="window.quickSearchVideo('悬疑')">高分悬疑</button>
-                        <button class="kanju-chip sub" onclick="window.quickSearchVideo('喜剧')">爆笑喜剧</button>
-                        <button class="kanju-chip sub" onclick="window.quickSearchVideo('犯罪')">扫黑犯罪</button>
-                        <button class="kanju-chip sub" onclick="window.quickSearchVideo('古装')">经典古装</button>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -6849,13 +6850,7 @@
         if (mNavManga) mNavManga.classList.toggle('active', isManga);
         if (mNavHistory) mNavHistory.classList.toggle('active', isHistory);
 
-        // 移动端横向频道滑条显隐（仅影视专区展示，其他专区彻底隐藏）
         document.body.classList.toggle('nav-video', isVideo);
-        const mChannelStrip = document.getElementById('mobileChannelStrip');
-        if (mChannelStrip) {
-            mChannelStrip.classList.toggle('nav-hidden', !isVideo);
-            mChannelStrip.style.setProperty('display', isVideo ? 'flex' : 'none', 'important');
-        }
 
         // 移动端顶部搜索胶囊占位提示文案同步当前频道
         const mSearchText = document.getElementById('mobileTopSearchText');
@@ -6869,7 +6864,7 @@
 
         const pcChList = document.getElementById('pcVideoChannelList');
         if (pcChList) {
-            pcChList.style.display = isHistory ? 'none' : '';
+            pcChList.style.display = isVideo ? '' : 'none';
             document.querySelectorAll('#pcVideoChannelList .pc-side-channel-btn').forEach(b => b.classList.remove('active'));
         }
 
