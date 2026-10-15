@@ -14,20 +14,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            /* 纯正流体液态玻璃基底：深邃黑曜石 + 柔和极光流体 (告别廉价AI彩色光斑) */
-            --bg-base: #07080c;
-            --glass-bg: rgba(14, 18, 28, 0.65);
-            --glass-card: rgba(18, 24, 38, 0.48);
-            --glass-card-hover: rgba(26, 34, 52, 0.68);
-            --glass-border: rgba(255, 255, 255, 0.09);
-            --glass-border-light: rgba(255, 255, 255, 0.18);
+            /* 腾讯视频同款温润暗褐基调：暖调深邃黑曜 + 顶级琥珀焦糖光晕 */
+            --bg-base: #0c0b0e;
+            --glass-bg: rgba(28, 18, 20, 0.72);
+            --glass-card: rgba(32, 20, 22, 0.52);
+            --glass-card-hover: rgba(48, 28, 30, 0.72);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-border-light: rgba(255, 255, 255, 0.16);
             --glass-highlight: inset 0 1px 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35);
             --glass-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.6);
             --glass-blur: blur(28px) saturate(190%) contrast(102%);
             --text-main: #f8fafc;
-            --text-muted: #8e9bb0;
-            --accent: #38bdf8;
-            --accent-glow: rgba(56, 189, 248, 0.22);
+            --text-muted: #9ca3af;
+            --accent: #ff6b35;
+            --accent-glow: rgba(255, 107, 53, 0.22);
             --reader-font-size: 18px;
             --reader-line-height: 1.9;
             --reader-para-spacing: 1.15em;
@@ -80,10 +80,10 @@
         body {
             background-color: var(--bg-base);
             background-image: 
-                radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.45) 0px, transparent 55%),
-                radial-gradient(at 100% 0%, rgba(49, 46, 129, 0.25) 0px, transparent 50%),
-                radial-gradient(at 50% 100%, rgba(30, 58, 138, 0.2) 0px, transparent 60%),
-                radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.5) 0px, transparent 50%);
+                radial-gradient(at 50% -12%, rgba(120, 48, 32, 0.55) 0px, rgba(68, 26, 18, 0.32) 48%, transparent 78%),
+                radial-gradient(at 0% 0%, rgba(95, 38, 28, 0.4) 0px, transparent 52%),
+                radial-gradient(at 100% 0%, rgba(75, 30, 24, 0.3) 0px, transparent 50%),
+                linear-gradient(180deg, #24110e 0%, #150d10 380px, #0c0b0e 100%);
             background-attachment: fixed;
             background-size: cover;
             color: var(--text-main);
@@ -101,7 +101,7 @@
             overscroll-behavior-x: none;
         }
 
-        /* 真实液态折射光晕 (严格限制在视口内，防止手机端产生横向滚动条与左右晃动) */
+        /* 真实温润琥珀微芒 (限制在视口内，防晃动) */
         body::before {
             content: '';
             position: fixed;
@@ -109,9 +109,9 @@
             width: 100%;
             height: 100%;
             background: 
-                radial-gradient(circle 500px at 25% 25%, rgba(56, 189, 248, 0.05), transparent 70%),
-                radial-gradient(circle 600px at 75% 35%, rgba(99, 102, 241, 0.055), transparent 70%),
-                radial-gradient(circle 700px at 50% 85%, rgba(139, 92, 246, 0.04), transparent 70%);
+                radial-gradient(circle 500px at 25% 15%, rgba(255, 107, 53, 0.04), transparent 70%),
+                radial-gradient(circle 600px at 75% 25%, rgba(245, 158, 11, 0.035), transparent 70%),
+                radial-gradient(circle 700px at 50% 85%, rgba(180, 83, 9, 0.03), transparent 70%);
             pointer-events: none;
             z-index: -1;
             filter: blur(50px);
@@ -308,34 +308,23 @@
             transform: translateY(-1px) scale(1.02);
         }
         button.btn:active { transform: scale(0.96); }
-        /* 纯透明真液态玻璃主按钮 (搜全网 / 搜小说 / 搜漫画) */
+        /* 腾讯视频同款燃动流火主操作按钮 (搜全网 / 搜小说 / 搜漫画 / 播放) */
         button.btn.primary {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(56, 189, 248, 0.1) 50%, rgba(255, 255, 255, 0.14) 100%) !important;
-            backdrop-filter: blur(24px) brightness(1.2) saturate(210%) !important;
-            -webkit-backdrop-filter: blur(24px) brightness(1.2) saturate(210%) !important;
+            background: linear-gradient(135deg, #ff6b35 0%, #ff3b30 100%) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
             color: #ffffff !important;
             font-weight: 600;
-            border: 1px solid rgba(255, 255, 255, 0.45) !important;
-            border-top-color: rgba(255, 255, 255, 0.8) !important;
-            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+            border-top-color: rgba(255, 255, 255, 0.5) !important;
+            border-radius: 999px !important;
             padding: 9px 22px;
-            text-shadow: 0 0 14px rgba(255, 255, 255, 0.75), 0 0 8px rgba(56, 189, 248, 0.6);
-            box-shadow: 
-                inset 0 1.5px 3px 0 rgba(255, 255, 255, 0.85),
-                inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
-                0 8px 24px rgba(0, 0, 0, 0.4),
-                0 0 24px rgba(56, 189, 248, 0.38) !important;
+            box-shadow: 0 6px 20px rgba(255, 59, 48, 0.38) !important;
         }
         button.btn.primary:hover {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0%, rgba(56, 189, 248, 0.18) 50%, rgba(255, 255, 255, 0.2) 100%) !important;
-            border-color: rgba(255, 255, 255, 0.65) !important;
-            border-top-color: #ffffff !important;
-            box-shadow: 
-                inset 0 2px 4px 0 rgba(255, 255, 255, 0.95),
-                inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
-                0 10px 28px rgba(0, 0, 0, 0.45),
-                0 0 32px rgba(56, 189, 248, 0.55) !important;
-            transform: translateY(-1.5px) scale(1.04);
+            background: linear-gradient(135deg, #ff7b45 0%, #ff4b40 100%) !important;
+            box-shadow: 0 8px 26px rgba(255, 59, 48, 0.5) !important;
+            transform: translateY(-1px) scale(1.02);
         }
 
         main {
@@ -363,39 +352,39 @@
             }
         }
 
-        /* 玻璃拟态搜索框卡片 */
+        /* 腾讯视频同款温润暗褐胶囊搜索框卡片 */
         .search-box {
-            background: var(--glass-card);
+            background: rgba(32, 20, 22, 0.48);
             backdrop-filter: var(--glass-blur);
             -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 14px 16px;
             margin-bottom: 20px;
-            box-shadow: var(--glass-shadow);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         }
 
         .search-row {
             display: flex;
             gap: 10px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .search-input {
             flex: 1;
-            background: rgba(0, 0, 0, 0.35);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
+            padding: 10px 18px;
             color: var(--text-main);
-            font-size: 14px;
+            font-size: 13.5px;
             outline: none;
             transition: all 0.25s;
         }
         .search-input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 16px var(--accent-glow);
-            background: rgba(0, 0, 0, 0.45);
+            border-color: rgba(255, 107, 53, 0.55);
+            box-shadow: 0 0 16px rgba(255, 107, 53, 0.25);
+            background: rgba(255, 255, 255, 0.12);
         }
 
         .filter-row {
@@ -406,14 +395,19 @@
         }
 
         .select-filter {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
             color: var(--text-main);
-            padding: 8px 14px;
-            border-radius: 10px;
-            font-size: 12px;
+            padding: 7px 16px;
+            border-radius: 999px;
+            font-size: 12.5px;
             outline: none;
+            cursor: pointer;
             backdrop-filter: blur(8px);
+            transition: all 0.2s;
+        }
+        .select-filter:focus {
+            border-color: rgba(255, 107, 53, 0.5);
         }
 
         /* 第一页：“我的”中心 左侧竖向极光透镜 Tab 栏 + 右侧独立分栏展示布局 */
@@ -2848,15 +2842,21 @@
         @media (max-width: 640px) {
             header {
                 width: calc(100% - 20px);
-                margin: calc(8px + env(safe-area-inset-top)) auto 2px;
-                padding: 9px 12px;
-                border-radius: 20px;
+                margin: 0 !important;
+                padding: calc(6px + env(safe-area-inset-top)) 12px 4px 12px !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                width: 100% !important;
             }
             .brand {
-                gap: 8px;
+                gap: 6px;
             }
             .brand-emblem {
-                width: 30px;
+                width: 28px;
                 height: 28px;
                 border-radius: 0;
             }
@@ -2865,17 +2865,29 @@
                 height: 100%;
             }
             .brand-title-text {
-                font-size: 17.5px;
+                display: none !important;
             }
             .header-actions {
                 gap: 6px;
             }
             .header-actions .theme-toggle-btn {
-                padding: 6px 10px;
-                font-size: 11.5px;
+                width: 36px;
+                height: 36px;
+                padding: 0 !important;
+                border-radius: 999px !important;
+                background: rgba(255, 255, 255, 0.08) !important;
+                border: 1px solid rgba(255, 255, 255, 0.14) !important;
+                color: #ffffff !important;
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+            }
+            #cloudSyncHeaderIcon {
+                color: #ffffff !important;
+                font-size: 14px;
             }
             main {
-                padding: 10px 10px 28px;
+                padding: 6px 10px 28px;
             }
             .tab-nav-container {
                 display: none !important;
@@ -2886,52 +2898,125 @@
             #cloudSyncHeaderLabel {
                 display: none !important;
             }
-            .header-actions .theme-toggle-btn {
-                padding: 6px 8px !important;
-                border-radius: 999px !important;
-            }
-            /* 手机端“我的”页面：左侧紧凑竖向标签栏 + 右侧独立内容区，一眼尽览且分开展示 */
+
+            /* 手机端“我的”页面：顶部全宽云同步卡片 + 横向纯文字优雅二级分类滑条（彻底告别旧式狭窄竖按钮，全宽展示） */
             .my-workspace-layout {
-                grid-template-columns: 86px minmax(0, 1fr);
-                gap: 10px;
-            }
-            .my-sidebar-wrap {
-                position: sticky;
-                top: 12px;
-            }
-            .history-subnav {
                 display: flex !important;
                 flex-direction: column !important;
                 width: 100% !important;
-                padding: 5px !important;
-                border-radius: 16px !important;
-                gap: 4px !important;
+                gap: 12px !important;
+            }
+            .my-sidebar-wrap {
+                width: 100% !important;
+                position: static !important;
+            }
+            .history-subnav {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                overflow-x: auto !important;
+                white-space: nowrap !important;
+                gap: 24px !important;
+                padding: 4px 4px 12px 4px !important;
+                width: 100% !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+                scrollbar-width: none !important;
+                background: transparent !important;
+                border-radius: 0 !important;
+                border-top: none !important;
+                box-shadow: none !important;
+            }
+            .history-subnav::-webkit-scrollbar {
+                display: none;
             }
             .history-subnav-btn {
-                flex-direction: column !important;
+                display: inline-flex !important;
+                flex-direction: row !important;
                 align-items: center !important;
-                justify-content: center !important;
-                padding: 10px 4px !important;
-                font-size: 11.5px !important;
-                gap: 4px !important;
-                text-align: center !important;
-                border-radius: 12px !important;
+                gap: 6px !important;
+                padding: 4px 0 !important;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                font-size: 15px !important;
+                font-weight: 500 !important;
+                color: rgba(241, 245, 249, 0.65) !important;
+                flex-shrink: 0 !important;
+                position: relative !important;
+                text-align: left !important;
+                cursor: pointer;
+            }
+            .history-subnav-btn.active {
+                color: #ffffff !important;
+                font-size: 16.5px !important;
+                font-weight: 700 !important;
+                text-shadow: none !important;
+            }
+            .history-subnav-btn.active::after {
+                content: '';
+                position: absolute;
+                bottom: -12px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 22px;
+                height: 3px;
+                border-radius: 999px;
+                background: #ff5722;
+                box-shadow: 0 0 10px rgba(255, 87, 34, 0.7);
             }
             .history-subnav-btn .my-tab-left {
-                flex-direction: column;
-                gap: 3px;
+                flex-direction: row !important;
+                align-items: center !important;
+                gap: 6px !important;
             }
             .history-subnav-btn .my-tab-left i {
-                font-size: 14px;
-                width: auto;
+                font-size: 14px !important;
             }
             .my-tab-count {
-                font-size: 10px;
-                padding: 1px 6px;
+                font-size: 10.5px !important;
+                padding: 1px 7px !important;
+                border-radius: 999px !important;
+                background: rgba(255, 255, 255, 0.12) !important;
+                border: 1px solid rgba(255, 255, 255, 0.16) !important;
+                color: rgba(255, 255, 255, 0.85) !important;
+            }
+            .history-subnav-btn.active .my-tab-count {
+                background: rgba(255, 87, 34, 0.22) !important;
+                border-color: rgba(255, 87, 34, 0.5) !important;
+                color: #ffffff !important;
+            }
+            .subnav-glider {
+                display: none !important;
+            }
+            .my-cloud-card {
+                background: linear-gradient(135deg, rgba(72, 32, 26, 0.55) 0%, rgba(28, 17, 20, 0.75) 100%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                border-radius: 18px !important;
+            }
+            #myCloudCardActionBtn {
+                background: linear-gradient(135deg, #ff6b35 0%, #ff3b30 100%) !important;
+                border: none !important;
+                border-radius: 999px !important;
+                color: #ffffff !important;
+                box-shadow: 0 4px 12px rgba(255, 59, 48, 0.35) !important;
+            }
+            .my-content-panel {
+                width: 100% !important;
             }
             .my-content-panel .history-vertical-block {
-                padding: 12px !important;
-                border-radius: 16px !important;
+                background: rgba(28, 18, 20, 0.55) !important;
+                border: 1px solid rgba(255, 255, 255, 0.08) !important;
+                border-radius: 18px !important;
+                padding: 16px 14px !important;
+            }
+            .my-content-panel .history-vertical-block .btn {
+                background: rgba(255, 255, 255, 0.08) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                border-radius: 999px !important;
+                padding: 4px 12px !important;
+                font-size: 11.5px !important;
+                color: rgba(255, 255, 255, 0.85) !important;
             }
             .my-content-panel .video-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
@@ -2945,11 +3030,33 @@
                 grid-template-columns: repeat(2, 1fr) !important;
                 gap: 10px;
             }
+            .kanju-poster-card {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            .kanju-poster-wrap {
+                border-radius: 10px !important;
+                overflow: hidden !important;
+            }
+            .kanju-poster-badge {
+                background: linear-gradient(135deg, #ff6b35, #ff3b30) !important;
+                color: #ffffff !important;
+                border: none !important;
+                border-radius: 4px !important;
+                font-size: 9.5px !important;
+                font-weight: 600 !important;
+                padding: 1.5px 5px !important;
+                box-shadow: 0 2px 6px rgba(255, 59, 48, 0.4) !important;
+            }
             .kanju-poster-info {
-                padding: 8px 8px 9px;
+                padding: 6px 2px 2px 2px !important;
             }
             .kanju-poster-title {
-                font-size: 12.5px;
+                font-size: 13.5px !important;
+                font-weight: 600 !important;
+                color: #f3f4f6 !important;
             }
             .source-route-nav {
                 display: flex !important;
@@ -3884,60 +3991,63 @@
                 display: none !important;
             }
 
-            /* 2. 移动端专属顶部居中搜索胶囊（1:1 对标腾讯视频App顶部居中搜索条） */
+            /* 2. 移动端专属顶部居中搜索胶囊（1:1 对标腾讯视频App顶部居中搜索条：烟熏暖褐透光胶囊） */
             .mobile-top-search-wrap {
                 display: flex !important;
                 align-items: center;
                 gap: 8px;
                 flex: 1;
                 min-width: 0;
-                max-width: 340px;
-                margin: 0 6px;
-                padding: 6px 14px;
-                background: rgba(255, 255, 255, 0.08);
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                border-radius: 999px;
+                max-width: 360px;
+                height: 38px;
+                margin: 0 8px;
+                padding: 0 14px;
+                background: rgba(255, 255, 255, 0.18) !important;
+                backdrop-filter: blur(20px) !important;
+                -webkit-backdrop-filter: blur(20px) !important;
+                border: 1px solid rgba(255, 255, 255, 0.14) !important;
+                border-radius: 999px !important;
                 cursor: pointer;
-                backdrop-filter: blur(12px);
-                -webkit-backdrop-filter: blur(12px);
-                transition: all 0.2s ease;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
                 box-sizing: border-box;
+                transition: all 0.2s ease;
             }
             body.light-mode .mobile-top-search-wrap {
-                background: rgba(15, 23, 42, 0.05);
-                border-color: rgba(15, 23, 42, 0.1);
+                background: rgba(15, 23, 42, 0.05) !important;
+                border-color: rgba(15, 23, 42, 0.1) !important;
             }
             .mobile-top-search-text {
                 flex: 1;
                 min-width: 0;
-                font-size: 12px;
-                color: rgba(241, 245, 249, 0.55);
+                font-size: 13.5px;
+                font-weight: 500;
+                color: #ffffff !important;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
             body.light-mode .mobile-top-search-text {
-                color: rgba(15, 23, 42, 0.55);
+                color: rgba(15, 23, 42, 0.85) !important;
             }
             .mobile-top-search-filter {
-                font-size: 11.5px;
-                color: #2dd4bf;
+                font-size: 12.5px;
+                color: rgba(255, 255, 255, 0.85) !important;
                 font-weight: 500;
-                padding-left: 8px;
-                border-left: 1px solid rgba(255, 255, 255, 0.15);
+                padding-left: 10px;
+                border-left: 1px solid rgba(255, 255, 255, 0.22) !important;
                 flex-shrink: 0;
             }
             body.light-mode .mobile-top-search-filter {
-                color: #2563eb;
-                border-left-color: rgba(15, 23, 42, 0.15);
+                color: #2563eb !important;
+                border-left-color: rgba(15, 23, 42, 0.15) !important;
             }
 
-            /* 3. 移动端专属横向纯文字频道滑条（1:1 对标腾讯视频App短视频/首页纯文字横滑，无任何边框与按钮底色） */
+            /* 3. 移动端专属横向纯文字频道滑条（1:1 对标腾讯视频App纯文字横滑：当前频道大字纯白无下划线） */
             .mobile-channel-strip {
                 display: flex !important;
                 align-items: center;
-                gap: 20px;
-                padding: 6px 16px 8px;
+                gap: 22px;
+                padding: 6px 16px 10px 16px;
                 overflow-x: auto;
                 white-space: nowrap;
                 scrollbar-width: none;
@@ -3951,66 +4061,54 @@
                 display: none;
             }
             .mobile-channel-item {
-                font-size: 14.5px;
+                font-size: 15px;
                 font-weight: 500;
-                color: rgba(241, 245, 249, 0.65);
+                color: rgba(255, 255, 255, 0.72) !important;
                 cursor: pointer;
                 position: relative;
-                padding-bottom: 6px;
-                transition: color 0.18s ease, font-weight 0.18s ease;
+                padding: 2px 0;
+                transition: all 0.2s ease;
                 flex-shrink: 0;
                 user-select: none;
                 -webkit-tap-highlight-color: transparent;
             }
             body.light-mode .mobile-channel-item {
-                color: rgba(15, 23, 42, 0.65);
+                color: rgba(15, 23, 42, 0.65) !important;
             }
             .mobile-channel-item.active {
-                color: #ffffff;
-                font-size: 15.5px;
-                font-weight: 700;
+                color: #ffffff !important;
+                font-size: 18.5px !important;
+                font-weight: 700 !important;
+                transform: scale(1.04);
             }
             body.light-mode .mobile-channel-item.active {
-                color: #0f172a;
+                color: #0f172a !important;
             }
             .mobile-channel-item.active::after {
-                content: '';
-                position: absolute;
-                bottom: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 18px;
-                height: 3px;
-                border-radius: 999px;
-                background: #2dd4bf;
-                box-shadow: 0 0 8px rgba(45, 212, 191, 0.6);
-            }
-            body.light-mode .mobile-channel-item.active::after {
-                background: #2563eb;
-                box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+                display: none !important;
             }
 
-            /* 4. 移动端固定底部原生App导航栏（1:1 对标腾讯视频App底部：首页/小说/漫画/我的，纯原生无框） */
+            /* 4. 移动端固定底部原生App导航栏（1:1 对标腾讯视频App底部：深邃暗调微温润 + 激活纯白原生触控） */
             .mobile-bottom-nav {
                 display: flex !important;
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                height: calc(52px + env(safe-area-inset-bottom));
+                height: calc(50px + env(safe-area-inset-bottom));
                 padding-bottom: env(safe-area-inset-bottom);
-                background: rgba(11, 15, 25, 0.92);
-                backdrop-filter: blur(20px) saturate(180%);
-                -webkit-backdrop-filter: blur(20px) saturate(180%);
-                border-top: 1px solid rgba(255, 255, 255, 0.08);
+                background: rgba(13, 11, 14, 0.96) !important;
+                backdrop-filter: blur(24px) saturate(180%);
+                -webkit-backdrop-filter: blur(24px) saturate(180%);
+                border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
                 z-index: 999;
                 justify-content: space-around;
                 align-items: center;
                 box-sizing: border-box;
             }
             body.light-mode .mobile-bottom-nav {
-                background: rgba(255, 255, 255, 0.94);
-                border-top-color: rgba(15, 23, 42, 0.08);
+                background: rgba(255, 255, 255, 0.94) !important;
+                border-top-color: rgba(15, 23, 42, 0.08) !important;
                 box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.04);
             }
             .mobile-nav-item {
@@ -4018,48 +4116,83 @@
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                gap: 3px;
+                gap: 2px;
                 flex: 1;
                 height: 100%;
-                color: rgba(241, 245, 249, 0.55);
-                font-size: 11px;
+                color: rgba(255, 255, 255, 0.5) !important;
+                font-size: 10.5px;
                 font-weight: 500;
                 cursor: pointer;
-                transition: color 0.18s ease;
+                transition: all 0.18s ease;
                 user-select: none;
                 -webkit-tap-highlight-color: transparent;
             }
             body.light-mode .mobile-nav-item {
-                color: rgba(15, 23, 42, 0.55);
+                color: rgba(15, 23, 42, 0.55) !important;
             }
             .mobile-nav-item i {
-                font-size: 17px;
+                font-size: 18px;
+                color: rgba(255, 255, 255, 0.6) !important;
                 transition: transform 0.18s ease;
             }
             .mobile-nav-item.active {
-                color: #2dd4bf;
-                font-weight: 700;
+                color: #ffffff !important;
+                font-weight: 700 !important;
             }
             body.light-mode .mobile-nav-item.active {
-                color: #2563eb;
+                color: #2563eb !important;
             }
             .mobile-nav-item.active i {
-                transform: translateY(-1px) scale(1.08);
-                color: #2dd4bf;
+                transform: scale(1.1);
+                color: #ffffff !important;
             }
             body.light-mode .mobile-nav-item.active i {
-                color: #2563eb;
+                color: #2563eb !important;
             }
 
-            /* 5. 移动端页面底部预留空间，避免被原生导航栏遮挡 */
+            /* 5. 页面底部防遮挡缓冲 */
             body:not(.reading-mode) {
-                padding-bottom: calc(58px + env(safe-area-inset-bottom)) !important;
+                padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important;
             }
 
-            /* 6. 移动端影视与书漫网格两列双排布局，清爽精致 */
+            /* 6. 移动端影视与书漫网格两列双排布局，全透无边框质感大图 */
             .video-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
-                gap: 10px !important;
+                gap: 12px 10px !important;
+            }
+            .kanju-poster-card {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            .kanju-poster-wrap {
+                border-radius: 10px !important;
+                overflow: hidden !important;
+            }
+            .kanju-poster-badge {
+                background: linear-gradient(135deg, #ff6b35, #ff3b30) !important;
+                color: #ffffff !important;
+                border: none !important;
+                border-radius: 4px !important;
+                font-size: 9.5px !important;
+                font-weight: 600 !important;
+                padding: 1.5px 5px !important;
+                box-shadow: 0 2px 6px rgba(255, 59, 48, 0.4) !important;
+            }
+            .kanju-poster-info {
+                padding: 6px 2px 2px 2px !important;
+            }
+            .kanju-poster-title {
+                font-size: 13.5px !important;
+                font-weight: 600 !important;
+                color: #f3f4f6 !important;
+            }
+            .tx-hero-stage {
+                margin: 4px 10px 14px 10px !important;
+                width: calc(100% - 20px) !important;
+                border-radius: 16px !important;
+                overflow: hidden !important;
             }
         }
 
@@ -5159,6 +5292,7 @@
 
     // 2. 下方四合一子导航滑块更新 (影视记录 / 我的书架 / 小说记录 / 漫画记录)
     function updateSubnavGlider(tab) {
+        if (window.innerWidth <= 860) return;
         syncPcLeftSidebarLayout();
         const glider = document.getElementById('subnavGlider');
         const container = document.getElementById('historySubNav');
@@ -6850,7 +6984,15 @@
         };
         tabs.forEach(t => {
             const btn = document.getElementById(btnMap[t]);
-            if (btn) btn.classList.toggle('active', t === currentHistoryTab);
+            if (btn) {
+                const isActive = (t === currentHistoryTab);
+                btn.classList.toggle('active', isActive);
+                if (isActive && window.innerWidth <= 860) {
+                    try {
+                        btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    } catch(e){}
+                }
+            }
             const panel = document.getElementById(panelMap[t]);
             if (panel) {
                 if (t === currentHistoryTab) {
