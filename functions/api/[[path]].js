@@ -90,7 +90,7 @@ async function getLiveSourcesConfig() {
             cachedConfig = {
                 version: data.version || '最新',
                 categories: {
-                    "漫画": data["搜索漫画"] || data["漫画"] || ["新新漫画", "全面漫画", "G社漫画", "番茄"],
+                    "漫画": ["新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
                     "小说": (data["搜索小说"] || data["小说"] || ["番茄", "七猫", "全本小说", "半夏小说", "塔读", "QQ阅读", "书旗", "红烛小说"]).slice(0, 20)
                 }
             };
@@ -102,7 +102,7 @@ async function getLiveSourcesConfig() {
     return {
         version: '昂哥构建',
         categories: {
-            "漫画": ["新新漫画", "全面漫画", "G社漫画", "番茄"],
+            "漫画": ["新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
             "小说": ["七猫", "番茄", "伪69", "半夏小说", "52书库", "老福特", "爱下电子书", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
         }
     };
@@ -289,6 +289,7 @@ const workerHandler = {
             const tab = url.searchParams.get('tab') || '漫画';
             const source = url.searchParams.get('source') || '新新漫画';
             const page = url.searchParams.get('page') || '1';
+            const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
             // ⚡ 聚合全网搜模式：对所有优质源进行高速并发请求并聚合呈现全部结果
             if (source === 'ALL') {
@@ -302,7 +303,10 @@ const workerHandler = {
                         const r = await fetch(targetUrl, { headers: getRandomHeaders() });
                         if (!r.ok) return [];
                         const json = await r.json();
-                        const list = json.data || [];
+                        const list = (json.data || []).filter(item => {
+                            const name = item.book_name || '';
+                            return !name.includes('@vip') && !name.includes('@svip') && !name.includes('打赏后获取') && !name.includes('客服');
+                        });
                         return list.map(item => ({ ...item, source: s, tab }));
                     } catch(e) {
                         return [];
@@ -323,10 +327,24 @@ const workerHandler = {
             }
 
             try {
-                const targetUrl = UPSTREAM + '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(source) + '&page=' + page + '&disabled_sources=0';
+                const targetUrl = UPSTREAM + '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(upstreamSource) + '&page=' + page + '&disabled_sources=0';
                 const r = await fetch(targetUrl, { headers: getRandomHeaders() });
-                const data = await r.text();
-                return new Response(data, {
+                const text = await r.text();
+                let output = text;
+                try {
+                    const json = JSON.parse(text);
+                    if (json && Array.isArray(json.data)) {
+                        json.data = json.data.filter(item => {
+                            const name = item.book_name || '';
+                            return !name.includes('@vip') && !name.includes('@svip') && !name.includes('打赏后获取') && !name.includes('客服');
+                        });
+                        if (source === '极速韩漫') {
+                            json.data = json.data.map(item => ({ ...item, source: '极速韩漫' }));
+                        }
+                        output = JSON.stringify(json);
+                    }
+                } catch(e) {}
+                return new Response(output, {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
@@ -758,9 +776,10 @@ const workerHandler = {
             const book_id = url.searchParams.get('book_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
+            const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
             try {
-                const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
+                const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await fetchUpstreamWithFailover(apiPath, false);
                 return new Response(JSON.stringify(data), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
@@ -777,6 +796,7 @@ const workerHandler = {
             const item_id = url.searchParams.get('item_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
+            const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
             let decodedItem = null;
             try {
@@ -807,7 +827,7 @@ const workerHandler = {
 
             // 回退到上游多节点池：携带随机轮换的真实移动端 IP 穿透限流，并精准清洗尾部催费广告
             try {
-                const apiPath = '/content?item_id=' + encodeURIComponent(item_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&version=4.6.29';
+                const apiPath = '/content?item_id=' + encodeURIComponent(item_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&version=4.6.29';
                 const data = await fetchUpstreamWithFailover(apiPath, true);
 
                 // 精准清洗正文中的广告提示，绝不将真实正文置空！

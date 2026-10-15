@@ -4124,11 +4124,12 @@
             <div class="filter-row">
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质漫画源：</label>
                 <select id="mangaSourceSelect" class="select-filter">
-                    <option value="新新漫画" selected>新新漫画 (韩漫/日漫/超200话高清连载)</option>
-                    <option value="全面漫画">全面漫画 (国漫/全彩高清连载)</option>
-                    <option value="G社漫画">G社漫画 (韩漫精选/热门番外)</option>
-                    <option value="番茄">番茄漫画 (官方正版图源)</option>
-                    <option value="ALL">⚡ 聚合搜 (同时检索全部漫画源)</option>
+                    <option value="新新漫画" selected>新新漫画 (韩漫主线·超230话高清连载)</option>
+                    <option value="极速韩漫">极速韩漫 (韩漫专线·同步汉化追更)</option>
+                    <option value="G社漫画">G社漫画 (韩漫精选·热门条漫番外)</option>
+                    <option value="全面漫画">全面漫画 (国漫全彩·官方正版连载)</option>
+                    <option value="番茄">番茄漫画 (官方正版·精选高清画质)</option>
+                    <option value="ALL">⚡ 聚合全网搜 (同时并发检索全部漫画源)</option>
                 </select>
             </div>
         </div>
@@ -8149,7 +8150,7 @@
 
         const tab = currentBookInfo.tab || '小说';
         const candidateSources = (tab === '漫画') 
-            ? ['新新漫画', '全面漫画', 'G社漫画', '番茄'] 
+            ? ['新新漫画', '极速韩漫', 'G社漫画', '全面漫画', '番茄'] 
             : ['七猫', '番茄', '伪69', '半夏小说', '52书库', '老福特', '爱下电子书', '百度', '淘小说', '笔趣阁78', '知乎'];
 
         const otherSources = candidateSources.filter(s => s !== currentBookInfo.source);
