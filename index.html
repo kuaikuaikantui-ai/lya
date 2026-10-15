@@ -2845,11 +2845,18 @@
         }
 
         @media (max-width: 640px) {
+            /* 1. 手机端顶栏：引入 PC 端无界通透流光琉璃悬浮美学，轻盈通透且居中对称 */
             header {
-                width: calc(100% - 20px);
-                margin: calc(8px + env(safe-area-inset-top)) auto 2px;
-                padding: 9px 12px;
-                border-radius: 20px;
+                width: calc(100% - 16px);
+                margin: calc(6px + env(safe-area-inset-top)) auto 6px;
+                padding: 8px 14px;
+                border-radius: 999px;
+                background: linear-gradient(135deg, rgba(15, 23, 42, 0.75) 0%, rgba(17, 24, 39, 0.62) 52%, rgba(30, 27, 75, 0.55) 100%);
+                backdrop-filter: blur(28px) saturate(200%);
+                -webkit-backdrop-filter: blur(28px) saturate(200%);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                border-top-color: rgba(255, 255, 255, 0.35);
+                box-shadow: 0 10px 30px -6px rgba(0, 0, 0, 0.5), inset 0 1px 1.5px rgba(255, 255, 255, 0.32);
             }
             .brand {
                 gap: 8px;
@@ -2864,37 +2871,179 @@
                 height: 100%;
             }
             .brand-title-text {
-                font-size: 17.5px;
+                font-size: 18px;
+                font-weight: 800;
+                letter-spacing: 0.5px;
             }
             .header-actions {
                 gap: 6px;
             }
             .header-actions .theme-toggle-btn {
-                padding: 6px 10px;
+                padding: 5px 12px;
                 font-size: 11.5px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.14);
             }
             main {
-                padding: 10px 10px 28px;
+                padding: 8px 10px 32px;
             }
+
+            /* 2. 手机端导航：引入 PC 端液态透镜胶囊栏与水滴滑块，流体高定触感 */
             .tab-nav-container {
                 top: auto;
-                margin-top: 2px;
-                margin-bottom: 14px;
+                margin-top: 4px;
+                margin-bottom: 12px;
             }
             .tab-nav {
-                padding: 4px !important;
-                border-radius: 30px !important;
+                padding: 4px 5px !important;
+                border-radius: 999px !important;
+                background: linear-gradient(135deg, rgba(15, 23, 42, 0.72) 0%, rgba(15, 23, 42, 0.58) 100%) !important;
+                backdrop-filter: blur(28px) saturate(200%) !important;
+                -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                border-top-color: rgba(255, 255, 255, 0.28) !important;
+                box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.18) !important;
+                gap: 2px !important;
+            }
+            .tab-glider {
+                border-radius: 999px !important;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(56, 189, 248, 0.14) 100%) !important;
+                backdrop-filter: blur(20px) !important;
+                -webkit-backdrop-filter: blur(20px) !important;
+                border: 1px solid rgba(255, 255, 255, 0.4) !important;
+                border-top-color: rgba(255, 255, 255, 0.75) !important;
+                box-shadow: inset 0 1.5px 2.5px rgba(255, 255, 255, 0.75), 0 4px 14px rgba(0, 0, 0, 0.25), 0 0 18px rgba(56, 189, 248, 0.28) !important;
             }
             .tab-nav-btn {
-                padding: 8px 4px !important;
+                padding: 7px 4px !important;
                 font-size: 12px !important;
                 gap: 4px !important;
+                border-radius: 999px !important;
                 white-space: nowrap !important;
+                color: rgba(241, 245, 249, 0.75) !important;
+                transition: color 0.25s ease, transform 0.2s ease !important;
             }
             .tab-nav-btn i {
-                font-size: 11.5px;
+                font-size: 12px;
             }
-            /* 手机端“我的”页面：左侧紧凑竖向标签栏 + 右侧独立内容区，一眼尽览且分开展示 */
+            .tab-nav-btn.active {
+                color: #ffffff !important;
+                font-weight: 700 !important;
+                text-shadow: 0 0 14px rgba(255, 255, 255, 0.8), 0 0 8px rgba(56, 189, 248, 0.6) !important;
+            }
+            .tab-nav-btn.active i {
+                color: #2dd4bf !important;
+            }
+
+            /* 3. 手机端搜索栏：引入 PC 端一体化微光胶囊设计，摒弃生硬方框 */
+            .search-box {
+                padding: 8px 10px !important;
+                margin-bottom: 12px !important;
+                border-radius: 20px !important;
+                background: linear-gradient(135deg, rgba(15, 23, 42, 0.65) 0%, rgba(15, 23, 42, 0.52) 100%) !important;
+                backdrop-filter: blur(28px) saturate(200%) !important;
+                -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                border-top-color: rgba(255, 255, 255, 0.24) !important;
+                box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.15) !important;
+            }
+            .search-row {
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                background: rgba(0, 0, 0, 0.3) !important;
+                border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                border-radius: 999px !important;
+                padding: 3px 4px 3px 12px !important;
+                transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            }
+            .search-row:focus-within {
+                border-color: rgba(56, 189, 248, 0.48) !important;
+                background: rgba(0, 0, 0, 0.42) !important;
+                box-shadow: 0 0 16px rgba(56, 189, 248, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+            }
+            .search-input {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 7px 4px !important;
+                font-size: 13px !important;
+                color: #ffffff !important;
+            }
+            .search-input:focus {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+            .search-row button.btn.primary {
+                border-radius: 999px !important;
+                padding: 7px 15px !important;
+                font-size: 12px !important;
+                font-weight: 600 !important;
+                flex-shrink: 0 !important;
+                background: linear-gradient(135deg, rgba(56, 189, 248, 0.88) 0%, rgba(99, 102, 241, 0.88) 100%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.35) !important;
+                box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.65), 0 4px 14px rgba(56, 189, 248, 0.32) !important;
+            }
+            .filter-row {
+                margin-top: 8px !important;
+                padding: 0 4px !important;
+                gap: 6px !important;
+            }
+            .select-filter {
+                border-radius: 999px !important;
+                padding: 5px 12px !important;
+                font-size: 11.5px !important;
+                background: rgba(255, 255, 255, 0.05) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                color: var(--text-main) !important;
+            }
+            .kanju-suggestions-box {
+                padding: 10px 12px !important;
+                border-radius: 16px !important;
+                background: rgba(15, 23, 42, 0.45) !important;
+                border: 1px solid rgba(255, 255, 255, 0.08) !important;
+                margin-bottom: 12px !important;
+            }
+            .kanju-chip {
+                border-radius: 999px !important;
+                padding: 4px 10px !important;
+                font-size: 11px !important;
+                background: rgba(255, 255, 255, 0.05) !important;
+                border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                transition: all 0.2s ease !important;
+            }
+            .kanju-chip:active {
+                transform: scale(0.95) !important;
+                border-color: rgba(56, 189, 248, 0.5) !important;
+            }
+
+            /* 4. 手机端卡片与海报：引入 PC 端双层光学高光与微回弹触感 */
+            .kanju-poster-card {
+                border-radius: 14px !important;
+                border: 1px solid rgba(255, 255, 255, 0.13) !important;
+                box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.28), 0 8px 24px -6px rgba(0, 0, 0, 0.5) !important;
+            }
+            .kanju-poster-card:active {
+                transform: scale(0.97) !important;
+            }
+            .card {
+                border-radius: 16px !important;
+                padding: 13px !important;
+                border: 1px solid rgba(255, 255, 255, 0.13) !important;
+                box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.28), 0 8px 24px -6px rgba(0, 0, 0, 0.5) !important;
+            }
+            .card:active {
+                transform: scale(0.97) !important;
+            }
+            .card-tag {
+                border-radius: 999px !important;
+                font-size: 10.5px !important;
+                padding: 2px 7px !important;
+            }
+
+            /* 5. 手机端“我的”页面：左侧紧凑竖向标签栏 + 右侧独立内容区，引入高定琉璃透镜 */
             .my-workspace-layout {
                 grid-template-columns: 86px minmax(0, 1fr);
                 gap: 10px;
@@ -2909,6 +3058,9 @@
                 width: 100% !important;
                 padding: 5px !important;
                 border-radius: 16px !important;
+                background: rgba(15, 23, 42, 0.6) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45) !important;
                 gap: 4px !important;
             }
             .history-subnav-btn {
@@ -2921,6 +3073,11 @@
                 text-align: center !important;
                 border-radius: 12px !important;
             }
+            .history-subnav-btn.active {
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(56, 189, 248, 0.12) 100%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.3) !important;
+                box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.6), 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+            }
             .history-subnav-btn .my-tab-left {
                 flex-direction: column;
                 gap: 3px;
@@ -2932,10 +3089,14 @@
             .my-tab-count {
                 font-size: 10px;
                 padding: 1px 6px;
+                border-radius: 999px;
             }
             .my-content-panel .history-vertical-block {
                 padding: 12px !important;
-                border-radius: 16px !important;
+                border-radius: 18px !important;
+                background: rgba(15, 23, 42, 0.6) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.45) !important;
             }
             .my-content-panel .video-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
@@ -2963,6 +3124,9 @@
                 -webkit-overflow-scrolling: touch;
                 width: 100%;
                 padding: 4px !important;
+                border-radius: 999px !important;
+                background: rgba(15, 23, 42, 0.5) !important;
+                border: 1px solid rgba(255, 255, 255, 0.1) !important;
             }
             .source-route-nav::-webkit-scrollbar {
                 display: none;
@@ -2971,22 +3135,77 @@
                 flex-shrink: 0 !important;
                 padding: 6px 12px !important;
                 font-size: 12px !important;
+                border-radius: 999px !important;
             }
-            .search-box {
-                padding: 12px;
-                margin-bottom: 14px;
+
+            /* 6. 手机端日间模式自适应 */
+            body.light-mode header {
+                background: rgba(255, 255, 255, 0.88) !important;
+                border-color: rgba(15, 23, 42, 0.08) !important;
+                border-top-color: rgba(255, 255, 255, 0.95) !important;
+                box-shadow: 0 10px 28px -6px rgba(15, 23, 42, 0.08), inset 0 1px 1.5px #ffffff !important;
             }
-            .search-row {
-                gap: 8px;
+            body.light-mode .brand-title-text {
+                color: #0f172a !important;
+                -webkit-text-fill-color: #0f172a !important;
+                text-shadow: none !important;
             }
-            .search-input {
-                padding: 10px 12px;
-                font-size: 13px;
+            body.light-mode .header-actions .theme-toggle-btn {
+                background: rgba(15, 23, 42, 0.04) !important;
+                border-color: rgba(15, 23, 42, 0.08) !important;
+                color: #334155 !important;
             }
-            button.btn.primary {
-                padding: 8px 14px;
-                font-size: 12.5px;
-                white-space: nowrap;
+            body.light-mode .tab-nav {
+                background: rgba(255, 255, 255, 0.88) !important;
+                border-color: rgba(15, 23, 42, 0.08) !important;
+                border-top-color: #ffffff !important;
+                box-shadow: 0 10px 24px -6px rgba(15, 23, 42, 0.08), inset 0 1px 1px #ffffff !important;
+            }
+            body.light-mode .tab-nav-btn {
+                color: #64748b !important;
+                text-shadow: none !important;
+            }
+            body.light-mode .tab-nav-btn.active {
+                color: #0f172a !important;
+                text-shadow: none !important;
+            }
+            body.light-mode .tab-glider {
+                background: #ffffff !important;
+                border-color: rgba(15, 23, 42, 0.08) !important;
+                box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;
+            }
+            body.light-mode .search-box {
+                background: rgba(255, 255, 255, 0.88) !important;
+                border-color: rgba(15, 23, 42, 0.08) !important;
+                border-top-color: #ffffff !important;
+                box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.06), inset 0 1px 1px #ffffff !important;
+            }
+            body.light-mode .search-row {
+                background: rgba(15, 23, 42, 0.035) !important;
+                border-color: rgba(15, 23, 42, 0.08) !important;
+            }
+            body.light-mode .search-row:focus-within {
+                border-color: rgba(37, 99, 235, 0.45) !important;
+                background: #ffffff !important;
+                box-shadow: 0 0 14px rgba(37, 99, 235, 0.15) !important;
+            }
+            body.light-mode .search-input {
+                color: #0f172a !important;
+            }
+            body.light-mode .select-filter {
+                background: #ffffff !important;
+                border-color: rgba(15, 23, 42, 0.1) !important;
+                color: #0f172a !important;
+            }
+            body.light-mode .history-subnav {
+                background: rgba(255, 255, 255, 0.88) !important;
+                border-color: rgba(15, 23, 42, 0.08) !important;
+                box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06) !important;
+            }
+            body.light-mode .my-content-panel .history-vertical-block {
+                background: rgba(255, 255, 255, 0.88) !important;
+                border-color: rgba(15, 23, 42, 0.08) !important;
+                box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06) !important;
             }
             /* 手机端播放器右下角控制栏与弹窗紧凑适配 */
             #dplayerContainer .p2p-live-pill,
@@ -3080,16 +3299,17 @@
             bottom: calc(22px + env(safe-area-inset-bottom, 0px));
             left: 50%;
             transform: translateX(-50%) translateY(20px);
-            background: rgba(15, 23, 42, 0.92);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(56, 189, 248, 0.4);
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-top-color: rgba(255, 255, 255, 0.32);
             color: #f8fafc;
-            padding: 9px 16px;
+            padding: 8px 16px;
             border-radius: 999px;
             font-size: 12.5px;
             font-weight: 600;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.2);
             z-index: 1200;
             opacity: 0;
             pointer-events: none;
@@ -3103,6 +3323,96 @@
         .cloud-toast.show {
             opacity: 1;
             transform: translateX(-50%) translateY(0);
+        }
+        body.light-mode .cloud-toast {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            border-top-color: #ffffff;
+            color: #0f172a;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12), inset 0 1px 1.5px #ffffff;
+        }
+
+        /* 顶部阅读续看轻量微光胶囊 (极简低打扰流光琉璃，不挡正文与翻页，自适应主题) */
+        .reader-resume-pill {
+            position: fixed;
+            top: calc(14px + env(safe-area-inset-top, 0px));
+            left: 50%;
+            transform: translateX(-50%) translateY(-22px) scale(0.95);
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-top-color: rgba(255, 255, 255, 0.95);
+            color: #1e293b;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+            z-index: 1300;
+            opacity: 0;
+            pointer-events: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            white-space: nowrap;
+            transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reader-resume-pill i {
+            font-size: 11px;
+            color: #0d9488;
+        }
+        .reader-resume-pill.pill-show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0) scale(1);
+        }
+        .reader-resume-pill.pill-hide {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-14px) scale(0.95);
+        }
+        /* 阅读主题自适应: 羊皮纸 */
+        body.reading-theme-parchment .reader-resume-pill,
+        html.reading-theme-parchment .reader-resume-pill {
+            background: rgba(244, 236, 225, 0.92);
+            border-color: rgba(180, 150, 110, 0.25);
+            color: #4a3828;
+            box-shadow: 0 4px 16px rgba(180, 150, 110, 0.15);
+        }
+        body.reading-theme-parchment .reader-resume-pill i,
+        html.reading-theme-parchment .reader-resume-pill i {
+            color: #b45309;
+        }
+        /* 阅读主题自适应: 护眼绿 */
+        body.reading-theme-mint .reader-resume-pill,
+        html.reading-theme-mint .reader-resume-pill {
+            background: rgba(232, 245, 233, 0.92);
+            border-color: rgba(120, 180, 130, 0.25);
+            color: #1f3d26;
+            box-shadow: 0 4px 16px rgba(120, 180, 130, 0.15);
+        }
+        body.reading-theme-mint .reader-resume-pill i,
+        html.reading-theme-mint .reader-resume-pill i {
+            color: #059669;
+        }
+        /* 阅读主题自适应: 极夜/石板暗色/隐身主题 */
+        body.reading-theme-night .reader-resume-pill,
+        body.reading-theme-slate .reader-resume-pill,
+        html.reading-theme-night .reader-resume-pill,
+        html.reading-theme-slate .reader-resume-pill,
+        body[data-theme="stealth"] .reader-resume-pill {
+            background: rgba(24, 32, 47, 0.82);
+            border-color: rgba(255, 255, 255, 0.12);
+            border-top-color: rgba(255, 255, 255, 0.25);
+            color: #e2e8f0;
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+        }
+        body.reading-theme-night .reader-resume-pill i,
+        body.reading-theme-slate .reader-resume-pill i,
+        html.reading-theme-night .reader-resume-pill i,
+        html.reading-theme-slate .reader-resume-pill i,
+        body[data-theme="stealth"] .reader-resume-pill i {
+            color: #2dd4bf;
         }
 
         /* ============================================================================
@@ -4734,6 +5044,12 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- 顶部阅读续看轻量提示胶囊 (极简流光低打扰琉璃) -->
+<div class="reader-resume-pill" id="readerResumePill">
+    <i class="fas fa-bookmark"></i>
+    <span id="readerResumePillText">续看至 第 1 页</span>
 </div>
 
 <!-- ☁️ 轻量云同步底部浮动提示 -->
@@ -8220,11 +8536,25 @@
         }
     }
 
-    // 续看提示轻浮窗
+    // 续看提示轻量微光胶囊 (浅色/极简低干扰，绝不遮挡正文与翻页)
+    let _readerResumeTimer = null;
     function showResumeProgressToast(label) {
         if (!label) return;
+        const pill = document.getElementById('readerResumePill');
+        const text = document.getElementById('readerResumePillText');
+        if (pill && text) {
+            text.textContent = `已无缝续看至：${label}`;
+            pill.classList.remove('pill-hide');
+            pill.classList.add('pill-show');
+            if (_readerResumeTimer) clearTimeout(_readerResumeTimer);
+            _readerResumeTimer = setTimeout(() => {
+                pill.classList.remove('pill-show');
+                pill.classList.add('pill-hide');
+            }, 1900);
+            return;
+        }
         if (typeof showCloudToast === 'function') {
-            showCloudToast(`已无缝续看至：${label}`, 'fa-bookmark', '#2dd4c0');
+            showCloudToast(`已续看至：${label}`, 'fa-bookmark', '#2dd4c0');
         }
     }
 
