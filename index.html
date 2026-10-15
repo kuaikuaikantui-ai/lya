@@ -3105,6 +3105,96 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+        body.light-mode .cloud-toast {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            border-top-color: #ffffff;
+            color: #0f172a;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12), inset 0 1px 1.5px #ffffff;
+        }
+
+        /* 顶部阅读续看轻量微光胶囊 (极简低打扰流光琉璃，不挡正文与翻页，自适应主题) */
+        .reader-resume-pill {
+            position: fixed;
+            top: calc(14px + env(safe-area-inset-top, 0px));
+            left: 50%;
+            transform: translateX(-50%) translateY(-22px) scale(0.95);
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-top-color: rgba(255, 255, 255, 0.95);
+            color: #1e293b;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+            z-index: 1300;
+            opacity: 0;
+            pointer-events: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            white-space: nowrap;
+            transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reader-resume-pill i {
+            font-size: 11px;
+            color: #0d9488;
+        }
+        .reader-resume-pill.pill-show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0) scale(1);
+        }
+        .reader-resume-pill.pill-hide {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-14px) scale(0.95);
+        }
+        /* 阅读主题自适应: 羊皮纸 */
+        body.reading-theme-parchment .reader-resume-pill,
+        html.reading-theme-parchment .reader-resume-pill {
+            background: rgba(244, 236, 225, 0.92);
+            border-color: rgba(180, 150, 110, 0.25);
+            color: #4a3828;
+            box-shadow: 0 4px 16px rgba(180, 150, 110, 0.15);
+        }
+        body.reading-theme-parchment .reader-resume-pill i,
+        html.reading-theme-parchment .reader-resume-pill i {
+            color: #b45309;
+        }
+        /* 阅读主题自适应: 护眼绿 */
+        body.reading-theme-mint .reader-resume-pill,
+        html.reading-theme-mint .reader-resume-pill {
+            background: rgba(232, 245, 233, 0.92);
+            border-color: rgba(120, 180, 130, 0.25);
+            color: #1f3d26;
+            box-shadow: 0 4px 16px rgba(120, 180, 130, 0.15);
+        }
+        body.reading-theme-mint .reader-resume-pill i,
+        html.reading-theme-mint .reader-resume-pill i {
+            color: #059669;
+        }
+        /* 阅读主题自适应: 极夜/石板暗色/隐身主题 */
+        body.reading-theme-night .reader-resume-pill,
+        body.reading-theme-slate .reader-resume-pill,
+        html.reading-theme-night .reader-resume-pill,
+        html.reading-theme-slate .reader-resume-pill,
+        body[data-theme="stealth"] .reader-resume-pill {
+            background: rgba(24, 32, 47, 0.82);
+            border-color: rgba(255, 255, 255, 0.12);
+            border-top-color: rgba(255, 255, 255, 0.25);
+            color: #e2e8f0;
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+        }
+        body.reading-theme-night .reader-resume-pill i,
+        body.reading-theme-slate .reader-resume-pill i,
+        html.reading-theme-night .reader-resume-pill i,
+        html.reading-theme-slate .reader-resume-pill i,
+        body[data-theme="stealth"] .reader-resume-pill i {
+            color: #2dd4bf;
+        }
 
         /* ============================================================================
            🎬 腾讯视频 (v.qq.com) 1:1 首屏第一推荐大片全屏铺满巨幕舞台 (#txHeroStage)
@@ -4735,6 +4825,12 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- 顶部阅读续看轻量提示胶囊 (极简流光低打扰琉璃) -->
+<div class="reader-resume-pill" id="readerResumePill">
+    <i class="fas fa-bookmark"></i>
+    <span id="readerResumePillText">续看至 第 1 页</span>
 </div>
 
 <!-- ☁️ 轻量云同步底部浮动提示 -->
@@ -8221,11 +8317,25 @@
         }
     }
 
-    // 续看提示轻浮窗
+    // 续看提示轻量微光胶囊 (浅色/极简低干扰，绝不遮挡正文与翻页)
+    let _readerResumeTimer = null;
     function showResumeProgressToast(label) {
         if (!label) return;
+        const pill = document.getElementById('readerResumePill');
+        const text = document.getElementById('readerResumePillText');
+        if (pill && text) {
+            text.textContent = `已无缝续看至：${label}`;
+            pill.classList.remove('pill-hide');
+            pill.classList.add('pill-show');
+            if (_readerResumeTimer) clearTimeout(_readerResumeTimer);
+            _readerResumeTimer = setTimeout(() => {
+                pill.classList.remove('pill-show');
+                pill.classList.add('pill-hide');
+            }, 1900);
+            return;
+        }
         if (typeof showCloudToast === 'function') {
-            showCloudToast(`已无缝续看至：${label}`, 'fa-bookmark', '#2dd4c0');
+            showCloudToast(`已续看至：${label}`, 'fa-bookmark', '#2dd4c0');
         }
     }
 
