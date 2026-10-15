@@ -26,7 +26,7 @@ async function fetchUpstreamWithFailover(apiPath, isContentCheck = false) {
                 if (data && (data.code === 0 || Array.isArray(data.data))) return data;
             } else {
                 const hasImages = Array.isArray(data.images) && data.images.length > 0;
-                const hasText = typeof data.content === 'string' && data.content.length > 50 && !data.content.includes('免登录访问次数已达上限') && !data.content.includes('已转为内部会员');
+                const hasText = typeof data.content === 'string' && data.content.length > 50 && !data.content.includes('免登录访问次数已达上限') && !data.content.includes('已转为内部会员') && !data.content.includes('SVIP');
                 if (hasImages || hasText) return data;
             }
         } catch (e) {
@@ -127,11 +127,15 @@ async function fetchDirectFromOrigin(decodedItem) {
         const commaIdx = rawUrl.indexOf(',{');
         fullChapUrl = rawUrl.substring(0, commaIdx);
         try {
-            const extra = JSON.parse(rawUrl.substring(commaIdx + 1));
+            const rawExtra = rawUrl.substring(commaIdx + 1).replace(/\\([{}])/g, '$1');
+            const extra = JSON.parse(rawExtra);
             if (extra.method) requestMethod = extra.method.toUpperCase();
             if (extra.body) {
                 requestBody = JSON.stringify(extra.body);
                 requestHeaders['Content-Type'] = 'application/json';
+            }
+            if (extra.headers && typeof extra.headers === 'object') {
+                requestHeaders = { ...requestHeaders, ...extra.headers };
             }
         } catch(e) {}
     } else if (rawUrl && !rawUrl.startsWith('http') && baseUrl) {
@@ -778,7 +782,8 @@ const workerHandler = {
             try {
                 let b64 = item_id.replace(/-/g, '+').replace(/_/g, '/');
                 while (b64.length % 4) b64 += '=';
-                decodedItem = JSON.parse(atob(b64));
+                const rawJson = atob(b64).replace(/\\([{}])/g, '$1');
+                decodedItem = JSON.parse(rawJson);
             } catch(e) {}
 
             // 【关键判定】：只要包含原画链接 或 小说直连文本，均走直连并直接返回！

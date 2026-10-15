@@ -1440,9 +1440,8 @@
             font-size: calc(var(--reader-font-size) * 1.25) !important;
         }
 
-        /* 全屏阅读背景主题渗透 (彻底消灭底部安全区小黑条，全屏沉浸) */
-        html.reading-theme-parchment,
-        html.reading-theme-parchment body,
+        /* 全屏阅读背景主题渗透 (彻底消灭底部安全区小黑条，全屏沉浸，严格限制在阅读器激活状态) */
+        html.reader-active.reading-theme-parchment,
         body.reading-mode.reading-theme-parchment,
         body.reading-mode.reading-theme-parchment main,
         body.reading-mode.reading-theme-parchment #readerView,
@@ -1450,8 +1449,7 @@
             background-color: #f4ece1 !important;
             background-image: none !important;
         }
-        html.reading-theme-mint,
-        html.reading-theme-mint body,
+        html.reader-active.reading-theme-mint,
         body.reading-mode.reading-theme-mint,
         body.reading-mode.reading-theme-mint main,
         body.reading-mode.reading-theme-mint #readerView,
@@ -1459,8 +1457,7 @@
             background-color: #e8f5e9 !important;
             background-image: none !important;
         }
-        html.reading-theme-daylight,
-        html.reading-theme-daylight body,
+        html.reader-active.reading-theme-daylight,
         body.reading-mode.reading-theme-daylight,
         body.reading-mode.reading-theme-daylight main,
         body.reading-mode.reading-theme-daylight #readerView,
@@ -1468,8 +1465,7 @@
             background-color: #ffffff !important;
             background-image: none !important;
         }
-        html.reading-theme-night,
-        html.reading-theme-night body,
+        html.reader-active.reading-theme-night,
         body.reading-mode.reading-theme-night,
         body.reading-mode.reading-theme-night main,
         body.reading-mode.reading-theme-night #readerView,
@@ -1477,8 +1473,7 @@
             background-color: #0d0f14 !important;
             background-image: none !important;
         }
-        html.reading-theme-slate,
-        html.reading-theme-slate body,
+        html.reader-active.reading-theme-slate,
         body.reading-mode.reading-theme-slate,
         body.reading-mode.reading-theme-slate main,
         body.reading-mode.reading-theme-slate #readerView,
@@ -1641,8 +1636,10 @@
                 width: auto;
                 max-width: none;
             }
-        }
         .format-panel.show { display: flex; }
+        .format-panel.manga-mode-panel .format-panel-row:not(.manga-support-row) {
+            display: none !important;
+        }
         .format-panel-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--text-main); }
         .format-btn-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
         .format-chip-btn {
@@ -4127,10 +4124,10 @@
             <div class="filter-row">
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质漫画源：</label>
                 <select id="mangaSourceSelect" class="select-filter">
-                    <option value="新新漫画" selected>新新漫画 (韩漫/日漫/高清原画秒开)</option>
-                    <option value="全面漫画">全面漫画 (国漫/热血主流全本连载)</option>
-                    <option value="G社漫画">G社漫画 (绅士/热门韩漫全集)</option>
-                    <option value="番茄">番茄漫画 (官方精选画质)</option>
+                    <option value="新新漫画" selected>新新漫画 (韩漫/日漫/超200话高清连载)</option>
+                    <option value="全面漫画">全面漫画 (国漫/全彩高清连载)</option>
+                    <option value="G社漫画">G社漫画 (韩漫精选/热门番外)</option>
+                    <option value="番茄">番茄漫画 (官方正版图源)</option>
                     <option value="ALL">⚡ 聚合搜 (同时检索全部漫画源)</option>
                 </select>
             </div>
@@ -4455,6 +4452,9 @@
                         <i class="fas fa-sliders-h"></i> 排版 <i class="fas fa-caret-down" style="font-size:9px;"></i>
                     </button>
                     <div class="format-panel" id="formatPanel" onclick="event.stopPropagation()">
+                        <div id="mangaLayoutNotice" style="display:none; font-size:12px; color:var(--accent); background:rgba(45,212,192,0.1); border-radius:6px; padding:6px 10px; margin-bottom:4px;">
+                            <i class="fas fa-scroll"></i> 漫画作品自动采用「上下卷轴」沉浸阅读
+                        </div>
                         <div class="format-panel-row">
                             <span style="color:var(--text-muted);"><i class="fas fa-book-reader"></i> 翻页模式</span>
                             <div class="format-btn-group">
@@ -4471,7 +4471,7 @@
                                 <button class="format-chip-btn" data-rfont="kaiti" onclick="setReaderFontFamily('kaiti')">古典楷体</button>
                             </div>
                         </div>
-                        <div class="format-panel-row">
+                        <div class="format-panel-row manga-support-row">
                             <span style="color:var(--text-muted);"><i class="fas fa-palette"></i> 阅读纸张</span>
                             <div class="theme-palette-group">
                                 <button class="palette-btn parchment" onclick="setNovelTheme('parchment')" title="羊皮纸"></button>
@@ -4924,16 +4924,24 @@
             allThemes.forEach(t => container.classList.remove('theme-' + t));
             container.classList.add('theme-' + themeName);
         }
+        document.querySelectorAll('.palette-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.classList.contains(themeName));
+        });
+        if (!document.body.classList.contains('reading-mode')) {
+            allThemes.forEach(t => {
+                document.body.classList.remove('reading-theme-' + t);
+                document.documentElement.classList.remove('reading-theme-' + t);
+            });
+            document.documentElement.classList.remove('reader-active');
+            return;
+        }
         allThemes.forEach(t => {
             document.body.classList.remove('reading-theme-' + t);
             document.documentElement.classList.remove('reading-theme-' + t);
         });
         document.body.classList.add('reading-theme-' + themeName);
-        document.documentElement.classList.add('reading-theme-' + themeName);
+        document.documentElement.classList.add('reader-active', 'reading-theme-' + themeName);
         updateThemeColorMeta(themeName);
-        document.querySelectorAll('.palette-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.classList.contains(themeName));
-        });
     }
 
     window.renderSkeletonGrid = function(container, count = 8, isPoster = false) {
@@ -6524,7 +6532,7 @@
     // 核心独立页面切换 (1.我的 2.小说 3.漫画 4.影视 5.隐藏吃瓜)
     function switchNav(nav) {
         document.body.classList.remove('reading-mode', 'reader-mode-paginated');
-        document.documentElement.classList.remove('reader-locked-paginated');
+        document.documentElement.classList.remove('reader-locked-paginated', 'reader-active');
         const allThemes = ['parchment', 'night', 'mint', 'daylight', 'slate'];
         allThemes.forEach(t => {
             document.body.classList.remove('reading-theme-' + t);
@@ -6935,8 +6943,11 @@
     }
 
     function parseChapterInfo(rawTitle) {
-        const title = String(rawTitle || '').trim();
+        let title = String(rawTitle || '').trim();
         if (!title) return { num: null, style: 'none', core: '' };
+
+        // 预处理：清洗前导连字符、符号或可能混入的“作品名- 第X话”冗余前缀
+        title = title.replace(/^[^第\d]{1,25}[：:·\-\s]+(?=第|\d)/, '').replace(/^[\s\.:：\-_·]+/, '');
 
         if (/^(序[章言曲幕]?|楔子|引子|前言|预告|导读|Prologue)(\s|$|[：:·\-])/i.test(title)) {
             return { num: 0, style: 'prologue', core: title };
@@ -6991,7 +7002,41 @@
             _info: parseChapterInfo(item?.title)
         }));
 
-        // 第一步（针对漫画）：剔除同一页面被爬虫混入的两套重叠编号线路（如《完美世界》同时混入了 "第1~320话" 和 "1~162 标题(上/下)"）
+        // 第一步（针对漫画）：检测并智能选择最全连载线路（如《秘密教学》等韩漫源站混入 1~237话通道 与 1~192话旧通道拼接）
+        if (tab === '漫画' && items.length > 50) {
+            const sections = [];
+            let curSec = [];
+            for (let i = 0; i < items.length; i++) {
+                const cur = items[i];
+                const prev = curSec.length > 0 ? curSec[curSec.length - 1] : null;
+                if (prev && prev._info.num !== null && prev._info.num >= 15 && cur._info.num !== null && cur._info.num <= 3) {
+                    sections.push(curSec);
+                    curSec = [cur];
+                } else {
+                    curSec.push(cur);
+                }
+            }
+            if (curSec.length > 0) sections.push(curSec);
+
+            if (sections.length > 1) {
+                let bestSec = sections[0];
+                let bestMax = 0;
+                sections.forEach(sec => {
+                    let maxNum = 0;
+                    sec.forEach(x => { if (x._info.num !== null && x._info.num > maxNum) maxNum = x._info.num; });
+                    if (maxNum > bestMax) {
+                        bestMax = maxNum;
+                        bestSec = sec;
+                    }
+                });
+                if (bestMax > 0 && bestSec.length >= 20) {
+                    items = bestSec;
+                    reasons.push(`精选最新全集线路(至第${bestMax}话)`);
+                }
+            }
+        }
+
+        // 第二步（针对漫画）：剔除同一页面被爬虫混入的两套重叠编号线路（如《完美世界》同时混入了 "第1~320话" 和 "1~162 标题(上/下)"）
         if (tab === '漫画') {
             const diItems = items.filter(x => x._info.style === 'di_unit' && x._info.num !== null);
             const bareItems = items.filter(x => x._info.style === 'bare_num' && x._info.num !== null);
@@ -7549,12 +7594,8 @@
         if (currentReaderMode !== 'paginated') return;
         const target = _paginatedCurrentPage + delta;
         if (target < 0) {
-            // 向前翻越章节边界：进入上一章最后一页（保持阅读倒退上下文连续性）
+            // 向前翻越章节边界：进入上一章最后一页（保持阅读倒退上下文连续性，无弹窗打扰）
             if (currentChapterIndex > 0) {
-                const prevChap = currentCatalog[currentChapterIndex - 1];
-                if (typeof showCloudToast === 'function') {
-                    showCloudToast(`已翻回上一章末尾：${prevChap ? prevChap.title : ''}`, 'fa-history', '#38bdf8');
-                }
                 readChapter(currentChapterIndex - 1, false, 'last');
             } else {
                 if (typeof showCloudToast === 'function') {
@@ -7564,12 +7605,8 @@
             return;
         }
         if (target >= _paginatedTotalPages) {
-            // 向后翻越章节边界：进入下一章第 1 页（醒目呈现新章节标题与开头正文）
+            // 向后翻越章节边界：进入下一章第 1 页（沉浸无缝衔接，无弹窗打扰）
             if (currentChapterIndex < currentCatalog.length - 1) {
-                const nextChap = currentCatalog[currentChapterIndex + 1];
-                if (typeof showCloudToast === 'function') {
-                    showCloudToast(`进入新章节：${nextChap ? nextChap.title : ''}`, 'fa-book-open', '#38bdf8');
-                }
                 readChapter(currentChapterIndex + 1, false, 'first');
             } else {
                 if (typeof showCloudToast === 'function') {
@@ -7744,7 +7781,10 @@
             // 1. 漫画图片
             if (data && Array.isArray(data.images) && data.images.length > 0) {
                 _lastRenderedNovelData = null;
+                currentReaderMode = 'scroll';
                 container.classList.add('manga-reader-mode');
+                document.body.classList.remove('reader-mode-paginated');
+                document.documentElement.classList.remove('reader-locked-paginated');
                 const bottomPager = document.getElementById('readerBottomPager');
                 if (bottomPager) bottomPager.style.display = 'flex';
                 const isStealth = document.body.getAttribute('data-theme') === 'stealth';
@@ -7822,13 +7862,9 @@
         }
     }
 
-    // 主动点击上一章（属于跳章操作）：按行业规范跳转至目标章节第 1 页
+    // 主动点击上一章（属于跳章操作）：跳转至目标章节第 1 页
     function prevChapter(isManualJump = true) {
         if (currentChapterIndex > 0) {
-            const targetChap = currentCatalog[currentChapterIndex - 1];
-            if (isManualJump && typeof showCloudToast === 'function') {
-                showCloudToast(`跳转至上一章：${targetChap ? targetChap.title : ''}`, 'fa-step-backward', '#38bdf8');
-            }
             readChapter(currentChapterIndex - 1, false, 'first');
         } else {
             if (typeof showCloudToast === 'function') {
@@ -7837,13 +7873,9 @@
         }
     }
 
-    // 主动点击下一章（属于跳章操作）：按行业规范跳转至目标章节第 1 页
+    // 主动点击下一章（属于跳章操作）：跳转至目标章节第 1 页
     function nextChapter(isManualJump = true) {
         if (currentChapterIndex < currentCatalog.length - 1) {
-            const targetChap = currentCatalog[currentChapterIndex + 1];
-            if (isManualJump && typeof showCloudToast === 'function') {
-                showCloudToast(`跳转至下一章：${targetChap ? targetChap.title : ''}`, 'fa-step-forward', '#38bdf8');
-            }
             readChapter(currentChapterIndex + 1, false, 'first');
         } else {
             if (typeof showCloudToast === 'function') {
@@ -8071,6 +8103,7 @@
                 try { _activeChapterFetchController.abort(); } catch (e) {}
             }
             abortActiveReaderImages();
+            document.documentElement.classList.remove('reader-active');
             const allThemes = ['parchment', 'night', 'mint', 'daylight', 'slate'];
             allThemes.forEach(t => {
                 document.body.classList.remove('reading-theme-' + t);
@@ -8174,6 +8207,11 @@
     }
 
     function setReaderLayoutMode(mode) {
+        if (currentBookInfo && currentBookInfo.tab === '漫画') {
+            currentReaderMode = 'scroll';
+            updateFormatLabels();
+            return;
+        }
         currentReaderMode = (mode === 'paginated') ? 'paginated' : 'scroll';
         localStorage.setItem('reader_layout_mode', currentReaderMode);
         updateFormatLabels();
@@ -8232,6 +8270,14 @@
     }
 
     function updateFormatLabels() {
+        const isManga = (currentBookInfo && currentBookInfo.tab === '漫画');
+        const panel = document.getElementById('formatPanel');
+        if (panel) {
+            panel.classList.toggle('manga-mode-panel', isManga);
+            const notice = document.getElementById('mangaLayoutNotice');
+            if (notice) notice.style.display = isManga ? 'block' : 'none';
+        }
+
         const fontLbl = document.getElementById('curFontSizeLabel');
         if (fontLbl) fontLbl.innerText = currentFontSize + 'px';
         const lineLbl = document.getElementById('curLineHeightLabel');
