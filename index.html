@@ -5646,30 +5646,86 @@
         return `${mm}:${ss}`;
     }
 
-    function updateRecentHistory(book, chapTitle, chapIdx) {
+    function updateRecentHistory(book, chapTitle, chapIdx, extraProgress = {}) {
         if (!book || !book.book_name) return;
         const now = Date.now();
         clearCloudDeletion('hist:' + book.book_name);
 
-        // 同步更新书架中的阅读进度
+        // 同步更新书架中的阅读进度（包含章节以及章内精确页码/滚动位置/图片序号）
         let shelf = getLocalShelf();
         const sIdx = shelf.findIndex(b => b.book_name === book.book_name);
         if (sIdx !== -1) {
             shelf[sIdx].lastReadTitle = chapTitle || '第一章';
             shelf[sIdx].lastReadIndex = chapIdx || 0;
+            if (extraProgress.page !== undefined) shelf[sIdx].lastReadPage = extraProgress.page;
+            if (extraProgress.totalPages !== undefined) shelf[sIdx].lastReadTotalPages = extraProgress.totalPages;
+            if (extraProgress.scrollTop !== undefined) shelf[sIdx].lastScrollTop = extraProgress.scrollTop;
+            if (extraProgress.scrollRatio !== undefined) shelf[sIdx].lastScrollRatio = extraProgress.scrollRatio;
+            if (extraProgress.imgIdx !== undefined) shelf[sIdx].lastMangaImgIndex = extraProgress.imgIdx;
+            if (extraProgress.progressLabel) shelf[sIdx].lastProgressLabel = extraProgress.progressLabel;
             shelf[sIdx].updatedAt = now;
             saveLocalShelf(shelf, true);
         }
+
+        // 同步更新最近阅读历史
         let history = getRecentHistory();
+        const existingHist = history.find(b => b.book_name === book.book_name) || {};
         history = history.filter(b => b.book_name !== book.book_name);
         history.unshift({
+            ...existingHist,
             ...book,
             lastReadTitle: chapTitle || '第一章',
             lastReadIndex: chapIdx || 0,
+            lastReadPage: extraProgress.page !== undefined ? extraProgress.page : (existingHist.lastReadPage || 0),
+            lastReadTotalPages: extraProgress.totalPages !== undefined ? extraProgress.totalPages : (existingHist.lastReadTotalPages || 1),
+            lastScrollTop: extraProgress.scrollTop !== undefined ? extraProgress.scrollTop : (existingHist.lastScrollTop || 0),
+            lastScrollRatio: extraProgress.scrollRatio !== undefined ? extraProgress.scrollRatio : (existingHist.lastScrollRatio || 0),
+            lastMangaImgIndex: extraProgress.imgIdx !== undefined ? extraProgress.imgIdx : (existingHist.lastMangaImgIndex || 0),
+            lastProgressLabel: extraProgress.progressLabel || existingHist.lastProgressLabel || '',
             readTime: now
         });
         if (history.length > 80) history.pop();
         saveRecentHistory(history);
+    }
+
+    let _saveProgressDebounceTimer = null;
+
+    // 实时精准记录阅读位置（节流防抖写入）
+    function saveCurrentReadingPosition(extra = {}) {
+        if (!currentBookInfo || !currentBookInfo.book_name) return;
+        const chap = currentCatalog[currentChapterIndex];
+        const chapTitle = chap ? chap.title : (currentBookInfo.lastReadTitle || '正文');
+
+        // 同步更新内存中的 currentBookInfo，避免多次异步操作丢失
+        if (extra.page !== undefined) currentBookInfo.lastReadPage = extra.page;
+        if (extra.totalPages !== undefined) currentBookInfo.lastReadTotalPages = extra.totalPages;
+        if (extra.scrollTop !== undefined) currentBookInfo.lastScrollTop = extra.scrollTop;
+        if (extra.scrollRatio !== undefined) currentBookInfo.lastScrollRatio = extra.scrollRatio;
+        if (extra.imgIdx !== undefined) currentBookInfo.lastMangaImgIndex = extra.imgIdx;
+        if (extra.progressLabel) currentBookInfo.lastProgressLabel = extra.progressLabel;
+        currentBookInfo.lastReadIndex = currentChapterIndex;
+        currentBookInfo.lastReadTitle = chapTitle;
+
+        clearTimeout(_saveProgressDebounceTimer);
+        _saveProgressDebounceTimer = setTimeout(() => {
+            updateRecentHistory(currentBookInfo, chapTitle, currentChapterIndex, extra);
+        }, 220);
+    }
+
+    // 页面离开/切换时的即时同步刷写
+    function flushReadingPositionSync() {
+        if (!currentBookInfo || !currentBookInfo.book_name) return;
+        clearTimeout(_saveProgressDebounceTimer);
+        const chap = currentCatalog[currentChapterIndex];
+        const chapTitle = chap ? chap.title : (currentBookInfo.lastReadTitle || '正文');
+        updateRecentHistory(currentBookInfo, chapTitle, currentChapterIndex, {
+            page: currentBookInfo.lastReadPage,
+            totalPages: currentBookInfo.lastReadTotalPages,
+            scrollTop: currentBookInfo.lastScrollTop,
+            scrollRatio: currentBookInfo.lastScrollRatio,
+            imgIdx: currentBookInfo.lastMangaImgIndex,
+            progressLabel: currentBookInfo.lastProgressLabel
+        });
     }
 
     // 打包本机完整进度快照
@@ -6309,7 +6365,7 @@
                             <span class="card-title">${b.book_name}</span>
                             <span class="card-tag" style="font-size:10px;">${typeBadge}</span>
                         </div>
-                        <div class="card-sub">进度: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '第一章'}</span></div>
+                        <div class="card-sub">进度: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '第一章'}</span>${b.lastProgressLabel ? ` · <span style="color:var(--accent); font-size:11px;">${escapeNovelHtml(b.lastProgressLabel)}</span>` : ''}</div>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
                         <span class="card-sub">${b.source || '书架收藏'} · ${b.author || '连载'}</span>
@@ -6395,7 +6451,7 @@
                         <span class="card-title">${b.book_name}</span>
                         <span class="card-tag" style="font-size:10px;">${formatTimeAgo(b.readTime)}</span>
                     </div>
-                    <div class="card-sub">读至: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '序章'}</span></div>
+                    <div class="card-sub">读至: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '序章'}</span>${b.lastProgressLabel ? ` · <span style="color:var(--accent); font-size:11px;">${escapeNovelHtml(b.lastProgressLabel)}</span>` : ''}</div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
                     <span class="card-sub">${b.source || '优质源'}</span>
@@ -6432,7 +6488,7 @@
                         <span class="card-title">${b.book_name}</span>
                         <span class="card-tag" style="font-size:10px;">${formatTimeAgo(b.readTime)}</span>
                     </div>
-                    <div class="card-sub">看至: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '第1话'}</span></div>
+                    <div class="card-sub">看至: <span style="color:var(--accent); font-weight:600;">${b.lastReadTitle || '第1话'}</span>${b.lastProgressLabel ? ` · <span style="color:var(--accent); font-size:11px;">${escapeNovelHtml(b.lastProgressLabel)}</span>` : ''}</div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
                     <span class="card-sub">${b.source || '漫画源'}</span>
@@ -6527,7 +6583,14 @@
 
     function openBookFromHistory(encodedBook) {
         const book = JSON.parse(decodeURIComponent(encodedBook));
-        loadBookDetail(encodedBook, book.lastReadIndex || 0);
+        const pos = {
+            page: book.lastReadPage,
+            scrollTop: book.lastScrollTop,
+            scrollRatio: book.lastScrollRatio,
+            imgIdx: book.lastMangaImgIndex,
+            progressLabel: book.lastProgressLabel
+        };
+        loadBookDetail(encodedBook, book.lastReadIndex || 0, pos);
     }
 
     // 核心独立页面切换 (1.我的 2.小说 3.漫画 4.影视 5.隐藏吃瓜)
@@ -7188,10 +7251,25 @@
         if (_detailCatalogReversed) indexed.reverse();
 
         catalogList.innerHTML = indexed.map(({ chap, idx }) => `
-            <div class="chap-btn ${currentChapterIndex === idx ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="readChapter(${idx})">
+            <div class="chap-btn ${currentChapterIndex === idx ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="onCatalogChapterClick(${idx})">
                 ${escapeNovelHtml(chap.title)}
             </div>
         `).join('');
+    }
+
+    // 目录项点击响应：点击正在阅读的历史章节自动恢复章内精确位置，点击新章节从头开始
+    function onCatalogChapterClick(idx) {
+        if (currentBookInfo && currentBookInfo.lastReadIndex === idx && (currentBookInfo.lastReadPage > 0 || currentBookInfo.lastMangaImgIndex > 0 || currentBookInfo.lastScrollTop > 50)) {
+            readChapter(idx, false, {
+                page: currentBookInfo.lastReadPage,
+                scrollTop: currentBookInfo.lastScrollTop,
+                scrollRatio: currentBookInfo.lastScrollRatio,
+                imgIdx: currentBookInfo.lastMangaImgIndex,
+                progressLabel: currentBookInfo.lastProgressLabel
+            });
+        } else {
+            readChapter(idx, false, 'first');
+        }
     }
 
     function toggleDetailCatalogOrder() {
@@ -7202,7 +7280,7 @@
     // ==========================================
     // 书籍/漫画详情与阅读加载
     // ==========================================
-    async function loadBookDetail(encodedItem, autoReadIndex = null) {
+    async function loadBookDetail(encodedItem, autoReadIndex = null, initialPosition = null) {
         const book = JSON.parse(decodeURIComponent(encodedItem));
         const activeTab = book.tab || (previousView === 'manga' ? '漫画' : '小说');
         const cleanSource = ((book.source || (activeTab === '漫画' ? '新新漫画' : '七猫')) + '').replace(/^svip_/, '');
@@ -7254,7 +7332,14 @@
             renderDetailCatalogList();
 
             if (autoReadIndex !== null && currentCatalog[autoReadIndex]) {
-                readChapter(autoReadIndex);
+                const targetPos = initialPosition || {
+                    page: book.lastReadPage,
+                    scrollTop: book.lastScrollTop,
+                    scrollRatio: book.lastScrollRatio,
+                    imgIdx: book.lastMangaImgIndex,
+                    progressLabel: book.lastProgressLabel
+                };
+                readChapter(autoReadIndex, false, targetPos);
             }
         } catch(e) {
             catalogList.innerHTML = `<div style="color:red; padding:10px;">获取目录异常: ${e.message}</div>`;
@@ -7465,7 +7550,19 @@
         const bottomPager = document.getElementById('readerBottomPager');
         if (!container) return;
 
-        _targetInitialPage = initialPage || _targetInitialPage || 'first';
+        let targetPage = 0;
+        let isObjectPos = false;
+        let savedScrollTop = 0;
+        let posLabel = '';
+        if (typeof initialPage === 'object' && initialPage !== null) {
+            targetPage = (typeof initialPage.page === 'number') ? initialPage.page : 0;
+            savedScrollTop = (typeof initialPage.scrollTop === 'number') ? initialPage.scrollTop : 0;
+            posLabel = initialPage.progressLabel || (targetPage > 0 ? `第 ${targetPage + 1} 页` : '');
+            isObjectPos = true;
+            _targetInitialPage = targetPage;
+        } else {
+            _targetInitialPage = initialPage || _targetInitialPage || 'first';
+        }
         _lastRenderedNovelData = { formatted, chapTitle, idx, initialPage: _targetInitialPage };
 
         // 确保小说始终应用小说专属排版偏好（默认左右翻页，不被漫画的上下滚动覆盖）
@@ -7496,11 +7593,16 @@
                 </div>
             `;
             applyHetiTypography();
-            _paginatedCurrentPage = (_targetInitialPage === 'last') ? 9999 : 0;
+            _paginatedCurrentPage = (_targetInitialPage === 'last') ? 9999 : (typeof _targetInitialPage === 'number' ? _targetInitialPage : 0);
             window.scrollTo({ top: 0, behavior: 'auto' });
             requestAnimationFrame(() => {
                 recalcPaginatedLayout();
-                setTimeout(() => recalcPaginatedLayout(), 120);
+                setTimeout(() => {
+                    recalcPaginatedLayout();
+                    if (isObjectPos && targetPage > 0 && posLabel) {
+                        showResumeProgressToast(posLabel);
+                    }
+                }, 120);
             });
         } else {
             if (bottomPager) bottomPager.style.display = 'flex';
@@ -7508,6 +7610,11 @@
             applyHetiTypography();
             if (_targetInitialPage === 'last') {
                 window.scrollTo({ top: document.body.scrollHeight || 999999, behavior: 'auto' });
+            } else if (isObjectPos && savedScrollTop > 50) {
+                setTimeout(() => {
+                    window.scrollTo({ top: savedScrollTop, behavior: 'auto' });
+                    if (posLabel) showResumeProgressToast(posLabel);
+                }, 80);
             } else {
                 window.scrollTo({ top: 0, behavior: 'auto' });
             }
@@ -7625,6 +7732,11 @@
         // 同章节内：纯粹、无闪烁、文字立即可见的高性能平滑硬件加速翻页
         _paginatedCurrentPage = target;
         applyPaginatedTransform(true);
+        saveCurrentReadingPosition({
+            page: _paginatedCurrentPage,
+            totalPages: _paginatedTotalPages,
+            progressLabel: `第 ${_paginatedCurrentPage + 1}/${_paginatedTotalPages} 页`
+        });
     }
 
     let _activeChapterFetchController = null;
@@ -7898,7 +8010,13 @@
                         </div>
                     `;
                 }
-                window.scrollTo({ top: 0, behavior: 'auto' });
+
+                // 精准恢复漫画上次阅读位置 (按图片序号或滚动高度)
+                if (typeof initialPage === 'object' && initialPage !== null && ((initialPage.imgIdx > 0) || (initialPage.scrollTop > 50))) {
+                    restoreMangaReadingPosition(initialPage);
+                } else {
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                }
                 lastScrollTop = 0;
                 updateScrollReadingProgress();
                 prefetchNextChapter(idx + 1, false);
@@ -8010,7 +8128,7 @@
         if (_readerCatalogReversed) indexed.reverse();
 
         listEl.innerHTML = indexed.map(({ chap, idx }) => `
-            <div class="chap-btn ${idx === currentChapterIndex ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="closeReaderCatalogModal(); readChapter(${idx});">
+            <div class="chap-btn ${idx === currentChapterIndex ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="closeReaderCatalogModal(); onCatalogChapterClick(${idx});">
                 ${escapeNovelHtml(chap.title)}
             </div>
         `).join('');
@@ -8053,6 +8171,63 @@
     let isReaderNavVisible = false;
     let lastReaderToggleTime = 0;
 
+    // 精准获取漫画当前视口中最靠近顶部或中央的图片索引
+    function getVisibleMangaImageIndex() {
+        const container = document.getElementById('readerContainer');
+        if (!container) return 0;
+        const imgs = container.querySelectorAll('.img-stream img');
+        if (!imgs || imgs.length === 0) return 0;
+        const st = window.pageYOffset || document.documentElement.scrollTop || 0;
+        const targetLine = st + (window.innerHeight * 0.35);
+        for (let i = 0; i < imgs.length; i++) {
+            const rect = imgs[i].getBoundingClientRect();
+            const absTop = rect.top + st;
+            if (absTop + rect.height >= targetLine) {
+                return i;
+            }
+        }
+        return Math.max(0, imgs.length - 1);
+    }
+
+    // 精准恢复漫画上次阅读位置 (优先定位到具体画面，次选像素高度)
+    function restoreMangaReadingPosition(pos) {
+        if (!pos) return;
+        const container = document.getElementById('readerContainer');
+        if (!container) return;
+        const imgs = container.querySelectorAll('.img-stream img');
+
+        if (typeof pos.imgIdx === 'number' && pos.imgIdx > 0 && imgs && imgs[pos.imgIdx]) {
+            const targetImg = imgs[pos.imgIdx];
+            const doScroll = () => {
+                targetImg.scrollIntoView({ block: 'start', behavior: 'auto' });
+            };
+            setTimeout(doScroll, 80);
+            setTimeout(doScroll, 320);
+            targetImg.addEventListener('load', doScroll, { once: true });
+            if (pos.progressLabel) {
+                showResumeProgressToast(pos.progressLabel);
+            }
+            return;
+        }
+
+        if (typeof pos.scrollTop === 'number' && pos.scrollTop > 50) {
+            setTimeout(() => {
+                window.scrollTo({ top: pos.scrollTop, behavior: 'auto' });
+            }, 80);
+            if (pos.progressLabel) {
+                showResumeProgressToast(pos.progressLabel);
+            }
+        }
+    }
+
+    // 续看提示轻浮窗
+    function showResumeProgressToast(label) {
+        if (!label) return;
+        if (typeof showCloudToast === 'function') {
+            showCloudToast(`已无缝续看至：${label}`, 'fa-bookmark', '#2dd4c0');
+        }
+    }
+
     function updateScrollReadingProgress() {
         if (currentReaderMode === 'paginated') return;
         const docEl = document.documentElement;
@@ -8070,6 +8245,25 @@
         if (currentBookInfo && currentBookInfo.tab === '漫画') {
             if (pct >= 60 && _lastMangaPreloadedChapterIdx !== currentChapterIndex + 1) {
                 prefetchNextChapter(currentChapterIndex + 1, true);
+            }
+        }
+
+        // 实时保存上下卷轴（漫画与小说）精准滚动位置与可视图片
+        if (currentBookInfo) {
+            if (currentBookInfo.tab === '漫画') {
+                const imgIdx = getVisibleMangaImageIndex();
+                saveCurrentReadingPosition({
+                    scrollTop: st,
+                    scrollRatio: st / maxScroll,
+                    imgIdx: imgIdx,
+                    progressLabel: `${pct}% (第 ${imgIdx + 1} P)`
+                });
+            } else {
+                saveCurrentReadingPosition({
+                    scrollTop: st,
+                    scrollRatio: st / maxScroll,
+                    progressLabel: `${pct}%`
+                });
             }
         }
     }
@@ -8202,6 +8396,9 @@
         document.documentElement.classList.toggle('reader-locked-paginated', isPaginatedMode);
 
         if (!isReader) {
+            if (typeof flushReadingPositionSync === 'function') {
+                flushReadingPositionSync();
+            }
             if (_activeChapterFetchController) {
                 try { _activeChapterFetchController.abort(); } catch (e) {}
             }
@@ -8215,7 +8412,6 @@
             updateThemeColorMeta(null);
         } else {
             setNovelTheme(currentNovelTheme);
-            window.scrollTo({ top: 0, behavior: 'auto' });
         }
 
         document.getElementById('historySection').style.display = 'none';
@@ -9567,6 +9763,19 @@
                 window.syncCloudNow(false);
             }, 300);
         }
+
+        // 浏览器切后台、切换标签页或关闭时即时刷写当前精准进度
+        window.addEventListener('pagehide', () => {
+            if (typeof flushReadingPositionSync === 'function') flushReadingPositionSync();
+        });
+        window.addEventListener('beforeunload', () => {
+            if (typeof flushReadingPositionSync === 'function') flushReadingPositionSync();
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && typeof flushReadingPositionSync === 'function') {
+                flushReadingPositionSync();
+            }
+        });
     }
 
     init();
