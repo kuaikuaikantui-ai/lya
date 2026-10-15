@@ -14,20 +14,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            /* 腾讯视频同款温润暗褐基调：暖调深邃黑曜 + 顶级琥珀焦糖光晕 */
-            --bg-base: #0c0b0e;
-            --glass-bg: rgba(28, 18, 20, 0.72);
-            --glass-card: rgba(32, 20, 22, 0.52);
-            --glass-card-hover: rgba(48, 28, 30, 0.72);
+            /* 纯黑深邃极简基调：纯黑背景 + 第三张图青碧点缀 */
+            --bg-base: #000000;
+            --glass-bg: #0d0d0f;
+            --glass-card: #121215;
+            --glass-card-hover: #18181c;
             --glass-border: rgba(255, 255, 255, 0.08);
-            --glass-border-light: rgba(255, 255, 255, 0.16);
-            --glass-highlight: inset 0 1px 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35);
-            --glass-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.6);
-            --glass-blur: blur(28px) saturate(190%) contrast(102%);
+            --glass-border-light: rgba(255, 255, 255, 0.12);
+            --glass-highlight: none;
+            --glass-shadow: none;
+            --glass-blur: none;
             --text-main: #f8fafc;
-            --text-muted: #9ca3af;
-            --accent: #ff6b35;
-            --accent-glow: rgba(255, 107, 53, 0.22);
+            --text-muted: #8e959e;
+            --accent: #00d1c1;
+            --accent-glow: rgba(0, 209, 193, 0.2);
             --reader-font-size: 18px;
             --reader-line-height: 1.9;
             --reader-para-spacing: 1.15em;
@@ -37,33 +37,32 @@
 
         body[data-theme="warm"] {
             --bg-base: #f4ece1;
-            --bg-gradient: radial-gradient(circle at 20% 20%, rgba(217, 119, 6, 0.12) 0%, transparent 50%),
-                           radial-gradient(circle at 80% 80%, rgba(180, 83, 9, 0.08) 0%, transparent 50%);
-            --glass-bg: rgba(245, 239, 230, 0.75);
-            --glass-card: rgba(255, 252, 248, 0.75);
-            --glass-card-hover: rgba(255, 255, 255, 0.9);
+            --bg-gradient: none;
+            --glass-bg: rgba(245, 239, 230, 0.9);
+            --glass-card: rgba(255, 252, 248, 0.9);
+            --glass-card-hover: #ffffff;
             --glass-border: rgba(180, 160, 140, 0.25);
             --glass-border-light: rgba(180, 160, 140, 0.4);
-            --glass-shadow: 0 8px 24px 0 rgba(140, 100, 60, 0.12);
+            --glass-shadow: none;
             --text-main: #2d261e;
             --text-muted: #786c5e;
-            --accent: #b45309;
-            --accent-glow: rgba(180, 83, 9, 0.2);
+            --accent: #00d1c1;
+            --accent-glow: rgba(0, 209, 193, 0.2);
         }
 
         body[data-theme="stealth"] {
-            --bg-base: #121316;
+            --bg-base: #000000;
             --bg-gradient: none;
-            --glass-bg: rgba(24, 25, 28, 0.85);
-            --glass-card: rgba(30, 31, 36, 0.8);
-            --glass-card-hover: rgba(40, 42, 48, 0.9);
+            --glass-bg: #0d0d0f;
+            --glass-card: #121215;
+            --glass-card-hover: #18181c;
             --glass-border: rgba(255, 255, 255, 0.08);
             --glass-border-light: rgba(255, 255, 255, 0.15);
-            --glass-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            --glass-shadow: none;
             --text-main: #d4d4d8;
             --text-muted: #71717a;
-            --accent: #38bdf8;
-            --accent-glow: rgba(56, 189, 248, 0.2);
+            --accent: #00d1c1;
+            --accent-glow: rgba(0, 209, 193, 0.2);
             font-family: Consolas, monospace !important;
         }
 
@@ -75,17 +74,12 @@
             overflow-x: hidden;
             overscroll-behavior-x: none;
             -webkit-text-size-adjust: 100%;
+            background-color: #000000;
         }
 
         body {
-            background-color: var(--bg-base);
-            background-image: 
-                radial-gradient(at 50% -12%, rgba(120, 48, 32, 0.55) 0px, rgba(68, 26, 18, 0.32) 48%, transparent 78%),
-                radial-gradient(at 0% 0%, rgba(95, 38, 28, 0.4) 0px, transparent 52%),
-                radial-gradient(at 100% 0%, rgba(75, 30, 24, 0.3) 0px, transparent 50%),
-                linear-gradient(180deg, #24110e 0%, #150d10 380px, #0c0b0e 100%);
-            background-attachment: fixed;
-            background-size: cover;
+            background-color: #000000 !important;
+            background-image: none !important;
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Segoe UI", Roboto, sans-serif;
             min-height: 100vh;
@@ -101,20 +95,9 @@
             overscroll-behavior-x: none;
         }
 
-        /* 真实温润琥珀微芒 (限制在视口内，防晃动) */
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(circle 500px at 25% 15%, rgba(255, 107, 53, 0.04), transparent 70%),
-                radial-gradient(circle 600px at 75% 25%, rgba(245, 158, 11, 0.035), transparent 70%),
-                radial-gradient(circle 700px at 50% 85%, rgba(180, 83, 9, 0.03), transparent 70%);
-            pointer-events: none;
-            z-index: -1;
-            filter: blur(50px);
+        body::before,
+        body::after {
+            display: none !important;
         }
 
         /* 顶部高定悬浮琉璃铭牌框 (Apple VisionOS / Linear 级液态钛金琉璃 + 极光流光棱镜) */
@@ -429,122 +412,96 @@
         .history-subnav {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 2px;
             width: 100%;
             position: relative;
-            background: rgba(255, 255, 255, 0.03) !important;
-            backdrop-filter: blur(28px) saturate(220%) !important;
-            -webkit-backdrop-filter: blur(28px) saturate(220%) !important;
-            border: 1px solid rgba(255, 255, 255, 0.16) !important;
-            box-shadow: 
-                inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.3),
-                inset 0 -1px 2px 0 rgba(0, 0, 0, 0.35),
-                0 12px 30px -8px rgba(0, 0, 0, 0.5) !important;
-            padding: 8px !important;
-            border-radius: 22px !important;
-            overflow: hidden;
-            --mouse-x: -200px;
-            --mouse-y: -200px;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
         }
         .history-subnav::before {
-            content: '';
-            position: absolute;
-            left: var(--mouse-x, -200px);
-            top: var(--mouse-y, -200px);
-            width: 160px;
-            height: 160px;
-            transform: translate(-50%, -50%);
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.28) 0%, rgba(56, 189, 248, 0.14) 35%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            mix-blend-mode: overlay;
-            z-index: 3;
-        }
-        .history-subnav:hover::before {
-            opacity: 1;
+            display: none !important;
         }
         .history-subnav-btn {
             background: transparent !important;
             border: none !important;
-            outline: none;
-            color: rgba(241, 245, 249, 0.68) !important;
-            font-size: 13.5px !important;
-            font-weight: 500 !important;
-            padding: 12px 14px !important;
-            border-radius: 16px !important;
+            outline: none !important;
+            box-shadow: none !important;
+            color: #8e959e !important;
+            font-size: 14.5px !important;
+            font-weight: 400 !important;
+            padding: 10px 12px !important;
+            border-radius: 8px !important;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: space-between;
             width: 100%;
-            gap: 8px;
+            gap: 10px;
             z-index: 4;
             position: relative;
-            transition: color 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transition: color 0.15s ease;
             user-select: none;
             text-align: left;
+            text-shadow: none !important;
         }
         .history-subnav-btn .my-tab-left {
             display: inline-flex;
             align-items: center;
-            gap: 9px;
+            gap: 10px;
             min-width: 0;
         }
         .history-subnav-btn .my-tab-left i {
             width: 18px;
             text-align: center;
-            font-size: 14px;
+            font-size: 15px;
+            color: #8e959e !important;
             flex-shrink: 0;
+            transition: color 0.15s ease;
         }
         .my-tab-count {
             font-size: 11px;
-            font-weight: 600;
-            padding: 2px 7px;
+            font-weight: 500;
+            padding: 1px 7px;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            color: rgba(241, 245, 249, 0.85);
+            background: rgba(255, 255, 255, 0.06) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            color: #8e959e !important;
             flex-shrink: 0;
-            transition: all 0.25s ease;
+            text-shadow: none !important;
         }
         .history-subnav-btn:hover {
             color: #ffffff !important;
-            transform: translateX(2px) !important;
+            transform: none !important;
         }
-        .history-subnav-btn.active {
+        .history-subnav-btn:hover .my-tab-left i {
             color: #ffffff !important;
+        }
+        /* 第三张图风格：纯净青碧色 #00d1c1，无胶囊边框，无发光阴影，无下划线 */
+        .history-subnav-btn.active {
+            color: #00d1c1 !important;
             font-weight: 600 !important;
-            text-shadow: 0 0 14px rgba(255, 255, 255, 0.75), 0 0 8px rgba(56, 189, 248, 0.5) !important;
+            text-shadow: none !important;
             background: transparent !important;
             border: none !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        .history-subnav-btn.active::after {
+            display: none !important;
+        }
+        .history-subnav-btn.active .my-tab-left i {
+            color: #00d1c1 !important;
         }
         .history-subnav-btn.active .my-tab-count {
-            background: rgba(56, 189, 248, 0.22);
-            border-color: rgba(56, 189, 248, 0.5);
-            color: #fff;
+            background: rgba(0, 209, 193, 0.12) !important;
+            border-color: rgba(0, 209, 193, 0.28) !important;
+            color: #00d1c1 !important;
         }
-        .subnav-glider {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            width: calc(100% - 16px);
-            height: 44px;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.12) 100%) !important;
-            backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
-            -webkit-backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
-            border: 1px solid rgba(255, 255, 255, 0.42) !important;
-            border-top-color: rgba(255, 255, 255, 0.75) !important;
-            border-radius: 16px !important;
-            box-shadow: 
-                inset 0 1.5px 3px 0 rgba(255, 255, 255, 0.8),
-                inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
-                0 6px 18px rgba(0, 0, 0, 0.35),
-                0 0 22px rgba(56, 189, 248, 0.35) !important;
-            z-index: 2;
-            pointer-events: none;
-            transition: left 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), top 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), width 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), height 0.36s cubic-bezier(0.34, 1.35, 0.64, 1);
+        .subnav-glider,
+        #subnavGlider {
+            display: none !important;
         }
 
         .grid-list {
@@ -1678,99 +1635,67 @@
         .tab-nav {
             display: flex;
             position: relative;
-            background: rgba(255, 255, 255, 0.03) !important;
-            backdrop-filter: blur(28px) saturate(220%) !important;
-            -webkit-backdrop-filter: blur(28px) saturate(220%) !important;
-            border: 1px solid rgba(255, 255, 255, 0.16) !important;
-            box-shadow: 
-                inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35),
-                inset 0 -1px 2px 0 rgba(0, 0, 0, 0.4),
-                0 18px 40px -10px rgba(0, 0, 0, 0.6) !important;
-            padding: 5px !important;
-            border-radius: 40px !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
             width: 100%;
             max-width: 680px;
             overflow: hidden;
-            --mouse-x: -200px;
-            --mouse-y: -200px;
         }
-        /* 鼠标跟随的高级液态光斑 (Liquid Specular Follower) */
-        .tab-nav::before {
-            content: '';
-            position: absolute;
-            left: var(--mouse-x, -200px);
-            top: var(--mouse-y, -200px);
-            width: 180px;
-            height: 180px;
-            transform: translate(-50%, -50%);
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(56, 189, 248, 0.15) 35%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            mix-blend-mode: overlay;
-            z-index: 3;
-        }
-        .tab-nav:hover::before {
-            opacity: 1;
+        .tab-nav::before,
+        .tab-glider,
+        #tabGlider {
+            display: none !important;
         }
         .tab-nav-btn {
             flex: 1;
             background: transparent !important;
             border: none !important;
-            outline: none;
+            outline: none !important;
             box-shadow: none !important;
-            color: rgba(241, 245, 249, 0.6) !important;
-            font-size: 13.5px !important;
-            font-weight: 500 !important;
+            color: #8e959e !important;
+            font-size: 14.5px !important;
+            font-weight: 400 !important;
             padding: 10px 14px !important;
-            border-radius: 35px !important;
+            border-radius: 8px !important;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 7px;
+            gap: 8px;
             z-index: 4;
             position: relative;
-            transition: color 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transition: color 0.15s ease;
             user-select: none;
             transform: none !important;
+            text-shadow: none !important;
+        }
+        .tab-nav-btn i {
+            color: #8e959e !important;
+            font-size: 15px;
+            transition: color 0.15s ease;
         }
         .tab-nav-btn:hover {
             color: #ffffff !important;
             background: transparent !important;
-            transform: translateY(-1px) scale(1.02) !important;
+            transform: none !important;
         }
-        .tab-nav-btn.active {
+        .tab-nav-btn:hover i {
             color: #ffffff !important;
+        }
+        /* 第三张图风格：纯净青碧色 #00d1c1 选中 */
+        .tab-nav-btn.active {
+            color: #00d1c1 !important;
             font-weight: 600 !important;
-            text-shadow: 0 0 16px rgba(255, 255, 255, 0.8), 0 0 8px rgba(56, 189, 248, 0.6) !important;
+            text-shadow: none !important;
             background: transparent !important;
             box-shadow: none !important;
             border: none !important;
-            transform: scale(1.03) !important;
+            transform: none !important;
         }
-        /* 拟真纯透苹果液态透镜 (True Liquid Glass Glider Lens) */
-        .tab-glider {
-            position: absolute;
-            top: 5px;
-            left: 5px;
-            height: 38px;
-            width: calc(25% - 2.5px);
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.12) 100%) !important;
-            backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
-            -webkit-backdrop-filter: blur(20px) brightness(1.25) contrast(1.1) !important;
-            border: 1px solid rgba(255, 255, 255, 0.42) !important;
-            border-top-color: rgba(255, 255, 255, 0.75) !important;
-            border-radius: 35px !important;
-            box-shadow: 
-                inset 0 1.5px 3px 0 rgba(255, 255, 255, 0.8),
-                inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.25),
-                0 6px 20px rgba(0, 0, 0, 0.35),
-                0 0 25px rgba(56, 189, 248, 0.35) !important;
-            z-index: 2;
-            pointer-events: none;
-            transition: left 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), top 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), width 0.36s cubic-bezier(0.34, 1.35, 0.64, 1), height 0.36s cubic-bezier(0.34, 1.35, 0.64, 1);
+        .tab-nav-btn.active i {
+            color: #00d1c1 !important;
         }
 
         /* 日间模式 (Apple Light Daylight Mode) */
@@ -2602,99 +2527,114 @@
                 justify-content: flex-start !important;
                 padding: 9px 10px !important;
                 border-radius: 10px !important;
-                font-size: 14.5px !important;
-                font-weight: 500 !important;
-                color: rgba(241, 245, 249, 0.78) !important;
-                text-shadow: 0 1px 8px rgba(0, 0, 0, 0.68) !important;
-                gap: 10px !important;
+                font-size: 15px !important;
+                font-weight: 400 !important;
+                color: #8e959e !important;
+                text-shadow: none !important;
+                gap: 12px !important;
                 text-align: left;
                 background: transparent !important;
                 border: none !important;
                 box-shadow: none !important;
+                transition: color 0.15s ease;
             }
             .tab-nav-btn i {
-                width: 18px;
+                width: 20px;
                 text-align: center;
-                font-size: 14px;
-                opacity: 0.88;
+                font-size: 15px;
+                color: #8e959e !important;
+                opacity: 1;
+                transition: color 0.15s ease;
             }
             .tab-nav-btn:hover {
                 color: #ffffff !important;
-                background: rgba(255, 255, 255, 0.06) !important;
-                transform: translateX(3px) !important;
+                background: transparent !important;
+                transform: none !important;
+            }
+            .tab-nav-btn:hover i {
+                color: #ffffff !important;
             }
             .tab-nav-btn.active {
-                color: #2dd4bf !important;
-                font-weight: 700 !important;
-                text-shadow: 0 0 16px rgba(45, 212, 191, 0.55), 0 1px 8px rgba(0, 0, 0, 0.75) !important;
+                color: #00d1c1 !important;
+                font-weight: 600 !important;
+                text-shadow: none !important;
                 background: transparent !important;
                 transform: none !important;
             }
             .tab-nav-btn.active i {
-                color: #2dd4bf !important;
+                color: #00d1c1 !important;
                 opacity: 1;
             }
             body.light-mode .tab-nav-btn {
-                color: #475569 !important;
+                color: #64748b !important;
                 text-shadow: none !important;
             }
             body.light-mode .tab-nav-btn:hover {
                 color: #0f172a !important;
-                background: rgba(15, 23, 42, 0.05) !important;
+                background: transparent !important;
             }
             body.light-mode .tab-nav-btn.active {
-                color: #2563eb !important;
+                color: #00d1c1 !important;
                 text-shadow: none !important;
             }
             body.light-mode .tab-nav-btn.active i {
-                color: #2563eb !important;
+                color: #00d1c1 !important;
             }
 
-            /* PC 端左侧腾讯视频同款影视子频道纵列（电视剧/电影/综艺/韩剧/日剧/美剧等无框透明直达列表） */
+            /* PC 端左侧影视子频道纵列（电视剧/电影/综艺/韩剧/日剧/美剧等无框直达列表） */
             .pc-side-channel-list {
                 display: flex;
                 flex-direction: column;
-                gap: 1px;
-                margin-top: 4px;
-                padding-top: 6px;
+                gap: 2px;
+                margin-top: 6px;
+                padding-top: 8px;
                 border-top: 1px solid rgba(255, 255, 255, 0.08);
             }
             body.light-mode .pc-side-channel-list {
                 border-top-color: rgba(15, 23, 42, 0.08);
             }
             .pc-side-channel-btn {
-                background: transparent;
-                border: none;
-                outline: none;
-                color: rgba(241, 245, 249, 0.72);
-                text-shadow: 0 1px 8px rgba(0, 0, 0, 0.68);
-                font-size: 13.5px;
-                font-weight: 500;
+                background: transparent !important;
+                border: none !important;
+                outline: none !important;
+                color: #8e959e !important;
+                text-shadow: none !important;
+                font-size: 14px;
+                font-weight: 400;
                 padding: 8px 10px;
-                border-radius: 10px;
+                border-radius: 8px;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
-                gap: 10px;
+                gap: 12px;
                 text-align: left;
-                transition: all 0.2s ease;
+                transition: color 0.15s ease;
                 user-select: none;
             }
             .pc-side-channel-btn i {
-                width: 18px;
+                width: 20px;
                 text-align: center;
-                font-size: 13px;
-                opacity: 0.75;
+                font-size: 14px;
+                color: #8e959e !important;
+                opacity: 1;
+                transition: color 0.15s ease;
             }
             .pc-side-channel-btn:hover {
-                color: #ffffff;
-                background: rgba(255, 255, 255, 0.06);
-                transform: translateX(3px);
+                color: #ffffff !important;
+                background: transparent !important;
+                transform: none !important;
+            }
+            .pc-side-channel-btn:hover i {
+                color: #ffffff !important;
             }
             .pc-side-channel-btn.active {
-                color: #2dd4bf;
-                font-weight: 700;
-                text-shadow: 0 0 14px rgba(45, 212, 191, 0.5);
+                color: #00d1c1 !important;
+                font-weight: 600 !important;
+                text-shadow: none !important;
+                background: transparent !important;
+            }
+            .pc-side-channel-btn.active i {
+                color: #00d1c1 !important;
             }
             body.light-mode .pc-side-channel-btn {
                 color: #64748b;
@@ -2702,10 +2642,10 @@
             }
             body.light-mode .pc-side-channel-btn:hover {
                 color: #0f172a;
-                background: rgba(15, 23, 42, 0.05);
+                background: transparent !important;
             }
             body.light-mode .pc-side-channel-btn.active {
-                color: #2563eb;
+                color: #00d1c1;
             }
 
             /* 3. PC端：“我的”子导航（影视记录/我的书架/小说记录/漫画记录）同样采用无框透明风格紧随主导航下方 */
@@ -2744,17 +2684,34 @@
             }
             .my-sidebar-wrap .history-subnav-btn {
                 padding: 8px 10px !important;
-                border-radius: 10px !important;
+                border-radius: 8px !important;
                 background: transparent !important;
-                color: rgba(241, 245, 249, 0.72) !important;
+                color: #8e959e !important;
+                border: none !important;
+                box-shadow: none !important;
+                text-shadow: none !important;
+                font-size: 14.5px !important;
+                font-weight: 400 !important;
+            }
+            .my-sidebar-wrap .history-subnav-btn .my-tab-left i {
+                color: #8e959e !important;
             }
             .my-sidebar-wrap .history-subnav-btn:hover {
                 color: #ffffff !important;
-                background: rgba(255, 255, 255, 0.06) !important;
+                background: transparent !important;
+                transform: none !important;
+            }
+            .my-sidebar-wrap .history-subnav-btn:hover .my-tab-left i {
+                color: #ffffff !important;
             }
             .my-sidebar-wrap .history-subnav-btn.active {
-                color: #2dd4bf !important;
-                font-weight: 700 !important;
+                color: #00d1c1 !important;
+                font-weight: 600 !important;
+                text-shadow: none !important;
+                background: transparent !important;
+            }
+            .my-sidebar-wrap .history-subnav-btn.active .my-tab-left i {
+                color: #00d1c1 !important;
             }
 
             /* 4. PC端：主内容区右侧全屏铺开，与巨幕标题同轴对齐在 206px */
@@ -2821,54 +2778,17 @@
         }
 
         @media (max-width: 1023px) {
+            /* 1. 移动端彻底隐去旧顶部框（搜索框与分类条已取消，功能统合至“我的”与底部导航） */
             header {
-                width: calc(100% - 20px);
-                margin: 0 !important;
-                padding: calc(6px + env(safe-area-inset-top)) 12px 4px 12px !important;
-                border-radius: 0 !important;
-                background: transparent !important;
-                backdrop-filter: none !important;
-                -webkit-backdrop-filter: none !important;
-                border: none !important;
-                box-shadow: none !important;
-                width: 100% !important;
-            }
-            .brand {
-                gap: 6px;
-            }
-            .brand-emblem {
-                width: 28px;
-                height: 28px;
-                border-radius: 0;
-            }
-            .brand-emblem svg {
-                width: 100%;
-                height: 100%;
-            }
-            .brand-title-text {
                 display: none !important;
             }
-            .header-actions {
-                gap: 6px;
-            }
-            .header-actions .theme-toggle-btn {
-                width: 36px;
-                height: 36px;
-                padding: 0 !important;
-                border-radius: 999px !important;
-                background: rgba(255, 255, 255, 0.08) !important;
-                border: 1px solid rgba(255, 255, 255, 0.14) !important;
-                color: #ffffff !important;
-                display: flex !important;
-                align-items: center;
-                justify-content: center;
-            }
-            #cloudSyncHeaderIcon {
-                color: #ffffff !important;
-                font-size: 14px;
+            .mobile-top-search-wrap,
+            .mobile-channel-strip,
+            #mobileChannelStrip {
+                display: none !important;
             }
             main {
-                padding: 6px 10px 28px;
+                padding: calc(14px + env(safe-area-inset-top)) 12px calc(68px + env(safe-area-inset-bottom)) !important;
             }
             .tab-nav-container {
                 display: none !important;
@@ -2880,12 +2800,12 @@
                 display: none !important;
             }
 
-            /* 手机端“我的”页面：顶部全宽云同步卡片 + 横向纯文字优雅二级分类滑条（彻底告别旧式狭窄竖按钮，全宽展示） */
+            /* 手机端“我的”页面：全宽纯黑卡片 + 第三张图风格纯净横向切换（无发光橙条、无按钮边框） */
             .my-workspace-layout {
                 display: flex !important;
                 flex-direction: column !important;
                 width: 100% !important;
-                gap: 12px !important;
+                gap: 14px !important;
             }
             .my-sidebar-wrap {
                 width: 100% !important;
@@ -2895,16 +2815,19 @@
                 display: flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
+                justify-content: flex-start !important;
                 overflow-x: auto !important;
                 white-space: nowrap !important;
-                gap: 24px !important;
-                padding: 4px 4px 12px 4px !important;
+                gap: 18px !important;
+                padding: 4px 2px 10px 2px !important;
                 width: 100% !important;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
                 scrollbar-width: none !important;
                 background: transparent !important;
                 border-radius: 0 !important;
                 border-top: none !important;
+                border-left: none !important;
+                border-right: none !important;
                 box-shadow: none !important;
             }
             .history-subnav::-webkit-scrollbar {
@@ -2915,89 +2838,94 @@
                 flex-direction: row !important;
                 align-items: center !important;
                 gap: 6px !important;
-                padding: 4px 0 !important;
+                padding: 6px 4px !important;
                 background: transparent !important;
                 border: none !important;
                 box-shadow: none !important;
                 border-radius: 0 !important;
                 font-size: 15px !important;
-                font-weight: 500 !important;
-                color: rgba(241, 245, 249, 0.65) !important;
+                font-weight: 400 !important;
+                color: #8e959e !important;
                 flex-shrink: 0 !important;
                 position: relative !important;
                 text-align: left !important;
                 cursor: pointer;
+                width: auto !important;
             }
             .history-subnav-btn.active {
-                color: #ffffff !important;
-                font-size: 16.5px !important;
-                font-weight: 700 !important;
+                color: #00d1c1 !important;
+                font-size: 15px !important;
+                font-weight: 600 !important;
                 text-shadow: none !important;
+                background: transparent !important;
             }
             .history-subnav-btn.active::after {
-                content: '';
-                position: absolute;
-                bottom: -12px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 22px;
-                height: 3px;
-                border-radius: 999px;
-                background: #ff5722;
-                box-shadow: 0 0 10px rgba(255, 87, 34, 0.7);
+                display: none !important;
             }
             .history-subnav-btn .my-tab-left {
+                display: inline-flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
                 gap: 6px !important;
             }
             .history-subnav-btn .my-tab-left i {
                 font-size: 14px !important;
+                color: #8e959e !important;
+            }
+            .history-subnav-btn.active .my-tab-left i {
+                color: #00d1c1 !important;
             }
             .my-tab-count {
                 font-size: 10.5px !important;
-                padding: 1px 7px !important;
+                padding: 1px 6px !important;
                 border-radius: 999px !important;
-                background: rgba(255, 255, 255, 0.12) !important;
-                border: 1px solid rgba(255, 255, 255, 0.16) !important;
-                color: rgba(255, 255, 255, 0.85) !important;
+                background: rgba(255, 255, 255, 0.06) !important;
+                border: 1px solid rgba(255, 255, 255, 0.08) !important;
+                color: #8e959e !important;
             }
             .history-subnav-btn.active .my-tab-count {
-                background: rgba(255, 87, 34, 0.22) !important;
-                border-color: rgba(255, 87, 34, 0.5) !important;
-                color: #ffffff !important;
+                background: rgba(0, 209, 193, 0.12) !important;
+                border-color: rgba(0, 209, 193, 0.28) !important;
+                color: #00d1c1 !important;
             }
-            .subnav-glider {
+            .subnav-glider,
+            #subnavGlider {
                 display: none !important;
             }
             .my-cloud-card {
-                background: linear-gradient(135deg, rgba(72, 32, 26, 0.55) 0%, rgba(28, 17, 20, 0.75) 100%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.12) !important;
-                border-radius: 18px !important;
+                background: #111114 !important;
+                border: 1px solid rgba(255, 255, 255, 0.08) !important;
+                border-radius: 14px !important;
+                padding: 12px 14px !important;
+                box-shadow: none !important;
             }
             #myCloudCardActionBtn {
-                background: linear-gradient(135deg, #ff6b35 0%, #ff3b30 100%) !important;
-                border: none !important;
+                background: #18181c !important;
+                border: 1px solid rgba(0, 209, 193, 0.3) !important;
                 border-radius: 999px !important;
-                color: #ffffff !important;
-                box-shadow: 0 4px 12px rgba(255, 59, 48, 0.35) !important;
+                color: #00d1c1 !important;
+                box-shadow: none !important;
+                padding: 4px 10px !important;
+                font-size: 11px !important;
             }
             .my-content-panel {
                 width: 100% !important;
             }
             .my-content-panel .history-vertical-block {
-                background: rgba(28, 18, 20, 0.55) !important;
+                background: #111114 !important;
                 border: 1px solid rgba(255, 255, 255, 0.08) !important;
-                border-radius: 18px !important;
-                padding: 16px 14px !important;
+                border-radius: 14px !important;
+                padding: 14px 14px !important;
+                box-shadow: none !important;
             }
             .my-content-panel .history-vertical-block .btn {
-                background: rgba(255, 255, 255, 0.08) !important;
-                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                background: #18181c !important;
+                border: 1px solid rgba(255, 255, 255, 0.1) !important;
                 border-radius: 999px !important;
                 padding: 4px 12px !important;
                 font-size: 11.5px !important;
-                color: rgba(255, 255, 255, 0.85) !important;
+                color: #e2e8f0 !important;
+                box-shadow: none !important;
             }
             .my-content-panel .video-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
@@ -3962,135 +3890,35 @@
            ==================================================================== */
         .mobile-top-search-wrap,
         .mobile-channel-strip,
+        #mobileChannelStrip {
+            display: none !important;
+        }
+
         .mobile-bottom-nav {
             display: none !important;
         }
 
-        /* 移动端专属横向纯文字频道滑条：默认隐藏，仅当 nav 为 video 时在移动端展示 */
-        .mobile-channel-strip {
-            display: none !important;
-        }
-        body.nav-video .mobile-channel-strip:not(.nav-hidden) {
-            display: flex !important;
-        }
-        .mobile-channel-strip.nav-hidden {
-            display: none !important;
-        }
-
         @media (max-width: 1023px) {
-            /* 1. 移动端彻底隐去顶部胶囊按钮盒子（导航统一交给原生底部导航栏） */
-            .tab-nav-container {
+            /* 1. 移动端彻底隐去顶部胶囊按钮盒子、顶部搜索胶囊与影视分类滑条 */
+            .tab-nav-container,
+            .mobile-top-search-wrap,
+            .mobile-channel-strip,
+            #mobileChannelStrip {
                 display: none !important;
             }
 
-            /* 2. 移动端专属顶部居中搜索胶囊（1:1 对标腾讯视频App顶部居中搜索条：烟熏暖褐透光胶囊） */
-            .mobile-top-search-wrap {
-                display: flex !important;
-                align-items: center;
-                gap: 8px;
-                flex: 1;
-                min-width: 0;
-                max-width: 360px;
-                height: 38px;
-                margin: 0 8px;
-                padding: 0 14px;
-                background: rgba(255, 255, 255, 0.18) !important;
-                backdrop-filter: blur(20px) !important;
-                -webkit-backdrop-filter: blur(20px) !important;
-                border: 1px solid rgba(255, 255, 255, 0.14) !important;
-                border-radius: 999px !important;
-                cursor: pointer;
-                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
-                box-sizing: border-box;
-                transition: all 0.2s ease;
-            }
-            body.light-mode .mobile-top-search-wrap {
-                background: rgba(15, 23, 42, 0.05) !important;
-                border-color: rgba(15, 23, 42, 0.1) !important;
-            }
-            .mobile-top-search-text {
-                flex: 1;
-                min-width: 0;
-                font-size: 13.5px;
-                font-weight: 500;
-                color: #ffffff !important;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            body.light-mode .mobile-top-search-text {
-                color: rgba(15, 23, 42, 0.85) !important;
-            }
-            .mobile-top-search-filter {
-                font-size: 12.5px;
-                color: rgba(255, 255, 255, 0.85) !important;
-                font-weight: 500;
-                padding-left: 10px;
-                border-left: 1px solid rgba(255, 255, 255, 0.22) !important;
-                flex-shrink: 0;
-            }
-            body.light-mode .mobile-top-search-filter {
-                color: #2563eb !important;
-                border-left-color: rgba(15, 23, 42, 0.15) !important;
-            }
-
-            /* 3. 移动端专属横向纯文字频道滑条（1:1 对标腾讯视频App纯文字横滑：当前频道大字纯白无下划线） */
-            .mobile-channel-strip {
-                align-items: center;
-                gap: 22px;
-                padding: 6px 16px 10px 16px;
-                overflow-x: auto;
-                white-space: nowrap;
-                scrollbar-width: none;
-                -webkit-overflow-scrolling: touch;
-                background: transparent;
-                position: relative;
-                z-index: 50;
-                margin-bottom: 2px;
-            }
-            .mobile-channel-strip::-webkit-scrollbar {
-                display: none;
-            }
-            .mobile-channel-item {
-                font-size: 15px;
-                font-weight: 500;
-                color: rgba(255, 255, 255, 0.72) !important;
-                cursor: pointer;
-                position: relative;
-                padding: 2px 0;
-                transition: all 0.2s ease;
-                flex-shrink: 0;
-                user-select: none;
-                -webkit-tap-highlight-color: transparent;
-            }
-            body.light-mode .mobile-channel-item {
-                color: rgba(15, 23, 42, 0.65) !important;
-            }
-            .mobile-channel-item.active {
-                color: #ffffff !important;
-                font-size: 18.5px !important;
-                font-weight: 700 !important;
-                transform: scale(1.04);
-            }
-            body.light-mode .mobile-channel-item.active {
-                color: #0f172a !important;
-            }
-            .mobile-channel-item.active::after {
-                display: none !important;
-            }
-
-            /* 4. 移动端固定底部原生App导航栏（1:1 对标腾讯视频App底部：深邃暗调微温润 + 激活纯白原生触控） */
+            /* 2. 移动端固定底部原生App导航栏（纯黑极简底色 + 第三张图青碧高亮） */
             .mobile-bottom-nav {
                 display: flex !important;
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                height: calc(50px + env(safe-area-inset-bottom));
+                height: calc(52px + env(safe-area-inset-bottom));
                 padding-bottom: env(safe-area-inset-bottom);
-                background: rgba(13, 11, 14, 0.96) !important;
-                backdrop-filter: blur(24px) saturate(180%);
-                -webkit-backdrop-filter: blur(24px) saturate(180%);
+                background: #000000 !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
                 border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
                 z-index: 999;
                 justify-content: space-around;
@@ -4098,47 +3926,51 @@
                 box-sizing: border-box;
             }
             body.light-mode .mobile-bottom-nav {
-                background: rgba(255, 255, 255, 0.94) !important;
+                background: #ffffff !important;
                 border-top-color: rgba(15, 23, 42, 0.08) !important;
-                box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.04);
             }
             .mobile-nav-item {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                gap: 2px;
+                gap: 3px;
                 flex: 1;
                 height: 100%;
-                color: rgba(255, 255, 255, 0.5) !important;
-                font-size: 10.5px;
-                font-weight: 500;
+                color: #8e959e !important;
+                font-size: 11px;
+                font-weight: 400;
                 cursor: pointer;
-                transition: all 0.18s ease;
+                transition: color 0.15s ease;
                 user-select: none;
                 -webkit-tap-highlight-color: transparent;
+                background: transparent !important;
             }
             body.light-mode .mobile-nav-item {
-                color: rgba(15, 23, 42, 0.55) !important;
+                color: #64748b !important;
             }
             .mobile-nav-item i {
-                font-size: 18px;
-                color: rgba(255, 255, 255, 0.6) !important;
-                transition: transform 0.18s ease;
+                font-size: 19px;
+                color: #8e959e !important;
+                transition: color 0.15s ease;
             }
+            body.light-mode .mobile-nav-item i {
+                color: #64748b !important;
+            }
+            /* 第三张图风格：选中状态 #00d1c1，无凸起光斑 */
             .mobile-nav-item.active {
-                color: #ffffff !important;
-                font-weight: 700 !important;
+                color: #00d1c1 !important;
+                font-weight: 600 !important;
             }
             body.light-mode .mobile-nav-item.active {
-                color: #2563eb !important;
+                color: #00d1c1 !important;
             }
             .mobile-nav-item.active i {
-                transform: scale(1.1);
-                color: #ffffff !important;
+                color: #00d1c1 !important;
+                transform: none !important;
             }
             body.light-mode .mobile-nav-item.active i {
-                color: #2563eb !important;
+                color: #00d1c1 !important;
             }
 
             /* 5. 页面底部防遮挡缓冲 */
@@ -4347,8 +4179,8 @@
                 <!-- ☁️ 多端云同步通行证状态卡片 -->
                 <div class="my-cloud-card" id="myCloudSyncCard" onclick="openCloudSyncModal()" title="点击配置多端云同步账号">
                     <div style="display:flex; align-items:center; gap:9px; min-width:0;">
-                        <div style="width:32px; height:32px; border-radius:10px; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.32); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                            <i class="fas fa-cloud-arrow-up" id="myCloudCardIcon" style="color:var(--accent); font-size:14px;"></i>
+                        <div style="width:32px; height:32px; border-radius:10px; background:rgba(0,209,193,0.12); border:1px solid rgba(0,209,193,0.28); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fas fa-cloud" id="myCloudCardIcon" style="color:#00d1c1; font-size:14px;"></i>
                         </div>
                         <div style="min-width:0;">
                             <div style="font-size:12.5px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
@@ -4363,32 +4195,36 @@
                         登录
                     </button>
                 </div>
+                <div id="myChiguaToggleRow" style="display:none; margin: 8px 0 12px 0;">
+                    <button type="button" class="btn" id="myChiguaCardBtn" onclick="toggleChiguaMode()" style="width:100%; justify-content:center; gap:8px; padding:7px 12px; font-size:12px; background:rgba(244,63,94,0.08); border:1px solid rgba(244,63,94,0.22); color:#fb7185; border-radius:10px;">
+                        <i class="fas fa-fire-flame-curved"></i> <span id="myChiguaCardLabel">吃瓜频道: 开</span>
+                    </button>
+                </div>
                 <div class="history-subnav" id="historySubNav">
-                    <div class="subnav-glider" id="subnavGlider"></div>
                     <button class="history-subnav-btn active" id="histTabVideo" onclick="switchHistoryTab('video')">
                         <span class="my-tab-left">
-                            <i class="fas fa-film" style="color:#38bdf8;"></i>
+                            <i class="fas fa-film"></i>
                             <span>影视记录</span>
                         </span>
                         <span class="my-tab-count" id="videoTabCountBadge">0</span>
                     </button>
                     <button class="history-subnav-btn" id="histTabShelf" onclick="switchHistoryTab('shelf')">
                         <span class="my-tab-left">
-                            <i class="fas fa-bookmark" style="color:#f59e0b;"></i>
+                            <i class="fas fa-bookmark"></i>
                             <span>我的书架</span>
                         </span>
                         <span class="my-tab-count" id="shelfTabCountBadge">0</span>
                     </button>
                     <button class="history-subnav-btn" id="histTabNovel" onclick="switchHistoryTab('novel')">
                         <span class="my-tab-left">
-                            <i class="fas fa-book" style="color:#10b981;"></i>
+                            <i class="fas fa-book"></i>
                             <span>小说记录</span>
                         </span>
                         <span class="my-tab-count" id="novelTabCountBadge">0</span>
                     </button>
                     <button class="history-subnav-btn" id="histTabManga" onclick="switchHistoryTab('manga')">
                         <span class="my-tab-left">
-                            <i class="fas fa-palette" style="color:#a855f7;"></i>
+                            <i class="fas fa-palette"></i>
                             <span>漫画记录</span>
                         </span>
                         <span class="my-tab-count" id="mangaTabCountBadge">0</span>
@@ -5254,98 +5090,18 @@
     }
     window.syncPcLeftSidebarLayout = syncPcLeftSidebarLayout;
 
-    // 通用极光透镜位移函数 (支持横向、多行与 PC 左侧竖向边栏自适应 2D 丝滑跟随，纯 CSS 硬件加速零卡顿)
-    function moveGliderToButton(container, glider, btn) {
-        if (!container || !glider || !btn) return;
-        const navRect = container.getBoundingClientRect();
-        const btnRect = btn.getBoundingClientRect();
-        if (navRect.width === 0 || btnRect.width === 0) return;
-        const left = (btnRect.left - navRect.left) + (container.scrollLeft || 0);
-        const top = (btnRect.top - navRect.top) + (container.scrollTop || 0);
-        glider.style.left = `${left}px`;
-        glider.style.top = `${top}px`;
-        glider.style.width = `${btnRect.width}px`;
-        glider.style.height = `${btnRect.height}px`;
-    }
+    function moveGliderToButton() {}
     window.moveGliderToButton = moveGliderToButton;
 
-    // 1. 顶部四大主导航滑块更新
-    function updateTabGlider(nav) {
-        syncPcLeftSidebarLayout();
-        const glider = document.getElementById('tabGlider');
-        const container = document.getElementById('mainTabNav');
-        if (!glider || !container) return;
-        const targetBtn = document.getElementById('nav' + nav.charAt(0).toUpperCase() + nav.slice(1) + 'Btn');
-        if (targetBtn) {
-            moveGliderToButton(container, glider, targetBtn);
-        }
-    }
-
-    // 2. 下方四合一子导航滑块更新 (影视记录 / 我的书架 / 小说记录 / 漫画记录)
-    function updateSubnavGlider(tab) {
-        if (window.innerWidth <= 860) return;
-        syncPcLeftSidebarLayout();
-        const glider = document.getElementById('subnavGlider');
-        const container = document.getElementById('historySubNav');
-        if (!glider || !container) return;
-        const targetBtn = document.getElementById('histTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
-        if (targetBtn) {
-            moveGliderToButton(container, glider, targetBtn);
-        }
-    }
-
-    // 绑定纯透极光透镜导航栏的【光斑跟随鼠标】与【选中框透镜跟随鼠标滑入滑出】
-    function bindLiquidGlassNav(containerId, gliderId, btnSelector, getActiveFn) {
-        const navEl = document.getElementById(containerId);
-        const gliderEl = document.getElementById(gliderId);
-        if (!navEl || !gliderEl) return;
-
-        // 折射光斑随鼠标实时游走
-        navEl.addEventListener('mousemove', (e) => {
-            const rect = navEl.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            navEl.style.setProperty('--mouse-x', x + 'px');
-            navEl.style.setProperty('--mouse-y', y + 'px');
-        });
-
-        // 鼠标滑过任意按钮时，极光透镜选中框实时跟随鼠标
-        const buttons = navEl.querySelectorAll(btnSelector);
-        buttons.forEach(btn => {
-            btn.addEventListener('mouseenter', () => {
-                moveGliderToButton(navEl, gliderEl, btn);
-            });
-        });
-
-        // 鼠标移出导航条时，光斑淡出，选中框透镜丝滑回弹至当前激活的选项
-        navEl.addEventListener('mouseleave', () => {
-            navEl.style.setProperty('--mouse-x', '-200px');
-            navEl.style.setProperty('--mouse-y', '-200px');
-            const activeBtn = getActiveFn();
-            if (activeBtn) {
-                moveGliderToButton(navEl, gliderEl, activeBtn);
-            }
-        });
-    }
-
+    function updateTabGlider(nav) {}
+    function updateSubnavGlider(tab) {}
+    function bindLiquidGlassNav() {}
     window.bindLiquidGlassNav = bindLiquidGlassNav;
+
     function initLiquidGlassMouseFollower() {
         syncPcLeftSidebarLayout();
-        // 顶部四大导航绑定
-        bindLiquidGlassNav('mainTabNav', 'tabGlider', '.tab-nav-btn', () => {
-            return document.querySelector('#mainTabNav .tab-nav-btn.active');
-        });
-        // 下方四大记录/书架子导航绑定
-        bindLiquidGlassNav('historySubNav', 'subnavGlider', '.history-subnav-btn', () => {
-            return document.querySelector('#historySubNav .history-subnav-btn.active');
-        });
-
         window.addEventListener('resize', () => {
             syncPcLeftSidebarLayout();
-            const activeMain = document.querySelector('#mainTabNav .tab-nav-btn.active');
-            if (activeMain) moveGliderToButton(document.getElementById('mainTabNav'), document.getElementById('tabGlider'), activeMain);
-            const activeSub = document.querySelector('#historySubNav .history-subnav-btn.active');
-            if (activeSub) moveGliderToButton(document.getElementById('historySubNav'), document.getElementById('subnavGlider'), activeSub);
         });
     }
 
@@ -6605,8 +6361,8 @@
             const syncAgo = user.lastSyncAt ? formatTimeAgo(user.lastSyncAt) : '刚刚';
             cardSub.textContent = syncing ? '正在自动同步云端进度…' : `全自动实时同步中 · ${syncAgo}`;
         }
-        if (cardBtn) cardBtn.innerHTML = syncing ? '<i class="fas fa-spinner fa-spin"></i>' : '<i class="fas fa-check-circle" style="color:#10b981;"></i> 自动';
-        if (cardIcon) cardIcon.className = syncing ? 'fas fa-arrows-rotate fa-spin' : 'fas fa-cloud-check';
+        if (cardBtn) cardBtn.innerHTML = syncing ? '<i class="fas fa-spinner fa-spin"></i>' : '<i class="fas fa-check" style="color:#00d1c1;"></i> 自动';
+        if (cardIcon) cardIcon.className = syncing ? 'fas fa-arrows-rotate fa-spin' : 'fas fa-cloud';
 
         if (loginView) loginView.style.display = 'none';
         if (loggedView) loggedView.style.display = 'block';
@@ -9209,6 +8965,11 @@
         if (navBtn) {
             navBtn.style.display = (unlocked && enabled) ? 'inline-flex' : 'none';
         }
+
+        const myCgRow = document.getElementById('myChiguaToggleRow');
+        const myCgLabel = document.getElementById('myChiguaCardLabel');
+        if (myCgRow) myCgRow.style.display = unlocked ? 'block' : 'none';
+        if (myCgLabel) myCgLabel.innerText = enabled ? '吃瓜频道: 已开启' : '吃瓜频道: 已隐藏';
 
         requestAnimationFrame(() => {
             syncPcLeftSidebarLayout();
