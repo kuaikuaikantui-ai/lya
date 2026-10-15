@@ -2820,26 +2820,7 @@
             }
         }
 
-        @media (min-width: 641px) and (max-width: 1023px) {
-            main {
-                max-width: 980px;
-                padding: 14px 20px 40px;
-            }
-            .my-workspace-layout {
-                grid-template-columns: 176px minmax(0, 1fr);
-                gap: 16px;
-            }
-            .my-sidebar-wrap {
-                position: sticky;
-                top: 16px;
-            }
-            .video-grid {
-                grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
-                gap: 14px;
-            }
-        }
-
-        @media (max-width: 640px) {
+        @media (max-width: 1023px) {
             header {
                 width: calc(100% - 20px);
                 margin: 0 !important;
@@ -3985,7 +3966,18 @@
             display: none !important;
         }
 
-        @media (max-width: 860px) {
+        /* 移动端专属横向纯文字频道滑条：默认隐藏，仅当 nav 为 video 时在移动端展示 */
+        .mobile-channel-strip {
+            display: none !important;
+        }
+        body.nav-video .mobile-channel-strip:not(.nav-hidden) {
+            display: flex !important;
+        }
+        .mobile-channel-strip.nav-hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 1023px) {
             /* 1. 移动端彻底隐去顶部胶囊按钮盒子（导航统一交给原生底部导航栏） */
             .tab-nav-container {
                 display: none !important;
@@ -4044,7 +4036,6 @@
 
             /* 3. 移动端专属横向纯文字频道滑条（1:1 对标腾讯视频App纯文字横滑：当前频道大字纯白无下划线） */
             .mobile-channel-strip {
-                display: flex !important;
                 align-items: center;
                 gap: 22px;
                 padding: 6px 16px 10px 16px;
@@ -4213,7 +4204,7 @@
     <script src="recommend_data.js"></script>
     <script src="video.js?v=20261012_txside"></script>
 </head>
-<body>
+<body class="nav-video">
 <header>
     <div class="brand" onclick="switchNav('video');" title="宇穹视界 · 全栖书漫影殿堂">
         <div class="brand-emblem">
@@ -7102,10 +7093,12 @@
         if (mNavManga) mNavManga.classList.toggle('active', isManga);
         if (mNavHistory) mNavHistory.classList.toggle('active', isHistory);
 
-        // 移动端横向频道滑条显隐（仅影视专区展示，纯文字横滑无按钮）
+        // 移动端横向频道滑条显隐（仅影视专区展示，其他专区彻底隐藏）
+        document.body.classList.toggle('nav-video', isVideo);
         const mChannelStrip = document.getElementById('mobileChannelStrip');
         if (mChannelStrip) {
-            mChannelStrip.style.display = isVideo ? 'flex' : 'none';
+            mChannelStrip.classList.toggle('nav-hidden', !isVideo);
+            mChannelStrip.style.setProperty('display', isVideo ? 'flex' : 'none', 'important');
         }
 
         // 移动端顶部搜索胶囊占位提示文案同步当前频道
@@ -10275,6 +10268,7 @@
     };
 
     async function init() {
+        document.body.classList.add('nav-video');
         initTheme();
         setNovelTheme(currentNovelTheme);
         syncChiguaSwitchUI();
