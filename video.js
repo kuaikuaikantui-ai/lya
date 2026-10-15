@@ -545,6 +545,14 @@
         document.querySelectorAll('#pcVideoChannelList .pc-side-channel-btn').forEach(b => {
             b.classList.toggle('active', b === btnEl);
         });
+        document.querySelectorAll('.mobile-channel-item').forEach(b => {
+            b.classList.toggle('active', b === btnEl);
+        });
+        if (btnEl && btnEl.classList.contains('mobile-channel-item')) {
+            try {
+                btnEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            } catch(e){}
+        }
         setTimeout(() => {
             if (!secTitle || secTitle === 'TOP') {
                 window.scrollTo({ top: 0, behavior: 'smooth' });

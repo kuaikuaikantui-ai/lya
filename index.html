@@ -2878,22 +2878,17 @@
                 padding: 10px 10px 28px;
             }
             .tab-nav-container {
-                top: auto;
-                margin-top: 2px;
-                margin-bottom: 14px;
+                display: none !important;
             }
-            .tab-nav {
-                padding: 4px !important;
-                border-radius: 30px !important;
+            .brand-crest {
+                display: none !important;
             }
-            .tab-nav-btn {
-                padding: 8px 4px !important;
-                font-size: 12px !important;
-                gap: 4px !important;
-                white-space: nowrap !important;
+            #cloudSyncHeaderLabel {
+                display: none !important;
             }
-            .tab-nav-btn i {
-                font-size: 11.5px;
+            .header-actions .theme-toggle-btn {
+                padding: 6px 8px !important;
+                border-radius: 999px !important;
             }
             /* 手机端“我的”页面：左侧紧凑竖向标签栏 + 右侧独立内容区，一眼尽览且分开展示 */
             .my-workspace-layout {
@@ -2947,7 +2942,7 @@
                 gap: 10px !important;
             }
             .video-grid {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(2, 1fr) !important;
                 gap: 10px;
             }
             .kanju-poster-info {
@@ -3872,6 +3867,208 @@
                 border-radius: 12px;
             }
         }
+
+        /* ====================================================================
+           移动端腾讯视频App原生交互体验：顶部无界胶囊搜 + 纯文字横滑频道 + 原生底部导航
+           PC端与大屏保持纯透明侧栏与巨幕，两者各得其所，彻底告别不合时宜的按钮框
+           ==================================================================== */
+        .mobile-top-search-wrap,
+        .mobile-channel-strip,
+        .mobile-bottom-nav {
+            display: none !important;
+        }
+
+        @media (max-width: 860px) {
+            /* 1. 移动端彻底隐去顶部胶囊按钮盒子（导航统一交给原生底部导航栏） */
+            .tab-nav-container {
+                display: none !important;
+            }
+
+            /* 2. 移动端专属顶部居中搜索胶囊（1:1 对标腾讯视频App顶部居中搜索条） */
+            .mobile-top-search-wrap {
+                display: flex !important;
+                align-items: center;
+                gap: 8px;
+                flex: 1;
+                min-width: 0;
+                max-width: 340px;
+                margin: 0 6px;
+                padding: 6px 14px;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 999px;
+                cursor: pointer;
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                transition: all 0.2s ease;
+                box-sizing: border-box;
+            }
+            body.light-mode .mobile-top-search-wrap {
+                background: rgba(15, 23, 42, 0.05);
+                border-color: rgba(15, 23, 42, 0.1);
+            }
+            .mobile-top-search-text {
+                flex: 1;
+                min-width: 0;
+                font-size: 12px;
+                color: rgba(241, 245, 249, 0.55);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            body.light-mode .mobile-top-search-text {
+                color: rgba(15, 23, 42, 0.55);
+            }
+            .mobile-top-search-filter {
+                font-size: 11.5px;
+                color: #2dd4bf;
+                font-weight: 500;
+                padding-left: 8px;
+                border-left: 1px solid rgba(255, 255, 255, 0.15);
+                flex-shrink: 0;
+            }
+            body.light-mode .mobile-top-search-filter {
+                color: #2563eb;
+                border-left-color: rgba(15, 23, 42, 0.15);
+            }
+
+            /* 3. 移动端专属横向纯文字频道滑条（1:1 对标腾讯视频App短视频/首页纯文字横滑，无任何边框与按钮底色） */
+            .mobile-channel-strip {
+                display: flex !important;
+                align-items: center;
+                gap: 20px;
+                padding: 6px 16px 8px;
+                overflow-x: auto;
+                white-space: nowrap;
+                scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                background: transparent;
+                position: relative;
+                z-index: 50;
+                margin-bottom: 2px;
+            }
+            .mobile-channel-strip::-webkit-scrollbar {
+                display: none;
+            }
+            .mobile-channel-item {
+                font-size: 14.5px;
+                font-weight: 500;
+                color: rgba(241, 245, 249, 0.65);
+                cursor: pointer;
+                position: relative;
+                padding-bottom: 6px;
+                transition: color 0.18s ease, font-weight 0.18s ease;
+                flex-shrink: 0;
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+            body.light-mode .mobile-channel-item {
+                color: rgba(15, 23, 42, 0.65);
+            }
+            .mobile-channel-item.active {
+                color: #ffffff;
+                font-size: 15.5px;
+                font-weight: 700;
+            }
+            body.light-mode .mobile-channel-item.active {
+                color: #0f172a;
+            }
+            .mobile-channel-item.active::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 18px;
+                height: 3px;
+                border-radius: 999px;
+                background: #2dd4bf;
+                box-shadow: 0 0 8px rgba(45, 212, 191, 0.6);
+            }
+            body.light-mode .mobile-channel-item.active::after {
+                background: #2563eb;
+                box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+            }
+
+            /* 4. 移动端固定底部原生App导航栏（1:1 对标腾讯视频App底部：首页/小说/漫画/我的，纯原生无框） */
+            .mobile-bottom-nav {
+                display: flex !important;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: calc(52px + env(safe-area-inset-bottom));
+                padding-bottom: env(safe-area-inset-bottom);
+                background: rgba(11, 15, 25, 0.92);
+                backdrop-filter: blur(20px) saturate(180%);
+                -webkit-backdrop-filter: blur(20px) saturate(180%);
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+                z-index: 999;
+                justify-content: space-around;
+                align-items: center;
+                box-sizing: border-box;
+            }
+            body.light-mode .mobile-bottom-nav {
+                background: rgba(255, 255, 255, 0.94);
+                border-top-color: rgba(15, 23, 42, 0.08);
+                box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.04);
+            }
+            .mobile-nav-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 3px;
+                flex: 1;
+                height: 100%;
+                color: rgba(241, 245, 249, 0.55);
+                font-size: 11px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: color 0.18s ease;
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+            body.light-mode .mobile-nav-item {
+                color: rgba(15, 23, 42, 0.55);
+            }
+            .mobile-nav-item i {
+                font-size: 17px;
+                transition: transform 0.18s ease;
+            }
+            .mobile-nav-item.active {
+                color: #2dd4bf;
+                font-weight: 700;
+            }
+            body.light-mode .mobile-nav-item.active {
+                color: #2563eb;
+            }
+            .mobile-nav-item.active i {
+                transform: translateY(-1px) scale(1.08);
+                color: #2dd4bf;
+            }
+            body.light-mode .mobile-nav-item.active i {
+                color: #2563eb;
+            }
+
+            /* 5. 移动端页面底部预留空间，避免被原生导航栏遮挡 */
+            body:not(.reading-mode) {
+                padding-bottom: calc(58px + env(safe-area-inset-bottom)) !important;
+            }
+
+            /* 6. 移动端影视与书漫网格两列双排布局，清爽精致 */
+            .video-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px !important;
+            }
+        }
+
+        /* 阅读模式下彻底隐去手机端顶部与底部导航栏，提供无干扰沉浸阅读 */
+        body.reading-mode .mobile-bottom-nav,
+        body.reading-mode .mobile-channel-strip,
+        body.reading-mode .mobile-top-search-wrap {
+            display: none !important;
+        }
     </style>
     <!-- 开源中文专业排版引擎 Heti (赫蹏) + 霞鹜文楷屏幕阅读字体 (LXGW WenKai Screen) -->
     <link rel="stylesheet" href="https://unpkg.com/heti/umd/heti.min.css">
@@ -3938,6 +4135,12 @@
             </div>
         </div>
     </div>
+    <!-- 移动端专属搜索栏 (对标腾讯视频App顶部: 居中无界胶囊搜索，非方框按钮) -->
+    <div class="mobile-top-search-wrap" onclick="window.focusCurrentSearchInput && window.focusCurrentSearchInput()">
+        <i class="fas fa-search" style="color:rgba(241,245,249,0.5); font-size:13px;"></i>
+        <span class="mobile-top-search-text" id="mobileTopSearchText">全网搜片、小说、漫画...</span>
+        <span class="mobile-top-search-filter">筛选</span>
+    </div>
     <div class="header-actions">
         <button class="btn theme-toggle-btn" id="cloudSyncHeaderBtn" onclick="openCloudSyncModal()" title="轻量登录 · 多端实时同步书架与观看进度">
             <span class="cloud-sync-dot" id="cloudSyncHeaderDot"></span>
@@ -3947,6 +4150,20 @@
         <button class="btn theme-toggle-btn" id="chiguaToggleBtn" style="display:none; border-color:rgba(244,63,94,0.45); color:#fb7185;" onclick="toggleChiguaMode()" title="开启/隐藏吃瓜标签"><i class="fas fa-fire-flame-curved"></i> <span id="chiguaToggleLabel">吃瓜:开</span></button>
     </div>
 </header>
+
+<!-- 移动端专属横向纯文字频道栏 (对标腾讯视频App短视频/首页/电视剧纯文字横滑，非按钮) -->
+<div class="mobile-channel-strip" id="mobileChannelStrip">
+    <span class="mobile-channel-item active" onclick="window.jumpToVideoSection('大家都在看', this)">热播推荐</span>
+    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('国产新剧', this)">电视剧</span>
+    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('高分电影', this)">电影</span>
+    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('大陆综艺', this)">综艺</span>
+    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('动漫', this)">动漫</span>
+    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('院线热映', this)">院线热映</span>
+    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('韩剧在追', this)">韩剧在追</span>
+    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('日剧上新', this)">日剧上新</span>
+    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('美剧续看', this)">美剧续看</span>
+    <span class="mobile-channel-item" onclick="window.jumpToVideoSection('电影热播', this)">口碑榜单</span>
+</div>
 
 <main>
     <!-- 顶部液态玻璃分段导航 (物理弹簧水滴拉伸透镜 + 鼠标/触控随动) -->
@@ -4838,6 +5055,26 @@
     <i class="fas fa-cloud-check" style="color:#10b981;"></i>
     <span id="cloudToastText">云端进度已同步</span>
 </div>
+
+<!-- 📱 手机端固定底部原生App导航栏 (对标腾讯视频App底部：首页/小说/漫画/我的，纯正原生体验，非按钮) -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <div class="mobile-nav-item active" id="mNavVideo" onclick="switchNav('video')">
+        <i class="fas fa-clapperboard"></i>
+        <span>首页</span>
+    </div>
+    <div class="mobile-nav-item" id="mNavNovel" onclick="switchNav('novel')">
+        <i class="fas fa-book-open"></i>
+        <span>小说</span>
+    </div>
+    <div class="mobile-nav-item" id="mNavManga" onclick="switchNav('manga')">
+        <i class="fas fa-images"></i>
+        <span>漫画</span>
+    </div>
+    <div class="mobile-nav-item" id="mNavHistory" onclick="switchNav('history')">
+        <i class="fas fa-user"></i>
+        <span>我的</span>
+    </div>
+</nav>
 
 <script>
     if ('serviceWorker' in navigator) {
@@ -6713,6 +6950,32 @@
         const chiguaBtn = document.getElementById('navChiguaBtn');
         if (chiguaBtn) chiguaBtn.classList.toggle('active', isChigua);
 
+        // 移动端底部原生导航栏状态同步
+        const mNavVideo = document.getElementById('mNavVideo');
+        const mNavNovel = document.getElementById('mNavNovel');
+        const mNavManga = document.getElementById('mNavManga');
+        const mNavHistory = document.getElementById('mNavHistory');
+        if (mNavVideo) mNavVideo.classList.toggle('active', isVideo);
+        if (mNavNovel) mNavNovel.classList.toggle('active', isNovel);
+        if (mNavManga) mNavManga.classList.toggle('active', isManga);
+        if (mNavHistory) mNavHistory.classList.toggle('active', isHistory);
+
+        // 移动端横向频道滑条显隐（仅影视专区展示，纯文字横滑无按钮）
+        const mChannelStrip = document.getElementById('mobileChannelStrip');
+        if (mChannelStrip) {
+            mChannelStrip.style.display = isVideo ? 'flex' : 'none';
+        }
+
+        // 移动端顶部搜索胶囊占位提示文案同步当前频道
+        const mSearchText = document.getElementById('mobileTopSearchText');
+        if (mSearchText) {
+            if (isVideo) mSearchText.textContent = '全网搜影视、电视剧、院线...';
+            else if (isNovel) mSearchText.textContent = '搜全网小说、作者、书名...';
+            else if (isManga) mSearchText.textContent = '搜全网漫画、日漫、国漫...';
+            else if (isHistory) mSearchText.textContent = '在我的片单与书架中查找...';
+            else mSearchText.textContent = '全网聚合检索...';
+        }
+
         const pcChList = document.getElementById('pcVideoChannelList');
         if (pcChList) {
             pcChList.style.display = isHistory ? 'none' : '';
@@ -6783,6 +7046,29 @@
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+
+    // 移动端顶部搜索胶囊点击响应：聚焦到当前激活频道的搜索输入框并平滑定位
+    window.focusCurrentSearchInput = function() {
+        let input = null;
+        const videoSec = document.getElementById('videoSection');
+        const novelSec = document.getElementById('novelSection');
+        const mangaSec = document.getElementById('mangaSection');
+
+        if (videoSec && videoSec.style.display !== 'none') {
+            input = document.getElementById('videoSearchInput');
+        } else if (novelSec && novelSec.style.display !== 'none') {
+            input = document.getElementById('novelSearchInput');
+        } else if (mangaSec && mangaSec.style.display !== 'none') {
+            input = document.getElementById('mangaSearchInput');
+        }
+        if (input) {
+            try {
+                input.removeAttribute('readonly');
+                input.focus();
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch(e){}
+        }
+    };
 
     // 通用小说/漫画带封面海报卡片渲染器 (与影视专区同款高颜值海报卡片)
     const FALLBACK_BOOK_COVER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='420' viewBox='0 0 300 420'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%231e293b'/%3E%3Cstop offset='100%25' stop-color='%230f172a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='420' fill='url(%23bg)'/%3E%3Ccircle cx='150' cy='180' r='44' fill='rgba(56,189,248,0.12)'/%3E%3Cpath d='M132 165h36v32h-36z' fill='none' stroke='%2338bdf8' stroke-width='3'/%3E%3Ctext x='150' y='255' text-anchor='middle' fill='%2394a3b8' font-size='15' font-family='sans-serif'%3E宇穹视界%20典藏馆%3C/text%3E%3C/svg%3E";
