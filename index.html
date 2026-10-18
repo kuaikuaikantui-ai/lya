@@ -4360,12 +4360,12 @@
             <div class="filter-row">
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质小说源：</label>
                 <select id="novelSourceSelect" class="select-filter">
-                    <option value="七猫" selected>七猫 (官方正版、都市玄幻爆款)</option>
+                    <option value="搬山人" selected>搬山人 (全本精校、长篇大作无删减)</option>
+                    <option value="七猫">七猫 (官方正版、都市玄幻爆款)</option>
                     <option value="番茄">番茄 (原创百万好书、全本连载)</option>
                     <option value="伪69">伪69 (全网无删减、海量同人全集)</option>
                     <option value="半夏小说">半夏小说 (纯爱言情、精品高分)</option>
                     <option value="52书库">52书库 (完结经典精选)</option>
-                    <option value="老福特">老福特 (同人衍生、高热度粮仓)</option>
                     <option value="爱下电子书">爱下电子书 (实体出版精校版)</option>
                     <option value="全本小说">全本小说 (完本经典大作)</option>
                     <option value="淘小说">淘小说 (冷门完本书库)</option>
@@ -5301,6 +5301,135 @@
         return res;
     }
 
+    // 搬山人直连源站检索与章节解析（无删减全本高品质小说源，杜绝断章与错乱）
+    async function searchBanshanren(keyword) {
+        try {
+            const url = 'https://www.banshanren.com/search/index?keyword=' + encodeURIComponent(keyword);
+            const res = await (window.__rawFetch || fetch)(url, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
+                signal: AbortSignal.timeout(5000)
+            });
+            if (!res.ok) return [];
+            const text = await res.text();
+            const tipIdx = text.indexOf('搜索结果');
+            const ulIdx = tipIdx !== -1 ? text.indexOf('<ul class="novel_list">', tipIdx) : text.indexOf('<ul class="novel_list">');
+            if (ulIdx === -1) return [];
+            const endUlIdx = text.indexOf('</ul>', ulIdx);
+            const listHtml = text.slice(ulIdx, endUlIdx !== -1 ? endUlIdx + 5 : ulIdx + 50000);
+
+            const lis = [...listHtml.matchAll(/<li class="novel_li">([\s\S]*?)<\/li>/gi)];
+            const results = [];
+
+            for (const li of lis) {
+                const raw = li[1];
+                const hrefMatch = raw.match(/href="([^"]+)"/i);
+                const titleMatch = raw.match(/<a[^>]+class="title"[^>]*>([\s\S]*?)<\/a>/i) || raw.match(/title="([^"]+)"/i);
+                const coverMatch = raw.match(/data-src="([^"]+)"/i) || raw.match(/src="([^"]+)"/i);
+                
+                const infoBoxes = [...raw.matchAll(/<div class="info_box">([\s\S]*?)<\/div>/gi)].map(m => m[1].replace(/<[^>]+>/g, '').trim());
+                let author = '网络源';
+                let remarks = '';
+                for (const info of infoBoxes) {
+                    if (info.includes('·')) {
+                        const parts = info.split('·').map(p => p.trim());
+                        if (parts[0]) author = parts[0];
+                        remarks = info;
+                    }
+                }
+
+                const bookName = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+                const bookId = hrefMatch ? hrefMatch[1] : '';
+
+                if (bookName && bookId) {
+                    results.push({
+                        book_name: bookName,
+                        book_id: bookId,
+                        author: author,
+                        abstract: remarks || '共创优质无删减全本',
+                        cover: coverMatch ? coverMatch[1] : '',
+                        source: '搬山人',
+                        tab: '小说'
+                    });
+                }
+            }
+            return results;
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async function catalogBanshanren(bookId) {
+        try {
+            const url = bookId.startsWith('http') ? bookId : 'https://www.banshanren.com' + bookId;
+            const res = await (window.__rawFetch || fetch)(url, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
+                signal: AbortSignal.timeout(6000)
+            });
+            if (!res.ok) return [];
+            const text = await res.text();
+            const chapMatches = [...text.matchAll(/<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
+            const chapters = [];
+            const seenHrefs = new Set();
+
+            for (const m of chapMatches) {
+                const href = m[1];
+                const rawTitle = m[2].replace(/<[^>]+>/g, '').trim();
+                if (!href) continue;
+                if (rawTitle === '开始阅读' || rawTitle.includes('阅读全文')) continue;
+                if (seenHrefs.has(href)) continue;
+
+                if (href.startsWith(bookId + '/') && /^\d+$/.test(href.substring(bookId.length + 1))) {
+                    seenHrefs.add(href);
+                    if (rawTitle) {
+                        chapters.push({
+                            title: rawTitle,
+                            item_id: href
+                        });
+                    }
+                }
+            }
+            return chapters;
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async function contentBanshanren(itemId) {
+        try {
+            const url = itemId.startsWith('http') ? itemId : 'https://www.banshanren.com' + itemId;
+            const res = await (window.__rawFetch || fetch)(url, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
+                signal: AbortSignal.timeout(7000)
+            });
+            if (!res.ok) return { code: -1, msg: '获取源站正文失败: ' + res.status };
+            const text = await res.text();
+            const boxMatch = text.match(/<div class="chapter_content_box">([\s\S]*?)<\/div>/i);
+            if (!boxMatch) return { code: -1, msg: '未定位到正文内容' };
+
+            let title = '';
+            const titleMatch = boxMatch[1].match(/<h2>([\s\S]*?)<\/h2>/i);
+            if (titleMatch) {
+                title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+            }
+
+            let content = boxMatch[1]
+                .replace(/<span[^>]+class="z count[^"]*"[^>]*>[\s\S]*?<\/span>/gi, '')
+                .replace(/<p[^>]*>/gi, '')
+                .replace(/<\/p>/gi, '\n\n')
+                .replace(/<[^>]+>/g, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+
+            return {
+                code: 0,
+                title: title || '章节阅读',
+                content: cleanAdContent(content)
+            };
+        } catch (e) {
+            return { code: -1, msg: e.message };
+        }
+    }
+
     // 智能调度引擎：如果当前在 Worker/EdgeOne 节点或配置了后端节点，优先直通后端（并校验有效性，失败自动多节点穿透+跨源救援）
     window.fetch = async function(input, initOptions) {
         if (typeof input !== 'string' || !input.startsWith('/api/')) {
@@ -5338,7 +5467,7 @@
                 version: '原版清爽聚合版',
                 categories: {
                     "漫画": ["新新漫画", "全面漫画", "G社漫画", "番茄"],
-                    "小说": ["七猫", "番茄", "伪69", "半夏小说", "52书库", "老福特", "爱下电子书", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
+                    "小说": ["搬山人", "七猫", "番茄", "伪69", "半夏小说", "52书库", "爱下电子书", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
                 }
             };
             return new Response(JSON.stringify(infoData), {
@@ -5350,15 +5479,25 @@
         if (pathname === '/api/search') {
             const title = url.searchParams.get('title') || '';
             const tab = url.searchParams.get('tab') || '漫画';
-            const source = url.searchParams.get('source') || (tab === '漫画' ? '新新漫画' : '七猫');
+            const source = url.searchParams.get('source') || (tab === '漫画' ? '新新漫画' : '搬山人');
             const page = url.searchParams.get('page') || '1';
+
+            if (source === '搬山人') {
+                const bRes = await searchBanshanren(title);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: bRes }), {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
 
             if (source === 'ALL') {
                 const candidates = (tab === '漫画') 
                     ? ['新新漫画', 'G社漫画', '全面漫画', '番茄']
-                    : ['七猫', '番茄', '伪69', '半夏小说', '52书库', '老福特', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
+                    : ['搬山人', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
 
                 const tasks = candidates.map(async s => {
+                    if (s === '搬山人') {
+                        return await searchBanshanren(title);
+                    }
                     try {
                         const q = '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(s) + '&page=' + page + '&disabled_sources=0';
                         const res = await directFetchWithFailover(q);
@@ -5398,6 +5537,21 @@
             const book_id = url.searchParams.get('book_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
+
+            if (source === '搬山人' || book_id.startsWith('/novel/')) {
+                return new Response(JSON.stringify({
+                    code: 0,
+                    data: {
+                        book_id: book_id,
+                        book_name: url.searchParams.get('title') || '小说详情',
+                        source: '搬山人',
+                        tab: '小说'
+                    }
+                }), {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             try {
                 const q = '/detail?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await directFetchWithFailover(q);
@@ -5416,6 +5570,14 @@
             const book_id = url.searchParams.get('book_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
+
+            if (source === '搬山人' || book_id.startsWith('/novel/')) {
+                const chapters = await catalogBanshanren(book_id);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters }), {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             try {
                 const q = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await directFetchWithFailover(q);
@@ -5437,6 +5599,13 @@
             const bookTitle = url.searchParams.get('title') || '';
             const chapTitle = url.searchParams.get('chap_title') || '';
             const chapIdx = parseInt(url.searchParams.get('chap_idx') || '0', 10);
+
+            if (source === '搬山人' || item_id.startsWith('/novel/')) {
+                const bData = await contentBanshanren(item_id);
+                return new Response(JSON.stringify(bData), {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
 
             try {
                 const q = '/content?item_id=' + encodeURIComponent(item_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&version=4.6.29';
@@ -5627,19 +5796,27 @@
     }
 
     async function standaloneAutoRescue(bookTitle, chapTitle, chapIdx) {
-        const rescueSources = ['七猫', '百度', '番茄', '半夏小说', '笔趣阁78'];
+        // 优先使用真实无删减全本【搬山人】优质源救援，彻底解决长篇大作100章后断更/错乱问题
+        const rescueSources = ['搬山人', '七猫', '百度', '番茄', '半夏小说', '笔趣阁78'];
         const cleanChap = (chapTitle || '').replace(/[第章\s]/g, '');
+        const normTitle = (bookTitle || '').replace(/[\s《》]/g, '');
 
         for (const s of rescueSources) {
             try {
                 const sq = '/search?title=' + encodeURIComponent(bookTitle) + '&tab=小说&source=' + encodeURIComponent(s) + '&page=1&version=5';
-                const sData = await directFetchWithFailover(sq);
+                const sRes = await fetch(sq);
+                const sData = await sRes.json();
                 const list = sData.data || [];
-                const matchBook = list.find(b => b.book_name === bookTitle) || list[0];
+                // 必须严格匹配书名，严禁回退到 list[0]（防止匹配到同人衍生书籍导致章节错乱）
+                const matchBook = list.find(b => {
+                    const bn = (b.book_name || '').replace(/[\s《》]/g, '');
+                    return bn === normTitle;
+                });
                 if (!matchBook) continue;
 
                 const cq = '/catalog?book_id=' + encodeURIComponent(matchBook.book_id) + '&source=' + encodeURIComponent(s) + '&tab=小说&version=5';
-                const cData = await directFetchWithFailover(cq);
+                const cRes = await fetch(cq);
+                const cData = await cRes.json();
                 const rawCat = cData.data || [];
                 if (rawCat.length === 0) continue;
 
@@ -5652,16 +5829,20 @@
                     });
                     if (found) targetChap = found;
                 }
-                if (!targetChap) targetChap = cat[0];
+                if (!targetChap && chapIdx !== undefined && chapIdx < cat.length) {
+                    targetChap = cat[chapIdx];
+                }
+                if (!targetChap) continue; // 严禁乱切到第0章！
 
-                const contQ = '/content?item_id=' + encodeURIComponent(targetChap.item_id) + '&source=' + encodeURIComponent(s) + '&tab=小说&version=5';
-                const contData = await directFetchWithFailover(contQ);
+                const contQ = '/content?item_id=' + encodeURIComponent(targetChap.item_id) + '&source=' + encodeURIComponent(s) + '&tab=小说&version=5&title=' + encodeURIComponent(bookTitle) + '&chap_title=' + encodeURIComponent(targetChap.title) + '&chap_idx=' + chapIdx;
+                const contRes = await fetch(contQ);
+                const contData = await contRes.json();
                 const txt = contData.content || '';
 
                 if (txt.length > 50 && !isPaywallOrAdText(txt)) {
                     return {
                         code: 0,
-                        msg: '已自动切换至免费书源【' + s + '】畅读',
+                        msg: '已自动为您无缝接力至【' + s + '】优质源畅读',
                         autoSwitched: true,
                         newSource: s,
                         title: targetChap.title,
@@ -8740,7 +8921,7 @@
         const tab = currentBookInfo.tab || '小说';
         const candidateSources = (tab === '漫画') 
             ? ['新新漫画', '极速韩漫', 'G社漫画', '全面漫画', '番茄'] 
-            : ['七猫', '番茄', '伪69', '半夏小说', '52书库', '老福特', '爱下电子书', '百度', '淘小说', '笔趣阁78', '知乎'];
+            : ['搬山人', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '百度', '淘小说', '笔趣阁78', '知乎'];
 
         const otherSources = candidateSources.filter(s => s !== currentBookInfo.source);
 

@@ -78,6 +78,135 @@ function getRandomHeaders() {
 let cachedConfig = null;
 let lastConfigFetch = 0;
 
+// 搬山人直连源站检索与章节解析（无删减全本高品质小说源，杜绝断章与错乱）
+async function searchBanshanren(keyword) {
+    try {
+        const url = 'https://www.banshanren.com/search/index?keyword=' + encodeURIComponent(keyword);
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!res.ok) return [];
+        const text = await res.text();
+        const tipIdx = text.indexOf('搜索结果');
+        const ulIdx = tipIdx !== -1 ? text.indexOf('<ul class="novel_list">', tipIdx) : text.indexOf('<ul class="novel_list">');
+        if (ulIdx === -1) return [];
+        const endUlIdx = text.indexOf('</ul>', ulIdx);
+        const listHtml = text.slice(ulIdx, endUlIdx !== -1 ? endUlIdx + 5 : ulIdx + 50000);
+
+        const lis = [...listHtml.matchAll(/<li class="novel_li">([\s\S]*?)<\/li>/gi)];
+        const results = [];
+
+        for (const li of lis) {
+            const raw = li[1];
+            const hrefMatch = raw.match(/href="([^"]+)"/i);
+            const titleMatch = raw.match(/<a[^>]+class="title"[^>]*>([\s\S]*?)<\/a>/i) || raw.match(/title="([^"]+)"/i);
+            const coverMatch = raw.match(/data-src="([^"]+)"/i) || raw.match(/src="([^"]+)"/i);
+            
+            const infoBoxes = [...raw.matchAll(/<div class="info_box">([\s\S]*?)<\/div>/gi)].map(m => m[1].replace(/<[^>]+>/g, '').trim());
+            let author = '网络源';
+            let remarks = '';
+            for (const info of infoBoxes) {
+                if (info.includes('·')) {
+                    const parts = info.split('·').map(p => p.trim());
+                    if (parts[0]) author = parts[0];
+                    remarks = info;
+                }
+            }
+
+            const bookName = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+            const bookId = hrefMatch ? hrefMatch[1] : '';
+
+            if (bookName && bookId) {
+                results.push({
+                    book_name: bookName,
+                    book_id: bookId,
+                    author: author,
+                    abstract: remarks || '共创优质无删减全本',
+                    cover: coverMatch ? coverMatch[1] : '',
+                    source: '搬山人',
+                    tab: '小说'
+                });
+            }
+        }
+        return results;
+    } catch (e) {
+        return [];
+    }
+}
+
+async function catalogBanshanren(bookId) {
+    try {
+        const url = bookId.startsWith('http') ? bookId : 'https://www.banshanren.com' + bookId;
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
+            signal: AbortSignal.timeout(6000)
+        });
+        if (!res.ok) return [];
+        const text = await res.text();
+        const chapMatches = [...text.matchAll(/<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
+        const chapters = [];
+        const seenHrefs = new Set();
+
+        for (const m of chapMatches) {
+            const href = m[1];
+            const rawTitle = m[2].replace(/<[^>]+>/g, '').trim();
+            if (!href) continue;
+            if (rawTitle === '开始阅读' || rawTitle.includes('阅读全文')) continue;
+            if (seenHrefs.has(href)) continue;
+
+            if (href.startsWith(bookId + '/') && /^\d+$/.test(href.substring(bookId.length + 1))) {
+                seenHrefs.add(href);
+                if (rawTitle) {
+                    chapters.push({
+                        title: rawTitle,
+                        item_id: href
+                    });
+                }
+            }
+        }
+        return chapters;
+    } catch (e) {
+        return [];
+    }
+}
+
+async function contentBanshanren(itemId) {
+    try {
+        const url = itemId.startsWith('http') ? itemId : 'https://www.banshanren.com' + itemId;
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
+            signal: AbortSignal.timeout(7000)
+        });
+        if (!res.ok) return { code: -1, msg: '获取源站正文失败: ' + res.status };
+        const text = await res.text();
+        const boxMatch = text.match(/<div class="chapter_content_box">([\s\S]*?)<\/div>/i);
+        if (!boxMatch) return { code: -1, msg: '未定位到正文内容' };
+
+        let title = '';
+        const titleMatch = boxMatch[1].match(/<h2>([\s\S]*?)<\/h2>/i);
+        if (titleMatch) {
+            title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+        }
+
+        let content = boxMatch[1]
+            .replace(/<span[^>]+class="z count[^"]*"[^>]*>[\s\S]*?<\/span>/gi, '')
+            .replace(/<p[^>]*>/gi, '')
+            .replace(/<\/p>/gi, '\n\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        return {
+            code: 0,
+            title: title || '章节阅读',
+            content: cleanNovelText(content)
+        };
+    } catch (e) {
+        return { code: -1, msg: e.message };
+    }
+}
+
 async function getLiveSourcesConfig() {
     const now = Date.now();
     // 24小时 (86400000ms) 自动拉取更新一次最新开源书源
@@ -87,11 +216,14 @@ async function getLiveSourcesConfig() {
         const res = await fetch(CONFIG_URL, { headers: { 'User-Agent': 'Mozilla/5.0' } });
         if (res.ok) {
             const data = await res.json();
+            let rawNovelSources = (data["搜索小说"] || data["小说"] || ["番茄", "七猫", "全本小说", "半夏小说", "塔读", "QQ阅读", "书旗", "红烛小说"]).filter(s => s !== '老福特');
+            if (!rawNovelSources.includes('搬山人')) rawNovelSources.unshift('搬山人');
+
             cachedConfig = {
                 version: data.version || '最新',
                 categories: {
                     "漫画": ["新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
-                    "小说": (data["搜索小说"] || data["小说"] || ["番茄", "七猫", "全本小说", "半夏小说", "塔读", "QQ阅读", "书旗", "红烛小说"]).slice(0, 20)
+                    "小说": rawNovelSources.slice(0, 20)
                 }
             };
             lastConfigFetch = now;
@@ -103,7 +235,7 @@ async function getLiveSourcesConfig() {
         version: '昂哥构建',
         categories: {
             "漫画": ["新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
-            "小说": ["七猫", "番茄", "伪69", "半夏小说", "52书库", "老福特", "爱下电子书", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
+            "小说": ["搬山人", "七猫", "番茄", "伪69", "半夏小说", "52书库", "爱下电子书", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
         }
     };
 }
@@ -291,13 +423,23 @@ const workerHandler = {
             const page = url.searchParams.get('page') || '1';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
+            if (source === '搬山人') {
+                const results = await searchBanshanren(title);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             // ⚡ 聚合全网搜模式：对所有优质源进行高速并发请求并聚合呈现全部结果
             if (source === 'ALL') {
                 const candidates = (tab === '漫画')
                     ? ['新新漫画', 'G社漫画', '全面漫画', '番茄']
-                    : ['七猫', '番茄', '伪69', '半夏小说', '52书库', '老福特', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
+                    : ['搬山人', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
 
                 const fetchTasks = candidates.map(async s => {
+                    if (s === '搬山人') {
+                        return await searchBanshanren(title);
+                    }
                     try {
                         const targetUrl = UPSTREAM + '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(s) + '&page=' + page + '&disabled_sources=0';
                         const r = await fetch(targetUrl, { headers: getRandomHeaders() });
@@ -759,6 +901,20 @@ const workerHandler = {
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
 
+            if (source === '搬山人' || book_id.startsWith('/novel/')) {
+                return new Response(JSON.stringify({
+                    code: 0,
+                    data: {
+                        book_id: book_id,
+                        book_name: url.searchParams.get('title') || '小说详情',
+                        source: '搬山人',
+                        tab: '小说'
+                    }
+                }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             try {
                 const apiPath = '/detail?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await fetchUpstreamWithFailover(apiPath, false);
@@ -778,6 +934,13 @@ const workerHandler = {
             const tab = url.searchParams.get('tab') || '漫画';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
+            if (source === '搬山人' || book_id.startsWith('/novel/')) {
+                const chapters = await catalogBanshanren(book_id);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             try {
                 const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await fetchUpstreamWithFailover(apiPath, false);
@@ -796,7 +959,17 @@ const workerHandler = {
             const item_id = url.searchParams.get('item_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
+            const title = url.searchParams.get('title') || '';
+            const chap_title = url.searchParams.get('chap_title') || '';
+            const chap_idx = parseInt(url.searchParams.get('chap_idx') || '-1', 10);
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
+
+            if (source === '搬山人' || item_id.startsWith('/novel/')) {
+                const bData = await contentBanshanren(item_id);
+                return new Response(JSON.stringify(bData), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
 
             let decodedItem = null;
             try {
@@ -838,10 +1011,82 @@ const workerHandler = {
                     data.msg = '';
                 }
 
+                // 如果是小说且上游正文缺失、报错或受限，启动后端无缝自动跨源救援 (优先使用搬山人优质无删减源)
+                if (tab === '小说' && title && (!data || !data.content || data.content.length < 50 || data.code !== 0)) {
+                    try {
+                        const bList = await searchBanshanren(title);
+                        const matchBook = bList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, ''));
+                        if (matchBook) {
+                            const bCat = await catalogBanshanren(matchBook.book_id);
+                            if (bCat && bCat.length > 0) {
+                                let targetChap = (chap_idx >= 0 && bCat[chap_idx]) ? bCat[chap_idx] : null;
+                                const cleanChap = chap_title.replace(/[第章\s]/g, '');
+                                if (cleanChap) {
+                                    const found = bCat.find(c => {
+                                        const ct = (c.title || '').replace(/[第章\s]/g, '');
+                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
+                                    });
+                                    if (found) targetChap = found;
+                                }
+                                if (targetChap) {
+                                    const rescuedData = await contentBanshanren(targetChap.item_id);
+                                    if (rescuedData && rescuedData.code === 0 && rescuedData.content && rescuedData.content.length > 50) {
+                                        return new Response(JSON.stringify({
+                                            code: 0,
+                                            msg: '已自动为您无缝接力至【搬山人】优质源畅读',
+                                            autoSwitched: true,
+                                            newSource: '搬山人',
+                                            title: targetChap.title,
+                                            content: rescuedData.content
+                                        }), {
+                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
+
                 return new Response(JSON.stringify(data), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
+                if (tab === '小说' && title) {
+                    try {
+                        const bList = await searchBanshanren(title);
+                        const matchBook = bList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, ''));
+                        if (matchBook) {
+                            const bCat = await catalogBanshanren(matchBook.book_id);
+                            if (bCat && bCat.length > 0) {
+                                let targetChap = (chap_idx >= 0 && bCat[chap_idx]) ? bCat[chap_idx] : null;
+                                const cleanChap = chap_title.replace(/[第章\s]/g, '');
+                                if (cleanChap) {
+                                    const found = bCat.find(c => {
+                                        const ct = (c.title || '').replace(/[第章\s]/g, '');
+                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
+                                    });
+                                    if (found) targetChap = found;
+                                }
+                                if (targetChap) {
+                                    const rescuedData = await contentBanshanren(targetChap.item_id);
+                                    if (rescuedData && rescuedData.code === 0 && rescuedData.content && rescuedData.content.length > 50) {
+                                        return new Response(JSON.stringify({
+                                            code: 0,
+                                            msg: '已自动为您无缝接力至【搬山人】优质源畅读',
+                                            autoSwitched: true,
+                                            newSource: '搬山人',
+                                            title: targetChap.title,
+                                            content: rescuedData.content
+                                        }), {
+                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
                 return new Response(JSON.stringify({ code: -1, msg: e.message }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
