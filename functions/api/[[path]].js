@@ -1222,6 +1222,53 @@ const workerHandler = {
                     }
 
                     payload.syncTime = Number(payload.syncTime) || Date.now();
+
+                    // 服务端单调不回退合并保障：绝不允许较早章节覆盖更新更远的章节进度
+                    const prevSnapshot = memStore.get(uid);
+                    if (prevSnapshot && typeof prevSnapshot === 'object') {
+                        const mergedHistory = Array.isArray(payload.history) ? [...payload.history] : [];
+                        const prevHist = Array.isArray(prevSnapshot.history) ? prevSnapshot.history : [];
+                        prevHist.forEach(prevItem => {
+                            if (!prevItem || !prevItem.book_name) return;
+                            const pName = prevItem.book_name.trim();
+                            const target = mergedHistory.find(b => b.book_name && b.book_name.trim() === pName);
+                            if (!target) {
+                                mergedHistory.push(prevItem);
+                            } else {
+                                const pIdx = Number(prevItem.lastReadIndex || 0);
+                                const tIdx = Number(target.lastReadIndex || 0);
+                                if (pIdx > tIdx) {
+                                    target.lastReadIndex = pIdx;
+                                    target.lastReadTitle = prevItem.lastReadTitle || target.lastReadTitle;
+                                    target.lastReadPage = prevItem.lastReadPage || 0;
+                                    target.lastScrollRatio = prevItem.lastScrollRatio || 0;
+                                }
+                            }
+                        });
+                        payload.history = mergedHistory;
+
+                        const mergedShelf = Array.isArray(payload.shelf) ? [...payload.shelf] : [];
+                        const prevShelf = Array.isArray(prevSnapshot.shelf) ? prevSnapshot.shelf : [];
+                        prevShelf.forEach(prevItem => {
+                            if (!prevItem || !prevItem.book_name) return;
+                            const pName = prevItem.book_name.trim();
+                            const target = mergedShelf.find(b => b.book_name && b.book_name.trim() === pName);
+                            if (!target) {
+                                mergedShelf.push(prevItem);
+                            } else {
+                                const pIdx = Number(prevItem.lastReadIndex || 0);
+                                const tIdx = Number(target.lastReadIndex || 0);
+                                if (pIdx > tIdx) {
+                                    target.lastReadIndex = pIdx;
+                                    target.lastReadTitle = prevItem.lastReadTitle || target.lastReadTitle;
+                                    target.lastReadPage = prevItem.lastReadPage || 0;
+                                    target.lastScrollRatio = prevItem.lastScrollRatio || 0;
+                                }
+                            }
+                        });
+                        payload.shelf = mergedShelf;
+                    }
+
                     const payloadStr = JSON.stringify(payload);
 
                     // 1. 写入内存热缓存
