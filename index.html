@@ -2386,7 +2386,7 @@
             min-height: calc(100vh - 80px);
             padding: 8px 4px 60px;
             margin: 0 auto;
-            max-width: 1320px;
+            max-width: 1280px;
             box-sizing: border-box;
             color: var(--text-main);
         }
@@ -2573,202 +2573,259 @@
             color: var(--accent);
         }
 
-        /* 📚 3D 实体斜角抽出排架展台 (Oblique 3D Shelf Stage - 1:1对标 Wenku8) */
+        /* 📚 舒展呼吸感 3D 书架展台 (Spacious 3D Shelf Stage) */
         .wenku-shelf-stage {
-            padding: 34px 16px 22px;
+            padding: 24px 20px 20px;
             background: linear-gradient(180deg, rgba(22, 26, 35, 0.92) 0%, rgba(14, 16, 22, 0.98) 100%);
             border-radius: 24px;
             margin: 10px 0 24px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             border: 1px solid var(--glass-border);
             position: relative;
             user-select: none;
-            overflow: hidden;
         }
-        .wenku-wave-viewport {
-            height: 290px;
-            position: relative;
+        .wenku-shelf-stage-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+        .wenku-stage-badge {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .wenku-spacious-viewport {
+            min-height: 235px;
             display: flex;
             align-items: flex-end;
             justify-content: center;
-            cursor: grab;
-            overflow: visible;
+            perspective: 1200px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+            padding: 10px 10px 14px;
+            -webkit-overflow-scrolling: touch;
         }
-        .wenku-wave-viewport:active {
-            cursor: grabbing;
+        .wenku-spacious-viewport::-webkit-scrollbar {
+            display: none;
         }
-        .wenku-wave-bank {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transform-style: preserve-3d;
+        .wenku-spacious-row {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 14px;
+            padding: 10px 14px;
         }
-
-        /* 3D 实体斜角立式书本 (Oblique Solid Volume) */
-        .wenku-solid-book {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            width: 135px;
-            height: 195px;
-            cursor: pointer;
-            transform-origin: 0 100%;
-            transform-style: preserve-3d;
-            transition: transform 0.28s cubic-bezier(0.2, 1.05, 0.35, 1), box-shadow 0.28s;
-            will-change: transform, z-index;
+        @media (max-width: 600px) {
+            .wenku-spacious-row {
+                gap: 8px;
+            }
         }
 
-        /* 书脊面 (Front Spine Face) */
-        .wenku-book-spine-face {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 22px;
-            height: 195px;
-            background: linear-gradient(90deg, #f8fafc 0%, #edf2f7 60%, #cbd5e1 100%);
-            border-radius: 2px 0 0 2px;
+        /* 1. 非选中立式书脊：纯净和风书脊，整齐清爽 */
+        .wenku-spacious-spine {
+            width: 32px;
+            height: 185px;
+            flex-shrink: 0;
+            background: linear-gradient(90deg, #f8fafc 0%, #edf2f7 65%, #cbd5e1 100%);
+            border-radius: 3px 2px 2px 3px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding: 6px 1px 7px;
+            padding: 8px 1px 8px;
             box-sizing: border-box;
-            border-left: 1px solid rgba(255, 255, 255, 0.6);
-            border-right: 1px solid rgba(0, 0, 0, 0.12);
-            box-shadow: inset 1px 0 2px rgba(255,255,255,0.8), -2px 4px 10px rgba(0,0,0,0.35);
-            z-index: 3;
+            cursor: pointer;
+            transition: all 0.28s cubic-bezier(0.2, 1, 0.35, 1);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 2px 6px 14px rgba(0, 0, 0, 0.35);
+            position: relative;
         }
-        .wenku-spine-tag {
+        @media (max-width: 600px) {
+            .wenku-spacious-spine {
+                width: 27px;
+                height: 170px;
+            }
+        }
+        .wenku-spacious-spine:hover {
+            transform: translateY(-8px);
+            box-shadow: 2px 12px 20px rgba(0, 0, 0, 0.45);
+            border-color: var(--accent);
+        }
+        .wenku-spacious-spine .spine-num {
             font-size: 8px;
             font-weight: 800;
             color: #475569;
-            background: transparent;
-            padding: 1px 2px;
+            padding: 1px 3px;
             border-radius: 4px;
             border: 1px solid #cbd5e1;
             letter-spacing: -0.2px;
-            white-space: nowrap;
             line-height: 1;
+            font-family: ui-monospace, SFMono-Regular, monospace;
         }
-        .wenku-spine-title {
+        .wenku-spacious-spine .spine-text {
             writing-mode: vertical-rl;
             text-orientation: mixed;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 700;
             color: #0f172a;
-            letter-spacing: 1px;
-            max-height: 130px;
+            letter-spacing: 1.5px;
+            max-height: 125px;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
             line-height: 1;
         }
-        .wenku-spine-dot {
+        .wenku-spacious-spine .spine-dot {
             width: 4px;
             height: 4px;
             border-radius: 50%;
             background: #94a3b8;
         }
 
-        /* 顶部截面纸张 (Top Cap Paper Face) */
-        .wenku-book-top-cap {
-            position: absolute;
-            left: 0;
-            top: -12px;
-            width: 135px;
-            height: 12px;
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            transform-origin: 0 100%;
-            transform: skewX(-45deg);
-            border-top: 1px solid rgba(255,255,255,0.8);
-            border-left: 1px solid rgba(255,255,255,0.5);
-            box-shadow: inset 0 -1px 3px rgba(0,0,0,0.1);
-            z-index: 2;
+        /* 2. 选中焦点书籍：向前优雅抽出，呈现 3D 彩色封面 */
+        .wenku-spacious-featured {
+            width: 140px;
+            height: 198px;
+            flex-shrink: 0;
+            margin: 0 10px;
+            position: relative;
+            cursor: pointer;
+            transform: translateZ(45px) translateY(-14px) rotateY(-12deg);
+            transition: all 0.35s cubic-bezier(0.2, 1.05, 0.35, 1);
+            transform-style: preserve-3d;
+            box-shadow: -10px 18px 30px rgba(0, 0, 0, 0.55);
+            border-radius: 4px 8px 8px 4px;
+            overflow: visible;
         }
-
-        /* 侧封面 (Side / Front Cover Face) */
-        .wenku-book-cover-face {
-            position: absolute;
-            left: 22px;
-            top: 0;
-            width: 135px;
-            height: 195px;
-            border-radius: 0 4px 4px 0;
+        @media (max-width: 600px) {
+            .wenku-spacious-featured {
+                width: 115px;
+                height: 175px;
+                margin: 0 6px;
+            }
+        }
+        .wenku-spacious-featured-cover {
+            width: 100%;
+            height: 100%;
+            border-radius: 4px 8px 8px 4px;
             overflow: hidden;
             background: #181a20;
-            box-shadow: 6px 12px 24px rgba(0, 0, 0, 0.45);
-            z-index: 1;
-            transform-origin: 0 0;
+            position: relative;
         }
-        .wenku-book-cover-face img {
+        .wenku-spacious-featured-cover img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
         }
-        .wenku-book-cover-face::after {
-            content: '';
+        .wenku-spacious-featured-spine-edge {
             position: absolute;
-            inset: 0;
-            background: linear-gradient(105deg, rgba(255,255,255,0.2) 0%, transparent 40%);
-            pointer-events: none;
+            left: -12px;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+            transform-origin: right;
+            transform: rotateY(-90deg);
+            background: linear-gradient(90deg, #94a3b8 0%, #f1f5f9 70%, #ffffff 100%);
+            box-shadow: inset -2px 0 5px rgba(0,0,0,0.3);
+            border-radius: 2px 0 0 2px;
         }
-        .wenku-book-cover-badge {
+        .wenku-spacious-featured-badge {
             position: absolute;
-            top: 6px;
-            right: 6px;
-            background: rgba(0,0,0,0.75);
+            top: 7px;
+            right: 7px;
+            background: rgba(0, 0, 0, 0.78);
             backdrop-filter: blur(4px);
             color: var(--accent);
-            font-size: 9px;
+            font-size: 9.5px;
             font-weight: 700;
-            padding: 1px 5px;
+            padding: 1px 6px;
             border-radius: 4px;
-            z-index: 4;
+            z-index: 3;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .wenku-book-code-badge {
-            position: absolute;
-            bottom: 6px;
-            left: 6px;
-            background: rgba(0,0,0,0.7);
-            color: #cbd5e1;
-            font-size: 8px;
-            font-weight: 800;
-            padding: 1px 4px;
-            border-radius: 3px;
-            letter-spacing: 0.5px;
-            z-index: 4;
-        }
 
-        /* 真实排架投影层与底板 */
+        /* 拟真排架底板 */
         .wenku-shelf-plank {
             height: 4px;
-            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 30%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0.2) 70%, transparent 100%);
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 25%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.2) 75%, transparent 100%);
             margin: 2px auto 14px;
-            max-width: 720px;
+            max-width: 680px;
             border-radius: 2px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
         }
 
-        /* 底部信息与原生档案翻页器 (1:1对标 Wenku8 ArchiveCode & Chevron) */
-        .wenku-showcase-bottom {
+        /* 平滑拖动轴 (Drag Track / Slider) */
+        .wenku-slider-track-wrap {
+            max-width: 420px;
+            margin: 12px auto 16px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            max-width: 720px;
+            gap: 12px;
+            padding: 0 16px;
+        }
+        .wenku-slider-icon {
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.6;
+        }
+        .wenku-shelf-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .wenku-shelf-slider:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .wenku-shelf-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 2px 8px var(--accent-glow);
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            transition: transform 0.15s;
+        }
+        .wenku-shelf-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        .wenku-shelf-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 2px 8px var(--accent-glow);
+            cursor: pointer;
+            border: 2px solid #ffffff;
+        }
+
+        /* 底部信息与原生档案翻页器 */
+        .wenku-showcase-detail {
+            text-align: center;
+            max-width: 680px;
             margin: 0 auto;
             padding: 0 8px;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-        .wenku-showcase-detail {
-            flex: 1;
-            min-width: 220px;
         }
         .wenku-showcase-title-wrap {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             cursor: pointer;
             transition: color 0.2s, transform 0.2s;
@@ -2778,7 +2835,7 @@
             transform: translateY(-1px);
         }
         .wenku-showcase-title {
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 800;
             color: #ffffff !important;
             line-height: 1.3;
@@ -2795,19 +2852,19 @@
             font-size: 12.5px;
             font-weight: 500;
             color: var(--text-muted) !important;
-            margin: 5px 0 0;
+            margin: 6px 0 0;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
         }
 
-        /* 原生档案编号与切书翻页器 */
         .wenku-showcase-pager {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             background: rgba(255, 255, 255, 0.05);
-            padding: 3px 6px;
+            padding: 2px 6px;
             border-radius: 20px;
             border: 1px solid var(--glass-border);
         }
@@ -2815,8 +2872,8 @@
             background: transparent;
             border: none;
             color: var(--text-muted);
-            width: 26px;
-            height: 26px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -2826,7 +2883,7 @@
             transition: all 0.15s;
         }
         .wenku-pager-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.12);
             color: #ffffff;
         }
         .wenku-pager-code {
@@ -2834,7 +2891,7 @@
             font-weight: 800;
             color: var(--accent);
             letter-spacing: 0.5px;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-family: ui-monospace, SFMono-Regular, monospace;
         }
 
         /* 全部藏书网格 */
@@ -5305,14 +5362,28 @@
 
         <!-- 4. 原生算法级 3D 实体斜角抽出排架展台 (1:1对标 Wenku8 ArchiveFileCarousel 斜角柜投影与鼠标跟随抽出波浪) -->
         <div id="wenkuSpineShelfSection" class="wenku-shelf-stage">
-            <div class="wenku-wave-viewport" id="wenkuWaveViewport">
-                <div class="wenku-wave-bank" id="wenkuWaveBank"></div>
-            </div>
-            <div class="wenku-shelf-plank"></div>
-            <div class="wenku-showcase-bottom" id="wenkuShowcaseBottom">
-                <div class="wenku-showcase-detail" id="wenkuShowcaseDetail"></div>
+            <div class="wenku-shelf-stage-top">
+                <span class="wenku-stage-badge"><i class="fas fa-bookmark"></i> 最近在读 · 实体排架</span>
                 <div class="wenku-showcase-pager" id="wenkuShowcasePager"></div>
             </div>
+
+            <!-- 呼吸感宽裕排架 (限制数量，间距舒展自然，不挤迫) -->
+            <div class="wenku-spacious-viewport" id="wenkuSpaciousViewport">
+                <div class="wenku-spacious-row" id="wenkuSpaciousRow"></div>
+            </div>
+
+            <!-- 拟真底座阴影 -->
+            <div class="wenku-shelf-plank"></div>
+
+            <!-- 平滑拖动轴 (Drag Track Axis) -->
+            <div class="wenku-slider-track-wrap">
+                <i class="fas fa-arrow-left wenku-slider-icon"></i>
+                <input type="range" class="wenku-shelf-slider" id="wenkuShelfSlider" min="0" max="5" value="0" step="1" oninput="window.onShelfSliderInput(Number(this.value))" />
+                <i class="fas fa-arrow-right wenku-slider-icon"></i>
+            </div>
+
+            <!-- 底部书籍详情与直达阅读 -->
+            <div class="wenku-showcase-detail" id="wenkuShowcaseDetail"></div>
         </div>
 
         <!-- 5. 实体藏书卡片网格与书城入口 -->
@@ -8380,19 +8451,16 @@
 
     window._currentWenkuFocusIndex = 0;
     window._currentWenkuTab = 'shelf'; // 'shelf' | 'plaza'
-    window._wenkuWaveDisplayBooks = [];
-    window._isMouseTrackingWave = false;
+    window._wenkuDisplayBooks = [];
 
-    // 通用原生小说兜底（完全脱离轻小说文库与特定书源）
+    // 精确匹配各自书名的专属高清封面（100% 对应，杜绝图文不符）
     const DEFAULT_UNIVERSAL_SHOWCASE = [
-        { book_name: '遮天', book_id: '1', author: '辰东', status: '完结', source: '搬山人', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 星空中的九龙拉棺' },
         { book_name: '剑来', book_id: '2', author: '烽火戏诸侯', status: '连载中', source: '七猫', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 惊蛰' },
-        { book_name: '诡秘之主', book_id: '3', author: '爱潜水的乌贼', status: '完结', source: '搬山人', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第一部 绯红' },
-        { book_name: '凡人修仙传', book_id: '4', author: '忘语', status: '完结', source: '番茄', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 山中少年' },
-        { book_name: '斗破苍穹', book_id: '5', author: '天蚕土豆', status: '完结', source: '七猫', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 陨落的天才' },
-        { book_name: '完美世界', book_id: '6', author: '辰东', status: '完结', source: '搬山人', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 朝阳与石村' },
-        { book_name: '仙逆', book_id: '7', author: '耳根', status: '完结', source: '搬山人', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 离乡' },
-        { book_name: '宿命之环', book_id: '8', author: '爱潜水的乌贼', status: '连载中', source: '七猫', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 外乡人' }
+        { book_name: '雪中悍刀行', book_id: '9', author: '烽火戏诸侯', status: '完结', source: '七猫', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/9c8b592d55242178e7e3194a993a9e38_360x480.jpg', lastReadTitle: '第1章 小二上酒' },
+        { book_name: '庆余年', book_id: '10', author: '猫腻', status: '完结', source: '七猫', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/f0e5/5c4a8e082429be807f755e980ea38102_360x480.jpg', lastReadTitle: '第一卷 澹泊公' },
+        { book_name: '凡人修仙传', book_id: '4', author: '忘语', status: '完结', source: '番茄', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/f0e5/e58dd6dfa1d4b192cb56259a49fdb49f_360x480.jpg', lastReadTitle: '第1章 山中少年' },
+        { book_name: '仙逆', book_id: '7', author: '耳根', status: '完结', source: '搬山人', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/f0e5/01bb79727fbb30cae5353105ebe638a6_360x480.jpg', lastReadTitle: '第1章 离乡' },
+        { book_name: '元尊', book_id: '11', author: '天蚕土豆', status: '完结', source: '七猫', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/a8f43c9fa339b2f062c72ff06e04a64a_360x480.jpg', lastReadTitle: '第1章 蟒雀吞龙' }
     ];
 
     function getWenkuCoverUrl(b) {
@@ -8470,70 +8538,8 @@
         }
     };
 
-    // 1:1 复刻 Wenku8 ArchiveShelfGeometry 物理参数与抽取波浪数学
-    const SHELF_DEPTH_X = 0.66;
-    const SHELF_DEPTH_Y = -0.30;
-    const SHELF_SPINE_W = 22;
-    const SHELF_PITCH = 34; // spine + gap
-    const SHELF_COVER_W = 125;
-    const SHELF_HEIGHT = 195;
-    const SHELF_PULL_DIST = SHELF_COVER_W * 0.88; // 抽出距离
-
-    function computeBookWaveTransform(index, focusFloat, totalCount) {
-        const dist = Math.abs(index - focusFloat);
-        const radius = 2.4;
-        let weight = 0;
-        if (dist < radius) {
-            const val = Math.cos(dist / radius * Math.PI / 2);
-            weight = val * val;
-        }
-
-        // 沿深度向量抽出与提升
-        const pull = SHELF_PULL_DIST * weight * (1.24 - 0.24 * weight);
-        const lift = weight * weight * (3 - 2 * weight);
-
-        // 基础位置（从左到右等距排布）
-        const baseX = (index - (totalCount - 1) / 2) * SHELF_PITCH;
-        const baseY = 0;
-
-        // 3D 抽出位移
-        const tx = baseX - pull * SHELF_DEPTH_X;
-        const ty = baseY - pull * SHELF_DEPTH_Y - SHELF_HEIGHT * 0.40 * lift;
-        const tz = weight * 60;
-
-        // 斜角旋转：未被抽出时斜向深入(45度)，被完全抽出时转向正视用户(0度)
-        const rotY = (1 - weight) * 44; 
-        const zIndex = Math.round(weight * 120 + (100 - index));
-
-        return { tx, ty, tz, rotY, weight, zIndex };
-    }
-
-    window.updateWenkuWaveTransforms = function(focusFloat) {
-        const bank = document.getElementById('wenkuWaveBank');
-        if (!bank) return;
-        const books = window._wenkuWaveDisplayBooks || [];
-        const n = books.length;
-        if (n === 0) return;
-
-        const bookEls = bank.querySelectorAll('.wenku-solid-book');
-        bookEls.forEach((el, i) => {
-            const { tx, ty, tz, rotY, weight, zIndex } = computeBookWaveTransform(i, focusFloat, n);
-            el.style.transform = 'translate3d(' + tx + 'px, ' + ty + 'px, ' + tz + 'px) rotateY(' + rotY + 'deg)';
-            el.style.zIndex = zIndex;
-            
-            // 抽出高亮与软阴影变化
-            const coverEl = el.querySelector('.wenku-book-cover-face');
-            if (coverEl) {
-                const shadowA = 0.35 + weight * 0.35;
-                const shadowY = 10 + weight * 16;
-                const shadowBlur = 20 + weight * 24;
-                coverEl.style.boxShadow = '-8px ' + shadowY + 'px ' + shadowBlur + 'px rgba(0,0,0,' + shadowA + ')';
-            }
-        });
-    };
-
-    window.selectWenkuWaveFocus = function(idx, openIfActive) {
-        const books = window._wenkuWaveDisplayBooks || [];
+    window.selectShelfBook = function(idx, openIfActive) {
+        const books = window._wenkuDisplayBooks || [];
         if (idx < 0 || idx >= books.length) return;
 
         if (openIfActive && window._currentWenkuFocusIndex === idx) {
@@ -8545,23 +8551,30 @@
         }
 
         window._currentWenkuFocusIndex = idx;
-        window.updateWenkuWaveTransforms(idx);
-        updateWenkuShowcaseDetail(idx);
+        const slider = document.getElementById('wenkuShelfSlider');
+        if (slider) slider.value = idx;
+
+        renderSpaciousShelfRow();
+        updateShelfBottomDetail(idx);
     };
 
-    window.stepWenkuWave = function(delta) {
-        const books = window._wenkuWaveDisplayBooks || [];
+    window.stepShelfBook = function(delta) {
+        const books = window._wenkuDisplayBooks || [];
         if (books.length === 0) return;
         let next = (window._currentWenkuFocusIndex || 0) + delta;
         if (next < 0) next = books.length - 1;
         if (next >= books.length) next = 0;
-        selectWenkuWaveFocus(next, false);
+        selectShelfBook(next, false);
     };
 
-    function updateWenkuShowcaseDetail(activeIdx) {
+    window.onShelfSliderInput = function(val) {
+        selectShelfBook(val, false);
+    };
+
+    function updateShelfBottomDetail(activeIdx) {
         const detailEl = document.getElementById('wenkuShowcaseDetail');
         const pagerEl = document.getElementById('wenkuShowcasePager');
-        const books = window._wenkuWaveDisplayBooks || [];
+        const books = window._wenkuDisplayBooks || [];
         if (!detailEl || books.length === 0) return;
 
         const activeBook = books[activeIdx] || books[0];
@@ -8583,121 +8596,87 @@
         if (pagerEl) {
             const currentNum = String(activeIdx + 1).padStart(2, '0');
             const totalNum = String(books.length).padStart(2, '0');
-            pagerEl.innerHTML = '<button type="button" class="wenku-pager-btn" onclick="stepWenkuWave(-1)" title="上一本书">' +
+            pagerEl.innerHTML = '<button type="button" class="wenku-pager-btn" onclick="stepShelfBook(-1)" title="上一本书">' +
                 '<i class="fas fa-chevron-left"></i>' +
             '</button>' +
             '<span class="wenku-pager-code">' + currentNum + ' / ' + totalNum + '</span>' +
-            '<button type="button" class="wenku-pager-btn" onclick="stepWenkuWave(1)" title="下一本书">' +
+            '<button type="button" class="wenku-pager-btn" onclick="stepShelfBook(1)" title="下一本书">' +
                 '<i class="fas fa-chevron-right"></i>' +
             '</button>';
         }
     }
 
-    window.renderWenkuSpineShelf = function() {
-        const bank = document.getElementById('wenkuWaveBank');
-        const viewport = document.getElementById('wenkuWaveViewport');
-        if (!bank || !viewport) return;
+    function renderSpaciousShelfRow() {
+        const row = document.getElementById('wenkuSpaciousRow');
+        const viewport = document.getElementById('wenkuSpaciousViewport');
+        if (!row) return;
 
-        // 真实展示用户的最近阅读 (全网跨源聚合)
-        const userBooks = getAllBookshelfNovels();
-        let displayBooks = [...userBooks];
+        const books = window._wenkuDisplayBooks || [];
+        const activeIdx = window._currentWenkuFocusIndex || 0;
 
-        // 若用户尚无阅读记录，使用主流名作兜底展示
-        if (displayBooks.length < 5) {
-            const existingNames = new Set(displayBooks.map(b => b.book_name));
-            for (const item of DEFAULT_UNIVERSAL_SHOWCASE) {
-                if (!existingNames.has(item.book_name)) {
-                    displayBooks.push(item);
-                    if (displayBooks.length >= 8) break;
-                }
-            }
-        }
-
-        window._wenkuWaveDisplayBooks = displayBooks;
-        const total = displayBooks.length;
-
-        if (window._currentWenkuFocusIndex === undefined || window._currentWenkuFocusIndex === null) {
-            window._currentWenkuFocusIndex = 0;
-        } else if (window._currentWenkuFocusIndex >= total) {
-            window._currentWenkuFocusIndex = 0;
-        }
-
-        // 构建 3D Oblique Solid 书籍 DOM
-        bank.innerHTML = displayBooks.map((b, idx) => {
+        row.innerHTML = books.map((b, idx) => {
+            const isActive = (idx === activeIdx);
             const number = String(idx + 1).padStart(2, '0');
-            const code = 'NO.' + String(idx + 1).padStart(3, '0');
             const coverUrl = getWenkuCoverUrl(b);
             const coverImg = coverUrl
                 ? '<img src="' + escapeNovelHtml(coverUrl) + '" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src=\'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg\'" />'
                 : '<div style="display:flex; height:100%; align-items:center; justify-content:center; background:#181a20; color:#fff; font-size:20px;"><i class="fas fa-book"></i></div>';
 
-            return '<div class="wenku-solid-book" data-index="' + idx + '" onclick="selectWenkuWaveFocus(' + idx + ', true)">' +
-                '<div class="wenku-book-spine-face">' +
-                    '<div class="wenku-spine-tag">' + number + '</div>' +
-                    '<div class="wenku-spine-title">' + escapeNovelHtml(b.book_name) + '</div>' +
-                    '<div class="wenku-spine-dot"></div>' +
-                '</div>' +
-                '<div class="wenku-book-top-cap"></div>' +
-                '<div class="wenku-book-cover-face">' +
-                    coverImg +
-                    '<span class="wenku-book-cover-badge">' + escapeNovelHtml(b.source || '精选') + '</span>' +
-                    '<span class="wenku-book-code-badge">' + code + '</span>' +
-                '</div>' +
-            '</div>';
+            if (isActive) {
+                // 焦点书：向前抽出呈现 3D 封面神作
+                return '<div class="wenku-spacious-featured" onclick="selectShelfBook(' + idx + ', true)" title="' + escapeNovelHtml(b.book_name) + ' · 点击立即畅读">' +
+                    '<div class="wenku-spacious-featured-spine-edge"></div>' +
+                    '<div class="wenku-spacious-featured-cover">' +
+                        coverImg +
+                        '<span class="wenku-spacious-featured-badge">' + escapeNovelHtml(b.source || '精选') + '</span>' +
+                    '</div>' +
+                '</div>';
+            } else {
+                // 非焦点书：立式纯净和风书脊，整齐排布
+                return '<div class="wenku-spacious-spine" onclick="selectShelfBook(' + idx + ', false)" title="' + escapeNovelHtml(b.book_name) + ' · 点击检视">' +
+                    '<span class="spine-num">' + number + '</span>' +
+                    '<span class="spine-text">' + escapeNovelHtml(b.book_name) + '</span>' +
+                    '<span class="spine-dot"></span>' +
+                '</div>';
+            }
         }).join('');
 
-        // 绑定鼠标滑动与触摸跟随互动效果 (Mouse Hover Tracking Wave)
-        if (!viewport._hasWaveListeners) {
-            viewport._hasWaveListeners = true;
-            let rafId = null;
+        // 视口平滑居中聚焦
+        setTimeout(() => {
+            const activeEl = row.querySelector('.wenku-spacious-featured');
+            if (activeEl && viewport) {
+                activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }, 30);
+    }
 
-            viewport.addEventListener('mousemove', (e) => {
-                const rect = viewport.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const width = rect.width;
-                const n = (window._wenkuWaveDisplayBooks || []).length;
-                if (n === 0) return;
+    window.renderWenkuSpineShelf = function() {
+        const userBooks = getAllBookshelfNovels();
+        let displayBooks = [...userBooks];
 
-                // 计算鼠标相对于排架的连续分数焦点
-                const bankWidth = (n - 1) * SHELF_PITCH;
-                const bankLeft = (width - bankWidth) / 2;
-                const fractionalFocus = Math.max(0, Math.min(n - 1, (mouseX - bankLeft) / SHELF_PITCH));
-
-                if (rafId) cancelAnimationFrame(rafId);
-                rafId = requestAnimationFrame(() => {
-                    window.updateWenkuWaveTransforms(fractionalFocus);
-                    const nearest = Math.round(fractionalFocus);
-                    if (nearest !== window._currentWenkuFocusIndex) {
-                        updateWenkuShowcaseDetail(nearest);
-                    }
-                });
-            });
-
-            viewport.addEventListener('mouseleave', () => {
-                if (rafId) cancelAnimationFrame(rafId);
-                // 鼠标离开后，平滑回弹至选中的固定焦点
-                window.updateWenkuWaveTransforms(window._currentWenkuFocusIndex || 0);
-                updateWenkuShowcaseDetail(window._currentWenkuFocusIndex || 0);
-            });
-
-            // 触摸滑动支持
-            let touchStartX = 0;
-            viewport.addEventListener('touchstart', (e) => {
-                touchStartX = e.touches[0].clientX;
-            }, { passive: true });
-
-            viewport.addEventListener('touchmove', (e) => {
-                const diffX = e.touches[0].clientX - touchStartX;
-                if (Math.abs(diffX) > 40) {
-                    stepWenkuWave(diffX > 0 ? -1 : 1);
-                    touchStartX = e.touches[0].clientX;
+        // 限制展台书籍数量，维持宽裕呼吸感（最多 6 本精选最近阅读）
+        if (displayBooks.length < 5) {
+            const existingNames = new Set(displayBooks.map(b => b.book_name));
+            for (const item of DEFAULT_UNIVERSAL_SHOWCASE) {
+                if (!existingNames.has(item.book_name)) {
+                    displayBooks.push(item);
+                    if (displayBooks.length >= 6) break;
                 }
-            }, { passive: true });
+            }
+        } else if (displayBooks.length > 8) {
+            displayBooks = displayBooks.slice(0, 8);
         }
 
-        // 初始应用几何变换与详情展示
-        window.updateWenkuWaveTransforms(window._currentWenkuFocusIndex || 0);
-        updateWenkuShowcaseDetail(window._currentWenkuFocusIndex || 0);
+        window._wenkuDisplayBooks = displayBooks;
+
+        const slider = document.getElementById('wenkuShelfSlider');
+        if (slider) {
+            slider.max = Math.max(0, displayBooks.length - 1);
+            slider.value = window._currentWenkuFocusIndex || 0;
+        }
+
+        renderSpaciousShelfRow();
+        updateShelfBottomDetail(window._currentWenkuFocusIndex || 0);
     };
 
     window.renderWenkuBookshelf = function() {
