@@ -2380,6 +2380,378 @@
 
         /* 小说阅读背景专属主题切换 (羊皮纸/极夜黑/护眼绿/晨曦白/雅致灰) */
         
+        
+        /* 🌸 纸间文库 (Wenku8_Flutter) 实体书架与沉浸阅读 UI 系统 */
+        .wenku-hero-card {
+            background: linear-gradient(135deg, rgba(194, 94, 56, 0.14) 0%, rgba(28, 30, 38, 0.95) 55%, rgba(18, 20, 26, 0.98) 100%);
+            border: 1px solid rgba(194, 94, 56, 0.28);
+            border-radius: 16px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .wenku-hero-card::before {
+            content: '';
+            position: absolute;
+            right: -60px;
+            top: -60px;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(194, 94, 56, 0.22) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .wenku-hero-cover-wrap {
+            position: relative;
+            width: 105px;
+            min-width: 105px;
+            aspect-ratio: 3 / 4.2;
+            border-radius: 4px 8px 8px 4px;
+            overflow: hidden;
+            box-shadow: -6px 8px 22px rgba(0, 0, 0, 0.6), inset 2px 0 2px rgba(255,255,255,0.25);
+            background: #181a20;
+            cursor: pointer;
+            transition: transform 0.25s ease;
+        }
+        .wenku-hero-cover-wrap:hover {
+            transform: scale(1.03) rotate(-1deg);
+        }
+        .wenku-hero-cover-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .wenku-hero-spine {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 7px;
+            background: linear-gradient(90deg, rgba(0,0,0,0.4) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0.25) 100%);
+            z-index: 2;
+        }
+        .wenku-hero-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .wenku-hero-tag-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .wenku-hero-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(194, 94, 56, 0.2);
+            color: #ff8a65;
+            border: 1px solid rgba(194, 94, 56, 0.4);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .wenku-hero-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.35;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .wenku-hero-chap {
+            font-size: 13px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .wenku-hero-progress-track {
+            width: 100%;
+            max-width: 320px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 2px 0;
+        }
+        .wenku-hero-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #c25e38, #f59e0b);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        .wenku-hero-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+        .btn-wenku-primary {
+            background: linear-gradient(135deg, #c25e38 0%, #d97746 100%) !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+            padding: 7px 16px !important;
+            border-radius: 8px !important;
+            border: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            box-shadow: 0 4px 14px rgba(194, 94, 56, 0.35) !important;
+        }
+        .btn-wenku-primary:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        /* 🔍 纸间悬浮胶囊搜索与书源切换器 */
+        .wenku-search-bar {
+            background: rgba(255, 255, 255, 0.035);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin-bottom: 22px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        .wenku-search-inner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 4px 6px 4px 12px;
+            transition: border-color 0.2s;
+        }
+        .wenku-search-inner:focus-within {
+            border-color: #c25e38;
+        }
+        .wenku-search-icon {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .wenku-search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 13.5px;
+            outline: none;
+        }
+        .wenku-search-btn {
+            background: #c25e38;
+            color: #fff;
+            border: none;
+            border-radius: 7px;
+            padding: 6px 14px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .wenku-search-btn:active {
+            transform: scale(0.96);
+        }
+        .wenku-filter-pills {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .wenku-tab-chips {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .wenku-chip-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .wenku-chip-btn.active {
+            background: rgba(194, 94, 56, 0.18);
+            border-color: #c25e38;
+            color: #ff8a65;
+            font-weight: 600;
+        }
+        .wenku-count-pill {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+        .wenku-source-dropdown-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 3px 8px;
+        }
+        .wenku-source-select {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 11.5px;
+            outline: none;
+            cursor: pointer;
+        }
+        .wenku-source-select option {
+            background: #181a20;
+            color: #fff;
+        }
+
+        /* 📚 纸间藏书架网格 (Wenku Bookshelf Grid) */
+        .wenku-shelf-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .wenku-bookshelf-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 16px 12px;
+            margin-bottom: 30px;
+        }
+        @media (min-width: 768px) {
+            .wenku-bookshelf-grid {
+                grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+                gap: 22px 16px;
+            }
+        }
+        .wenku-book-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
+        }
+        .wenku-book-card:hover {
+            transform: translateY(-4px);
+        }
+        .wenku-book-cover {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3 / 4.2;
+            border-radius: 4px 8px 8px 4px;
+            overflow: hidden;
+            box-shadow: -4px 6px 16px rgba(0, 0, 0, 0.4), inset 2px 0 2px rgba(255,255,255,0.25);
+            background: #181a20;
+            margin-bottom: 8px;
+        }
+        .wenku-book-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .wenku-book-spine {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background: linear-gradient(90deg, rgba(0,0,0,0.35) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0.25) 100%);
+            z-index: 2;
+        }
+        .wenku-book-source-tag {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(4px);
+            color: #ff8a65;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-weight: 600;
+            border: 1px solid rgba(194, 94, 56, 0.3);
+            z-index: 3;
+        }
+        .wenku-book-progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 3;
+        }
+        .wenku-book-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #c25e38, #f59e0b);
+        }
+        .wenku-book-title {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-main);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+        .wenku-book-progress-text {
+            font-size: 11px;
+            color: #c25e38;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .wenku-shelf-empty {
+            text-align: center;
+            padding: 40px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+        .wenku-empty-icon {
+            font-size: 36px;
+            color: rgba(194, 94, 56, 0.4);
+            margin-bottom: 12px;
+        }
+        .wenku-search-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         /* 纸间奶白 (Milk White) 柔和纸张主题 */
         html.reader-active.reading-theme-milk,
         body.reading-mode.reading-theme-milk,
@@ -4610,74 +4982,80 @@
 
     <!-- 第2页：小说独立专区 (独立搜索框、独立小说源、原生带图推荐书城) -->
     <section id="novelSection" style="display: none;">
-        <div class="search-box">
-            <div class="tx-capsule-search" style="margin-bottom: 12px;">
-                <input type="search" id="novelSearchInput" name="novel_q_search" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" class="tx-capsule-input" placeholder="输入小说书名、主角名搜索 (如: 剑来, 十日终焉, 凡人修仙传)..." value="" onkeydown="if(event.key==='Enter')doNovelSearch()" />
-                <button type="button" class="tx-capsule-search-btn" onclick="doNovelSearch()" title="搜索小说">
-                    <i class="fas fa-magnifying-glass"></i>
+        <!-- 1. 顶部沉浸「正在阅读 / 最近阅读」Hero展台 (Signature Wenku Hero Card) -->
+        <div id="novelHeroRecentBlock" class="wenku-hero-card" style="display: none;"></div>
+
+        <!-- 2. 优雅融合的搜索与书源胶囊条 (Sleek Integrated Search & Source Filter) -->
+        <div class="wenku-search-bar">
+            <div class="wenku-search-inner">
+                <i class="fas fa-search wenku-search-icon"></i>
+                <input type="search" id="novelSearchInput" name="novel_q_search" autocomplete="off" spellcheck="false" class="wenku-search-input" placeholder="搜索轻小说、全网热本、作者或输入Wenku8 ID..." value="" onkeydown="if(event.key==='Enter')doNovelSearch()" />
+                <button type="button" class="wenku-search-btn" onclick="doNovelSearch()" title="搜索小说">
+                    <i class="fas fa-arrow-right"></i> 搜索
                 </button>
             </div>
-            <div class="filter-row">
-                <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质小说源：</label>
-                <select id="novelSourceSelect" class="select-filter">
-                    <option value="搬山人" selected>搬山人 (全本精校、长篇大作无删减)</option>
-                    <option value="七猫">七猫 (官方正版、都市玄幻爆款)</option>
-                    <option value="番茄">番茄 (原创百万好书、全本连载)</option>
-                    <option value="伪69">伪69 (全网无删减、海量同人全集)</option>
-                    <option value="半夏小说">半夏小说 (纯爱言情、精品高分)</option>
-                    <option value="52书库">52书库 (完结经典精选)</option>
-                    <option value="爱下电子书">爱下电子书 (实体出版精校版)</option>
-                    <option value="全本小说">全本小说 (完本经典大作)</option>
-                    <option value="淘小说">淘小说 (冷门完本书库)</option>
-                    <option value="百度">百度 (百度小说官方库)</option>
-                    <option value="笔趣阁78">笔趣阁78 (传统经典长篇)</option>
-                    <option value="知乎">知乎 (知乎盐选热文)</option>
-                    <option value="ALL">⚡ 聚合搜 (同时检索全部小说源)</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="kanju-suggestions-box">
-            <div class="kanju-suggestion-row">
-                <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热搜小说:</span>
-                <div class="kanju-suggestion-chips">
-                    <button class="kanju-chip" onclick="quickSearchNovel('剑来')">剑来</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('十日终焉')">十日终焉</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('雪中悍刀行')">雪中悍刀行</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('庆余年')">庆余年</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('凡人修仙传')">凡人修仙传</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('仙逆')">仙逆</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('一念永恒')">一念永恒</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('圣墟')">圣墟</button>
-                    <button class="kanju-chip" onclick="quickSearchNovel('长相思')">长相思</button>
+            <div class="wenku-filter-pills">
+                <div class="wenku-tab-chips">
+                    <button class="wenku-chip-btn active" id="wenkuTabShelfBtn" onclick="switchNovelSectionSubTab('shelf')">
+                        <i class="fas fa-bookmark"></i> 纸间藏书架 <span id="wenkuShelfCountBadge" class="wenku-count-pill">0</span>
+                    </button>
+                    <button class="wenku-chip-btn" id="wenkuTabCuratedBtn" onclick="switchNovelSectionSubTab('curated')">
+                        <i class="fas fa-feather-alt"></i> 纸间精选 (轻小说)
+                    </button>
+                    <button class="wenku-chip-btn" id="wenkuTabPopularBtn" onclick="switchNovelSectionSubTab('popular')">
+                        <i class="fas fa-fire"></i> 巅峰口碑
+                    </button>
                 </div>
-            </div>
-            <div class="kanju-suggestion-row">
-                <span class="kanju-suggestion-label"><i class="fas fa-compass" style="color:var(--accent);"></i> 热门题材:</span>
-                <div class="kanju-suggestion-chips">
-                    <button class="kanju-chip sub" onclick="quickSearchNovel('修仙')">仙侠修真</button>
-                    <button class="kanju-chip sub" onclick="quickSearchNovel('斩神')">热血高武</button>
-                    <button class="kanju-chip sub" onclick="quickSearchNovel('悬疑')">悬疑脑洞</button>
-                    <button class="kanju-chip sub" onclick="quickSearchNovel('赘婿')">都市逆袭</button>
-                    <button class="kanju-chip sub" onclick="quickSearchNovel('重生')">权谋古言</button>
+                <div class="wenku-source-dropdown-wrap">
+                    <i class="fas fa-sliders-h" style="font-size:11px; color:var(--text-muted);"></i>
+                    <select id="novelSourceSelect" class="wenku-source-select" onchange="doNovelSearch()">
+                        <option value="轻小说文库" selected>🌸 轻小说文库 (带插画·分卷全彩)</option>
+                        <option value="搬山人">搬山人 (全本精校·无删减)</option>
+                        <option value="七猫">七猫 (正版热度·爆款大作)</option>
+                        <option value="番茄">番茄 (原创全本·百万畅读)</option>
+                        <option value="ALL">⚡ 聚合全网搜</option>
+                    </select>
                 </div>
             </div>
         </div>
 
-        <!-- 小说搜索结果区 (搜索时展示，带封面图卡片) -->
+        <!-- 3. 搜索结果区 (搜索时展示，带一键返回书架按钮) -->
         <div id="novelSearchResultBlock" style="display:none; margin-bottom: 28px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0 12px 0;">
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <h4 id="novelSearchTitle" style="font-size:16px; font-weight:600;"><i class="fas fa-search" style="color:var(--accent);"></i> 小说搜索结果</h4>
-                    <button class="btn" style="font-size:11px; padding:4px 12px;" onclick="window.clearNovelSearch()"><i class="fas fa-times"></i> 返回书城推荐广场</button>
+            <div class="wenku-search-header">
+                <button class="btn primary" style="font-size:12px; padding:6px 14px;" onclick="window.clearNovelSearch()">
+                    <i class="fas fa-chevron-left"></i> 返回纸间书架
+                </button>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <h4 id="novelSearchTitle" style="font-size:15px; font-weight:600;"><i class="fas fa-search" style="color:var(--accent);"></i> 搜索结果</h4>
+                    <span id="novelSearchCountBadge" class="badge">全网检索</span>
                 </div>
-                <span id="novelSearchCountBadge" class="badge" style="font-size:11px; padding:4px 12px;">全网书库</span>
             </div>
             <div id="novelResultsGrid" class="video-grid"></div>
         </div>
 
-        <!-- 原生站点带图小说推荐广场 -->
-        <div id="novelRecommendSectionsContainer"></div>
+        <!-- 4. 纸间实体书架展示区 (Wenku Bookshelf Grid) -->
+        <div id="wenkuBookshelfSection">
+            <div class="wenku-shelf-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-layer-group" style="color:#c25e38; font-size:16px;"></i>
+                    <h3 style="font-size:16px; font-weight:700;">纸间藏书架</h3>
+                    <span id="wenkuShelfSubtext" style="font-size:12px; color:var(--text-muted);">最近阅读即刻继续</span>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn" style="padding:4px 10px; font-size:11px;" onclick="switchNovelSectionSubTab('curated')"><i class="fas fa-plus"></i> 发现好书</button>
+                </div>
+            </div>
+            <div id="wenkuBookshelfGrid" class="wenku-bookshelf-grid"></div>
+            <div id="wenkuBookshelfEmpty" class="wenku-shelf-empty" style="display:none;">
+                <div class="wenku-empty-icon"><i class="fas fa-book-open"></i></div>
+                <div style="font-size:14px; font-weight:600; margin-bottom:6px;">书架空空如也</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">已为您在下方精选日式轻小说与口碑大作，轻触即可开启畅读！</div>
+                <button class="btn primary" onclick="switchNovelSectionSubTab('curated')"><i class="fas fa-sparkles"></i> 浏览纸间轻小说精选</button>
+            </div>
+        </div>
+
+        <!-- 5. 纸间精选与原生态带图推荐专区 -->
+        <div id="novelRecommendSectionsContainer" style="margin-top: 14px;"></div>
     </section>
 
     <!-- 第3页：漫画独立专区 (独立搜索框、独立漫画源、原生带图推荐漫城) -->
@@ -7648,6 +8026,157 @@
     }
 
     // 渲染小说专区原生带图推荐广场
+    
+    // =========================================================================
+    // 🌸 纸间文库 (Wenku8_Flutter) 书架与最近阅读 Hero 渲染逻辑
+    // =========================================================================
+    function getRecentNovel() {
+        const hist = getRecentHistory().filter(b => b && b.tab !== '漫画' && b.tab !== 'video');
+        if (hist.length > 0) return hist[0];
+        const shelf = getLocalShelf().filter(b => b && b.tab !== '漫画');
+        if (shelf.length > 0) return shelf[0];
+        return null;
+    }
+
+    function renderNovelHeroRecent() {
+        const heroEl = document.getElementById('novelHeroRecentBlock');
+        if (!heroEl) return;
+        const recent = getRecentNovel();
+
+        if (!recent) {
+            // 首次进入无历史，展示高分精选力荐
+            heroEl.style.display = 'flex';
+            heroEl.innerHTML = `
+                <div class="wenku-hero-cover-wrap" onclick="loadBookDetail(encodeURIComponent(JSON.stringify({book_name:'欢迎来到实力至上主义的教室', book_id:'wenku8_1973', author:'衣笠彰梧', source:'轻小说文库', tab:'小说', thumb_url:'https://img.wenku8.com/image/1/1973/1973s.jpg'})))">
+                    <img class="wenku-hero-cover-img" src="https://img.wenku8.com/image/1/1973/1973s.jpg" referrerpolicy="no-referrer" />
+                    <div class="wenku-hero-spine"></div>
+                </div>
+                <div class="wenku-hero-info">
+                    <div class="wenku-hero-tag-row">
+                        <span class="wenku-hero-badge"><i class="fas fa-sparkles"></i> 纸间文库精选力荐</span>
+                        <span style="font-size:12px; color:var(--text-muted);">36卷全彩插图 · 500+话</span>
+                    </div>
+                    <div class="wenku-hero-title">欢迎来到实力至上主义的教室</div>
+                    <div class="wenku-hero-chap"><i class="fas fa-feather-alt"></i> 衣笠彰梧 著 · 纸间轻小说殿堂杰作</div>
+                    <div class="wenku-hero-actions">
+                        <button type="button" class="btn btn-wenku-primary" onclick="loadBookDetail(encodeURIComponent(JSON.stringify({book_name:'欢迎来到实力至上主义的教室', book_id:'wenku8_1973', author:'衣笠彰梧', source:'轻小说文库', tab:'小说', thumb_url:'https://img.wenku8.com/image/1/1973/1973s.jpg'})))">
+                            <i class="fas fa-book-open"></i> 开启第一卷畅读
+                        </button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        heroEl.style.display = 'flex';
+        const coverUrl = recent.thumb_url || recent.cover || (recent.book_id && String(recent.book_id).startsWith('wenku8_') ? `https://img.wenku8.com/image/${Math.floor(parseInt(recent.book_id.replace(/^wenku8_/, ''), 10)/1000)}/${parseInt(recent.book_id.replace(/^wenku8_/, ''), 10)}/${parseInt(recent.book_id.replace(/^wenku8_/, ''), 10)}s.jpg` : '');
+        const coverImg = coverUrl ? `<img class="wenku-hero-cover-img" src="${escapeNovelHtml(coverUrl)}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg'" />` : `<div style="display:flex; height:100%; align-items:center; justify-content:center; background:#222; color:#fff; font-size:24px;"><i class="fas fa-book"></i></div>`;
+
+        const encodedBook = encodeURIComponent(JSON.stringify(recent));
+        const chapTitle = recent.lastReadTitle || '开始阅读';
+        const progressLabel = recent.lastProgressLabel || (recent.lastReadIndex !== undefined ? `第 ${recent.lastReadIndex + 1} 章` : '');
+
+        heroEl.innerHTML = `
+            <div class="wenku-hero-cover-wrap" onclick="loadBookDetail('${encodedBook}', ${recent.lastReadIndex || 0})">
+                ${coverImg}
+                <div class="wenku-hero-spine"></div>
+            </div>
+            <div class="wenku-hero-info">
+                <div class="wenku-hero-tag-row">
+                    <span class="wenku-hero-badge"><i class="fas fa-fire"></i> 正在阅读</span>
+                    <span style="font-size:11px; color:var(--text-muted); background:rgba(255,255,255,0.06); padding:2px 8px; border-radius:4px;">${escapeNovelHtml(recent.source || '优质源')}</span>
+                </div>
+                <div class="wenku-hero-title">${escapeNovelHtml(recent.book_name)}</div>
+                <div class="wenku-hero-chap"><i class="fas fa-bookmark" style="color:#c25e38;"></i> 读至: ${escapeNovelHtml(chapTitle)}</div>
+                <div class="wenku-hero-progress-track">
+                    <div class="wenku-hero-progress-bar" style="width: ${Math.min(100, Math.max(10, ((recent.lastReadIndex || 0) + 1) * 3))}%;"></div>
+                </div>
+                <div class="wenku-hero-actions">
+                    <button type="button" class="btn btn-wenku-primary" onclick="loadBookDetail('${encodedBook}', ${recent.lastReadIndex || 0})">
+                        <i class="fas fa-play"></i> 一键继续阅读
+                    </button>
+                    <button type="button" class="btn" style="padding:6px 12px; font-size:12px;" onclick="loadBookDetail('${encodedBook}')">
+                        <i class="fas fa-list-ul"></i> 目录
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderWenkuBookshelf() {
+        const grid = document.getElementById('wenkuBookshelfGrid');
+        const empty = document.getElementById('wenkuBookshelfEmpty');
+        const badge = document.getElementById('wenkuShelfCountBadge');
+        if (!grid) return;
+
+        const shelf = getLocalShelf().filter(b => b && b.tab !== '漫画');
+        if (badge) badge.innerText = shelf.length;
+
+        if (shelf.length === 0) {
+            grid.innerHTML = '';
+            if (empty) empty.style.display = 'block';
+            return;
+        }
+
+        if (empty) empty.style.display = 'none';
+
+        grid.innerHTML = shelf.map((b, idx) => {
+            const coverUrl = b.thumb_url || b.cover || (b.book_id && String(b.book_id).startsWith('wenku8_') ? `https://img.wenku8.com/image/${Math.floor(parseInt(b.book_id.replace(/^wenku8_/, ''), 10)/1000)}/${parseInt(b.book_id.replace(/^wenku8_/, ''), 10)}/${parseInt(b.book_id.replace(/^wenku8_/, ''), 10)}s.jpg` : '');
+            const coverImg = coverUrl ? `<img src="${escapeNovelHtml(coverUrl)}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg'" />` : `<div style="display:flex; height:100%; align-items:center; justify-content:center; background:#222; color:#fff; font-size:20px;"><i class="fas fa-book"></i></div>`;
+            const encoded = encodeURIComponent(JSON.stringify(b));
+            const progress = b.lastReadTitle || '未读';
+
+            return `
+                <div class="wenku-book-card" onclick="loadBookDetail('${encoded}', ${b.lastReadIndex !== undefined ? b.lastReadIndex : 0})">
+                    <div class="wenku-book-cover">
+                        ${coverImg}
+                        <div class="wenku-book-spine"></div>
+                        <span class="wenku-book-source-tag">${escapeNovelHtml(b.source || '小说')}</span>
+                        <div class="wenku-book-progress-bar">
+                            <div class="wenku-book-progress-fill" style="width:${Math.min(100, Math.max(15, ((b.lastReadIndex || 0) + 1) * 5))}%;"></div>
+                        </div>
+                    </div>
+                    <div class="wenku-book-title" title="${escapeNovelHtml(b.book_name)}">${escapeNovelHtml(b.book_name)}</div>
+                    <div class="wenku-book-progress-text" title="${escapeNovelHtml(progress)}">${escapeNovelHtml(progress)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function switchNovelSectionSubTab(tab) {
+        document.querySelectorAll('.wenku-chip-btn').forEach(b => b.classList.remove('active'));
+        const shelfBtn = document.getElementById('wenkuTabShelfBtn');
+        const curatedBtn = document.getElementById('wenkuTabCuratedBtn');
+        const popularBtn = document.getElementById('wenkuTabPopularBtn');
+        const shelfSec = document.getElementById('wenkuBookshelfSection');
+        const plaza = document.getElementById('novelRecommendSectionsContainer');
+        const searchBlock = document.getElementById('novelSearchResultBlock');
+        if (searchBlock) searchBlock.style.display = 'none';
+
+        if (tab === 'shelf') {
+            if (shelfBtn) shelfBtn.classList.add('active');
+            if (shelfSec) shelfSec.style.display = 'block';
+            if (plaza) plaza.style.display = 'block';
+            renderWenkuBookshelf();
+            renderNovelHeroRecent();
+        } else if (tab === 'curated') {
+            if (curatedBtn) curatedBtn.classList.add('active');
+            if (shelfSec) shelfSec.style.display = 'none';
+            if (plaza) {
+                plaza.style.display = 'block';
+                plaza.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else if (tab === 'popular') {
+            if (popularBtn) popularBtn.classList.add('active');
+            if (shelfSec) shelfSec.style.display = 'none';
+            if (plaza) {
+                plaza.style.display = 'block';
+                const blocks = plaza.querySelectorAll('.kanju-section-block');
+                if (blocks[1]) blocks[1].scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    }
+
     window.renderNovelRecommendPlaza = function() {
         const container = document.getElementById('novelRecommendSectionsContainer');
         if (!container) return;
@@ -8249,20 +8778,20 @@
         showView('detail');
 
         try {
-            // 云端通行证预检并发进行（0毫秒额外耗时，确保从任何入口打开都自动对齐最新跨端进度）
+            // 云端通行证在后台静默异步预检，绝不阻塞用户瞬间打开目录与正文！
             const cloudUser = getCloudUser();
-            const cloudFetchPromise = (cloudUser && cloudUser.uid) ? fetchCloudSnapshot(cloudUser.uid).catch(() => null) : Promise.resolve(null);
-
-            const [res, cloudPayload] = await Promise.all([
-                fetch(`/api/catalog?book_id=${encodeURIComponent(book.book_id)}&source=${encodeURIComponent(book.source)}&tab=${encodeURIComponent(activeTab)}`),
-                cloudFetchPromise
-            ]);
-
-            if (cloudPayload) {
-                const localPayload = buildLocalSyncPayload();
-                const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
-                applyMergedPayloadToLocal(merged);
+            if (cloudUser && cloudUser.uid) {
+                fetchCloudSnapshot(cloudUser.uid).then(cloudPayload => {
+                    if (cloudPayload) {
+                        const localPayload = buildLocalSyncPayload();
+                        const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
+                        applyMergedPayloadToLocal(merged);
+                    }
+                }).catch(() => null);
             }
+
+            const catUrl = `/api/catalog?book_id=${encodeURIComponent(book.book_id)}&source=${encodeURIComponent(book.source)}&tab=${encodeURIComponent(activeTab)}&title=${encodeURIComponent(book.book_name || '')}`;
+            const res = await fetch(catUrl, { signal: AbortSignal.timeout(8000) });
 
             const data = await res.json();
             const rawCatalog = data.data || [];

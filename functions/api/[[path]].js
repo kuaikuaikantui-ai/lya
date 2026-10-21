@@ -13,11 +13,35 @@ const CONFIG_URL = 'https://v1.qingtian618.com/static/source_config/config.json'
 async function fetchUpstreamWithFailover(apiPath, isContentCheck = false) {
     let lastData = null;
     let lastErr = null;
-    for (const host of UPSTREAM_POOL) {
+
+    // 并发快速赛跑机制：同时尝试前两大主力节点，优先采用最快响应者，彻底告别逐个串行等待导致的超时卡顿
+    const primaryHosts = UPSTREAM_POOL.slice(0, 2);
+    try {
+        const racePromises = primaryHosts.map(async host => {
+            const r = await fetch(host + apiPath, {
+                headers: getRandomHeaders(),
+                signal: AbortSignal.timeout(3500)
+            });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const data = await r.json();
+            if (!isContentCheck) {
+                if (data && (data.code === 0 || Array.isArray(data.data))) return data;
+            } else {
+                const hasImages = Array.isArray(data.images) && data.images.length > 0;
+                const hasText = typeof data.content === 'string' && data.content.length > 50 && !data.content.includes('免登录访问次数已达上限') && !data.content.includes('已转为内部会员') && !data.content.includes('SVIP');
+                if (hasImages || hasText) return data;
+            }
+            throw new Error('Invalid payload');
+        });
+        return await Promise.any(racePromises);
+    } catch(e) {}
+
+    // 备用节点串行轮询容灾
+    for (const host of UPSTREAM_POOL.slice(2)) {
         try {
             const r = await fetch(host + apiPath, {
                 headers: getRandomHeaders(),
-                signal: AbortSignal.timeout(4500)
+                signal: AbortSignal.timeout(3500)
             });
             if (!r.ok) continue;
             const data = await r.json();
@@ -137,14 +161,17 @@ async function searchBanshanren(keyword) {
 
 async function catalogBanshanren(bookId) {
     try {
-        const url = bookId.startsWith('http') ? bookId : 'https://www.banshanren.com' + bookId;
+        const cleanPath = String(bookId || '').replace(/^https?:\/\/[^\/]+/, '').replace(/\/+$/, '');
+        const url = 'https://www.banshanren.com' + cleanPath;
         const res = await fetch(url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' },
-            signal: AbortSignal.timeout(6000)
+            signal: AbortSignal.timeout(6500)
         });
         if (!res.ok) return [];
         const text = await res.text();
-        const chapMatches = [...text.matchAll(/<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
+        const listIdx = text.indexOf('chapter_list');
+        const searchScope = listIdx !== -1 ? text.substring(listIdx) : text;
+        const chapMatches = [...searchScope.matchAll(/<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
         const chapters = [];
         const seenHrefs = new Set();
 
@@ -152,10 +179,10 @@ async function catalogBanshanren(bookId) {
             const href = m[1];
             const rawTitle = m[2].replace(/<[^>]+>/g, '').trim();
             if (!href) continue;
-            if (rawTitle === '开始阅读' || rawTitle.includes('阅读全文')) continue;
+            if (rawTitle === '开始阅读' || rawTitle.includes('阅读全文') || rawTitle.includes('加入书架') || rawTitle.includes('投票推荐')) continue;
             if (seenHrefs.has(href)) continue;
 
-            if (href.startsWith(bookId + '/') && /^\d+$/.test(href.substring(bookId.length + 1))) {
+            if (href.startsWith(cleanPath + '/') || href.includes('/novel/')) {
                 seenHrefs.add(href);
                 if (rawTitle) {
                     chapters.push({
@@ -1182,11 +1209,20 @@ const workerHandler = {
             const book_id = url.searchParams.get('book_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
+            const title = url.searchParams.get('title') || '';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
             if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('wenku8_') || book_id.startsWith('wk8_')) {
-                const chapters = await catalogWenku8(book_id);
-                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters }), {
+                let chapters = await catalogWenku8(book_id);
+                if ((!chapters || chapters.length === 0) && title) {
+                    try {
+                        const bList = await searchBanshanren(title);
+                        if (bList && bList.length > 0) {
+                            chapters = await catalogBanshanren(bList[0].book_id);
+                        }
+                    } catch(e) {}
+                }
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters || [] }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             }
@@ -1201,10 +1237,36 @@ const workerHandler = {
             try {
                 const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await fetchUpstreamWithFailover(apiPath, false);
+                if (tab === '小说' && (!data || !data.data || data.data.length === 0) && title) {
+                    try {
+                        const bList = await searchBanshanren(title);
+                        if (bList && bList.length > 0) {
+                            const bCat = await catalogBanshanren(bList[0].book_id);
+                            if (bCat && bCat.length > 0) {
+                                return new Response(JSON.stringify({ code: 0, msg: '已自动为您无缝接力至【搬山人】优质源目录', data: bCat, autoSwitched: true }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                });
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
                 return new Response(JSON.stringify(data), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
+                if (tab === '小说' && title) {
+                    try {
+                        const bList = await searchBanshanren(title);
+                        if (bList && bList.length > 0) {
+                            const bCat = await catalogBanshanren(bList[0].book_id);
+                            if (bCat && bCat.length > 0) {
+                                return new Response(JSON.stringify({ code: 0, msg: '已自动为您无缝接力至【搬山人】优质源目录', data: bCat, autoSwitched: true }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                });
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
                 return new Response(JSON.stringify({ code: -1, msg: e.message, data: [] }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
