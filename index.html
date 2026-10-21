@@ -5043,7 +5043,7 @@
                 <i class="fas fa-clapperboard"></i> <span>影视首页</span>
             </button>
             <button class="tab-nav-btn" id="navNovelBtn" onclick="switchNav('novel')">
-                <i class="fas fa-book-open"></i> <span>小说</span>
+                <i class="fas fa-book-bookmark"></i> <span>书架</span>
             </button>
             <button class="tab-nav-btn" id="navMangaBtn" onclick="switchNav('manga')">
                 <i class="fas fa-images"></i> <span>漫画专区</span>
@@ -5121,7 +5121,7 @@
                         </span>
                         <span class="my-tab-count" id="videoTabCountBadge">0</span>
                     </button>
-                    <button class="history-subnav-btn" id="histTabShelf" onclick="switchHistoryTab('shelf')">
+                    <button class="history-subnav-btn" id="histTabShelf" onclick="switchNav('novel')">
                         <span class="my-tab-left">
                             <i class="fas fa-bookmark"></i>
                             <span>我的书架</span>
@@ -5231,14 +5231,14 @@
         <div class="wenku-bookshelf-appbar">
             <div class="wenku-appbar-left">
                 <div class="wenku-appbar-brand-icon">
-                    <i class="fas fa-book-open"></i>
+                    <span style="font-size:13px; font-weight:900; letter-spacing:-0.5px;">W8</span>
                 </div>
                 <div>
                     <div class="wenku-appbar-title">
-                        <span>书架</span>
+                        <span>轻小说文库</span>
                         <span id="wenkuShelfTotalBadge" class="wenku-appbar-badge">0 本藏书</span>
                     </div>
-                    <div class="wenku-appbar-sub">BOOKSHELF · READING ARCHIVE · 全网书源</div>
+                    <div class="wenku-appbar-sub">WENKU8 · READING ARCHIVE · 全网书架</div>
                 </div>
             </div>
             <div class="wenku-appbar-actions">
@@ -5247,9 +5247,6 @@
                 </button>
                 <button type="button" class="wenku-icon-btn" id="wenkuSearchToggleBtn" onclick="toggleWenkuSearchOverlay()" title="搜索全网小说">
                     <i class="fas fa-search"></i>
-                </button>
-                <button type="button" class="wenku-icon-btn" onclick="scrollToNovelPlaza()" title="发现全网好书">
-                    <i class="fas fa-compass"></i>
                 </button>
             </div>
         </div>
@@ -7858,27 +7855,21 @@
             const authorText = activeBook.author ? escapeNovelHtml(activeBook.author) : '全网精选';
             const statusText = activeBook.status ? escapeNovelHtml(activeBook.status) : '连载中';
 
-            detailEl.innerHTML = '<div class="wenku-showcase-title-wrap" onclick="loadBookDetail(\'' + encoded + '\', ' + readIdx + ')" title="点击直接阅读当前章节">' +
+            detailEl.innerHTML = '<div class="wenku-showcase-title-wrap" onclick="loadBookDetail(\'' + encoded + '\', ' + readIdx + ')" title="点击立即畅读">' +
                 '<span class="wenku-showcase-title">' + escapeNovelHtml(activeBook.book_name) + '</span> ' +
                 '<i class="fas fa-arrow-up-right-from-square wenku-showcase-arrow"></i>' +
             '</div>' +
             '<div class="wenku-showcase-meta">' +
                 '<span>' + authorText + ' ' + statusText + '</span>' +
-                (activeBook.lastReadTitle ? ('<span style="opacity:0.4;">·</span><span><i class="fas fa-bookmark" style="color:#c25e38;"></i> 读至: ' + escapeNovelHtml(chapTitle) + '</span>') : '') +
-                '<span style="opacity:0.4;">·</span>' +
-                '<span class="badge" style="background:rgba(194,94,56,0.18); color:#ff8a65; border:1px solid rgba(194,94,56,0.3); font-size:11px; padding:2px 7px; border-radius:4px;">' + escapeNovelHtml(activeBook.source || '全网') + '</span>' +
-            '</div>' +
-            '<div class="wenku-showcase-actions">' +
-                '<button type="button" class="btn btn-wenku-primary" onclick="loadBookDetail(\'' + encoded + '\', ' + readIdx + ')">' +
-                    '<i class="fas fa-book-open"></i> 一键继续阅读' +
-                '</button>' +
-                '<button type="button" class="btn" style="padding:7px 14px; font-size:12.5px;" onclick="loadBookDetail(\'' + encoded + '\')">' +
-                    '<i class="fas fa-list-ul"></i> 目录' +
-                '</button>' +
-                '<button type="button" class="btn" style="padding:7px 14px; font-size:12.5px;" onclick="scrollToNovelPlaza()">' +
-                    '<i class="fas fa-compass"></i> 发现好书' +
-                '</button>' +
+                (activeBook.lastReadTitle ? ('<span style="opacity:0.4;">·</span><span>读至: ' + escapeNovelHtml(chapTitle) + '</span>') : '') +
             '</div>';
+
+            setTimeout(() => {
+                const activeEl = spineRow.querySelector('.wenku-spine-item.active');
+                if (activeEl) {
+                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            }, 60);
         }
     };
 
