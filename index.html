@@ -2551,12 +2551,13 @@
         /* 📚 3D 实体书脊拟真书架展示�?(Spine Shelf Showcase) */
         .wenku-shelf-stage {
             perspective: 1200px;
-            padding: 24px 10px 10px;
-            background: radial-gradient(ellipse at 50% 120%, rgba(194, 94, 56, 0.14) 0%, rgba(20, 22, 28, 0.6) 60%, transparent 100%);
+            padding: 28px 12px 14px;
+            background: radial-gradient(ellipse at 50% 120%, rgba(194, 94, 56, 0.16) 0%, rgba(18, 20, 26, 0.8) 60%, transparent 100%);
             border-radius: 20px;
             margin-bottom: 24px;
             position: relative;
             user-select: none;
+            overflow: hidden;
         }
         .wenku-spine-row-wrap {
             overflow-x: auto;
@@ -2592,23 +2593,35 @@
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding: 8px 2px 6px;
+            padding: 7px 2px 6px;
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
             border-left: 1px solid rgba(0, 0, 0, 0.15);
             border-right: 1px solid rgba(0, 0, 0, 0.25);
         }
+        .wenku-spine-body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(220,225,230,0.4) 100%);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            pointer-events: none;
+        }
         .wenku-spine-tag {
             font-size: 8px;
             font-weight: 700;
-            color: #fff;
-            background: #c25e38;
-            padding: 2px 3px;
-            border-radius: 2px;
-            letter-spacing: -0.5px;
+            color: #4b5563;
+            background: #eef2f6;
+            padding: 1px 3px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            letter-spacing: -0.2px;
             white-space: nowrap;
-            transform: scale(0.85);
+            line-height: 1.1;
         }
         .wenku-spine-title {
             writing-mode: vertical-rl;
@@ -2617,7 +2630,7 @@
             font-weight: 700;
             color: #1a202c;
             letter-spacing: 1.5px;
-            max-height: 120px;
+            max-height: 124px;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
@@ -2626,7 +2639,7 @@
         .wenku-spine-bottom-bar {
             width: 65%;
             height: 3px;
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.22);
             border-radius: 1px;
         }
         .wenku-spine-item:hover:not(.active) {
@@ -2634,15 +2647,30 @@
             box-shadow: 4px 14px 22px rgba(0, 0, 0, 0.55);
         }
 
-        /* 激活立体的 3D 突出展示书籍 (Active Featured 3D Book) */
+        /* 激活立体的 3D 突出展示书籍 (Active Featured 3D Double Book) */
         .wenku-spine-item.active {
             width: 135px;
             height: 195px;
-            margin: 0 14px;
+            margin: 0 16px;
             transform: translateZ(55px) translateY(-14px) rotateY(-22deg);
             box-shadow: -16px 20px 32px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255,255,255,0.4) inset;
             border-radius: 4px 8px 8px 4px;
             overflow: visible;
+        }
+        .wenku-spine-item.active::before {
+            content: '';
+            position: absolute;
+            left: -14px;
+            top: 2px;
+            bottom: -2px;
+            width: 98%;
+            background: linear-gradient(135deg, #262b38 0%, #11141c 100%);
+            border-radius: 4px 6px 6px 4px;
+            transform: translateZ(-28px) rotateY(4deg);
+            box-shadow: -10px 14px 28px rgba(0, 0, 0, 0.5);
+            border-left: 2px solid rgba(255, 255, 255, 0.2);
+            z-index: 0;
+            pointer-events: none;
         }
         .wenku-featured-3d-book {
             width: 100%;
@@ -2651,6 +2679,7 @@
             border-radius: 4px 8px 8px 4px;
             overflow: hidden;
             background: #181a20;
+            z-index: 1;
         }
         .wenku-featured-3d-book img {
             width: 100%;
@@ -2682,7 +2711,6 @@
             z-index: 3;
         }
 
-        /* 底部拟真书架托板 */
         .wenku-shelf-plank {
             height: 12px;
             background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(0, 0, 0, 0.3) 100%);
@@ -7680,15 +7708,17 @@
     window._currentWenkuSpineIndex = 0;
 
     const DEFAULT_WENKU_SHOWCASE = [
-        { book_name: '欢迎来到实力至上主义的教室', book_id: 'wenku8_1973', author: '衣笠彰梧', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/1/1973/1973s.jpg', lastReadTitle: '第1卷 插画与序章' },
-        { book_name: '关于我转生变成史莱姆这档事', book_id: 'wenku8_1787', author: '伏濑', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/1/1787/1787s.jpg', lastReadTitle: '第1卷 死亡与转生' },
-        { book_name: '刀剑神域', book_id: 'wenku8_425', author: '川原砾', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/0/425/425s.jpg', lastReadTitle: '第1卷 艾恩葛朗特' },
-        { book_name: '86-不存在的战区-', book_id: 'wenku8_2308', author: '安里アサト', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/2/2308/2308s.jpg', lastReadTitle: '第1卷 无战死者之战场' },
-        { book_name: '魔女之旅', book_id: 'wenku8_2159', author: '白石定规', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/2/2159/2159s.jpg', lastReadTitle: '第1卷 旅途的起点' },
-        { book_name: '无职转生～到了异世界就拿出真本事～', book_id: 'wenku8_1671', author: '理不尽な孙の手', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/1/1671/1671s.jpg', lastReadTitle: '第1卷 幼年期' },
-        { book_name: '遮天', book_id: '1', author: '辰东', source: '搬山人', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 星空中的九龙拉棺' },
-        { book_name: '剑来', book_id: '2', author: '烽火戏诸侯', source: '七猫', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 惊蛰' },
-        { book_name: '十日终焉', book_id: '3', author: '杀虫队队员', source: '番茄', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 欢迎来到地狱' }
+        { book_name: '余命一年的我，遇上不可思议的少女', book_id: 'wenku8_3020', author: '森田季节', status: '连载中', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/3/3020/3020s.jpg', lastReadTitle: '第1卷 序章' },
+        { book_name: '欢迎来到实力至上主义的教室', book_id: 'wenku8_1973', author: '衣笠彰梧', status: '连载中', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/1/1973/1973s.jpg', lastReadTitle: '第1卷 插画与序章' },
+        { book_name: '关于我转生变成史莱姆这档事', book_id: 'wenku8_1787', author: '伏濑', status: '连载中', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/1/1787/1787s.jpg', lastReadTitle: '第1卷 死亡与转生' },
+        { book_name: '魔女之旅', book_id: 'wenku8_2159', author: '白石定规', status: '连载中', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/2/2159/2159s.jpg', lastReadTitle: '第1卷 旅途的起点' },
+        { book_name: '在异世界获得超强能力的我，在现实世界照样无敌～等级提升改变人生命运～', book_id: 'wenku8_2556', author: '美红', status: '连载中', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/2/2556/2556s.jpg', lastReadTitle: '第1卷 改变命运的现实与异世界' },
+        { book_name: '转生成为了只有乙女游戏破灭Flag的邪恶大小姐', book_id: 'wenku8_2298', author: '山口悟', status: '连载中', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/2/2298/2298s.jpg', lastReadTitle: '第1卷 破灭Flag' },
+        { book_name: '无职转生～到了异世界就拿出真本事～', book_id: 'wenku8_1671', author: '理不尽な孙の手', status: '连载中', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/1/1671/1671s.jpg', lastReadTitle: '第1卷 幼年期' },
+        { book_name: '刀剑神域', book_id: 'wenku8_425', author: '川原砾', status: '连载中', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/0/425/425s.jpg', lastReadTitle: '第1卷 艾恩葛朗特' },
+        { book_name: '86-不存在的战区-', book_id: 'wenku8_2308', author: '安里アサト', status: '连载中', source: '轻小说文库', tab: '小说', thumb_url: 'https://img.wenku8.com/image/2/2308/2308s.jpg', lastReadTitle: '第1卷 无战死者之战场' },
+        { book_name: '遮天', book_id: '1', author: '辰东', status: '完结', source: '搬山人', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 星空中的九龙拉棺' },
+        { book_name: '剑来', book_id: '2', author: '烽火戏诸侯', status: '连载中', source: '七猫', tab: '小说', thumb_url: 'https://cdn.wtzw.com/bookimg/public/images/cover/9bf3/859b58b1d74a3f3f3295b9dfa59969e0_360x480.jpg', lastReadTitle: '第1章 惊蛰' }
     ];
 
     function getWenkuCoverUrl(b) {
@@ -7708,23 +7738,22 @@
         const overlay = document.getElementById('wenkuSearchOverlay');
         const toggleBtn = document.getElementById('wenkuSearchToggleBtn');
         if (!overlay) return;
-        const willShow = (force !== undefined) ? !!force : (overlay.style.display === 'none' || !overlay.style.display);
+        const willShow = (force !== undefined) ? force : (overlay.style.display === 'none');
         overlay.style.display = willShow ? 'block' : 'none';
-        if (toggleBtn) toggleBtn.classList.toggle('active', willShow);
+        if (toggleBtn) {
+            toggleBtn.classList.toggle('active', willShow);
+        }
         if (willShow) {
             const input = document.getElementById('novelSearchInput');
             if (input) {
-                setTimeout(() => {
-                    input.focus();
-                    input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }, 50);
+                setTimeout(() => { input.focus(); }, 120);
             }
         }
     };
 
     window.selectNovelSourceChip = function(src) {
-        document.querySelectorAll('#wenkuSourceChips .wenku-source-chip').forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-src') === src);
+        document.querySelectorAll('#wenkuSourceChips .wenku-source-chip').forEach(chip => {
+            chip.classList.toggle('active', chip.getAttribute('data-src') === src);
         });
         const select = document.getElementById('novelSourceSelect');
         if (select) {
@@ -7773,14 +7802,23 @@
             for (const item of DEFAULT_WENKU_SHOWCASE) {
                 if (!existingNames.has(item.book_name)) {
                     displayBooks.push(item);
-                    if (displayBooks.length >= 8) break;
+                    if (displayBooks.length >= 11) break;
                 }
             }
         }
 
-        if (window._currentWenkuSpineIndex >= displayBooks.length) {
+        // 默认将焦点置于用户最近阅读，若为初始预置推荐则置于中心神作（对标用户原图）
+        if (window._currentWenkuSpineIndex === undefined || window._currentWenkuSpineIndex === null) {
+            if (userBooks.length > 0) {
+                window._currentWenkuSpineIndex = 0;
+            } else {
+                const targetIdx = displayBooks.findIndex(b => b.book_name && b.book_name.includes('在异世界获得超强能力'));
+                window._currentWenkuSpineIndex = targetIdx !== -1 ? targetIdx : Math.floor(displayBooks.length / 2);
+            }
+        } else if (window._currentWenkuSpineIndex >= displayBooks.length) {
             window._currentWenkuSpineIndex = 0;
         }
+
         const activeIdx = window._currentWenkuSpineIndex || 0;
         const activeBook = displayBooks[activeIdx] || displayBooks[0];
 
@@ -7802,10 +7840,10 @@
                     '</div>' +
                 '</div>';
             } else {
-                const shortTag = escapeNovelHtml((b.source || '文库').substring(0, 2));
+                const volTag = '0.' + ((idx % 9) + 1);
                 return '<div class="wenku-spine-item" onclick="selectWenkuSpine(' + idx + ')" title="' + escapeNovelHtml(b.book_name) + ' · 点击检视">' +
                     '<div class="wenku-spine-body">' +
-                        '<div class="wenku-spine-tag">' + shortTag + '</div>' +
+                        '<div class="wenku-spine-tag">' + volTag + '</div>' +
                         '<div class="wenku-spine-title">' + escapeNovelHtml(b.book_name) + '</div>' +
                         '<div class="wenku-spine-bottom-bar"></div>' +
                     '</div>' +
@@ -7817,21 +7855,18 @@
             const encoded = encodeURIComponent(JSON.stringify(activeBook));
             const readIdx = activeBook.lastReadIndex !== undefined ? activeBook.lastReadIndex : 0;
             const chapTitle = activeBook.lastReadTitle || '开始阅读';
-            const timeAgo = formatTimeAgo(activeBook.updatedAt);
             const authorText = activeBook.author ? escapeNovelHtml(activeBook.author) : '全网精选';
+            const statusText = activeBook.status ? escapeNovelHtml(activeBook.status) : '连载中';
 
             detailEl.innerHTML = '<div class="wenku-showcase-title-wrap" onclick="loadBookDetail(\'' + encoded + '\', ' + readIdx + ')" title="点击直接阅读当前章节">' +
                 '<span class="wenku-showcase-title">' + escapeNovelHtml(activeBook.book_name) + '</span> ' +
                 '<i class="fas fa-arrow-up-right-from-square wenku-showcase-arrow"></i>' +
             '</div>' +
             '<div class="wenku-showcase-meta">' +
-                '<span><i class="fas fa-feather-alt"></i> ' + authorText + '</span>' +
-                '<span style="opacity:0.4;">·</span>' +
-                '<span><i class="fas fa-bookmark" style="color:#c25e38;"></i> 读至: ' + escapeNovelHtml(chapTitle) + '</span>' +
+                '<span>' + authorText + ' ' + statusText + '</span>' +
+                (activeBook.lastReadTitle ? ('<span style="opacity:0.4;">·</span><span><i class="fas fa-bookmark" style="color:#c25e38;"></i> 读至: ' + escapeNovelHtml(chapTitle) + '</span>') : '') +
                 '<span style="opacity:0.4;">·</span>' +
                 '<span class="badge" style="background:rgba(194,94,56,0.18); color:#ff8a65; border:1px solid rgba(194,94,56,0.3); font-size:11px; padding:2px 7px; border-radius:4px;">' + escapeNovelHtml(activeBook.source || '全网') + '</span>' +
-                '<span style="opacity:0.4;">·</span>' +
-                '<span style="font-size:11.5px;"><i class="far fa-clock"></i> ' + timeAgo + '</span>' +
             '</div>' +
             '<div class="wenku-showcase-actions">' +
                 '<button type="button" class="btn btn-wenku-primary" onclick="loadBookDetail(\'' + encoded + '\', ' + readIdx + ')">' +
@@ -7841,7 +7876,7 @@
                     '<i class="fas fa-list-ul"></i> 目录' +
                 '</button>' +
                 '<button type="button" class="btn" style="padding:7px 14px; font-size:12.5px;" onclick="scrollToNovelPlaza()">' +
-                    '<i class="fas fa-compass"></i> 书城精选' +
+                    '<i class="fas fa-compass"></i> 发现好书' +
                 '</button>' +
             '</div>';
         }
