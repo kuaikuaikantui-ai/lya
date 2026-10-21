@@ -8853,6 +8853,22 @@
         window.updateWenkuWaveTransforms(window._currentWenkuFocusIndex || 0);
     }
 
+    function getWenkuHistoryNovels() {
+        if (typeof getAllBookshelfNovels === 'function') {
+            const list = getAllBookshelfNovels();
+            if (list && list.length > 0) return list;
+        }
+        return DEFAULT_UNIVERSAL_SHOWCASE;
+    }
+
+    window.renderWenkuWaveShowcase = function() {
+        const displayBooks = getWenkuHistoryNovels();
+        window._allWenkuShelfBooks = displayBooks;
+        renderSpaciousShelfRow();
+        updateShelfBottomDetail(window._currentWenkuFocusIndex || 0);
+    };
+    window.renderWenkuSpineShelf = window.renderWenkuWaveShowcase;
+
     window.renderWenkuBookshelf = function() {
         const grid = document.getElementById('wenkuBookshelfGrid');
         const empty = document.getElementById('wenkuBookshelfEmpty');
@@ -8901,10 +8917,25 @@
         if (window._currentWenkuTab === 'plaza') {
             switchWenkuViewTab('plaza');
         } else {
-            renderWenkuSpineShelf();
-            renderWenkuBookshelf();
+            if (typeof window.renderWenkuWaveShowcase === 'function') {
+                window.renderWenkuWaveShowcase();
+            }
+            if (typeof window.renderWenkuBookshelf === 'function') {
+                window.renderWenkuBookshelf();
+            }
         }
     };
+
+    // 默认即时渲染 3D 书架，确保首次进入即见立体实体书本
+    setTimeout(() => {
+        try {
+            if (typeof window.renderWenkuBookshelfPage === 'function') {
+                window.renderWenkuBookshelfPage();
+            }
+        } catch (e) {
+            console.error('Initial shelf load error:', e);
+        }
+    }, 50);
     function switchNovelSectionSubTab(tab) {
         document.querySelectorAll('.wenku-chip-btn').forEach(b => b.classList.remove('active'));
         const shelfBtn = document.getElementById('wenkuTabShelfBtn');
