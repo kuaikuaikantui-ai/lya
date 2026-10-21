@@ -2379,7 +2379,210 @@
         }
 
         /* 小说阅读背景专属主题切换 (羊皮纸/极夜黑/护眼绿/晨曦白/雅致灰) */
-        .reader-wrapper.theme-parchment {
+        
+        /* 纸间奶白 (Milk White) 柔和纸张主题 */
+        html.reader-active.reading-theme-milk,
+        body.reading-mode.reading-theme-milk,
+        body.reading-mode.reading-theme-milk main,
+        body.reading-mode.reading-theme-milk #readerView,
+        body.reading-mode.reading-theme-milk .reader-wrapper {
+            background-color: #f7f4ee !important;
+            background-image: none !important;
+        }
+        .reader-wrapper.theme-milk {
+            background: #f7f4ee !important;
+            color: #2c2a29 !important;
+            border: 1px solid rgba(195, 185, 170, 0.45) !important;
+            box-shadow: 0 12px 36px rgba(120, 105, 85, 0.12) !important;
+        }
+        .reader-wrapper.theme-milk .text-stream {
+            color: #2c2a29 !important;
+        }
+        .palette-btn.milk {
+            background: #f7f4ee !important;
+            border: 1.5px solid #d5cebf !important;
+        }
+
+        /* 📖 双页对开模式 (Two-Page Spread Mode) - PC与平板宽屏模拟真实书籍 */
+        .reader-paginated-viewport.mode-spread {
+            position: relative;
+            padding: 0 16px;
+        }
+        .reader-paginated-viewport.mode-spread::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 28px;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, rgba(0,0,0,0.01) 0%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.01) 100%);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* ⛩️ 和风竖排模式 (Japanese Vertical RTL Writing Mode) */
+        .reader-wrapper.mode-vertical {
+            overflow: hidden;
+            position: relative;
+        }
+        .reader-vertical-viewport {
+            width: 100%;
+            height: calc(100vh - 150px);
+            max-height: 860px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            direction: rtl;
+            -webkit-overflow-scrolling: touch;
+            padding: 18px 24px 28px;
+            scroll-behavior: smooth;
+        }
+        .vertical-stream {
+            writing-mode: vertical-rl !important;
+            -webkit-writing-mode: vertical-rl !important;
+            text-orientation: mixed !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            width: auto !important;
+            display: inline-block !important;
+            direction: ltr !important;
+        }
+        .vertical-stream .novel-chapter-header {
+            border-bottom: none !important;
+            border-left: 2px solid var(--border) !important;
+            padding-left: 18px !important;
+            margin-left: 28px !important;
+            margin-bottom: 0 !important;
+            display: inline-block !important;
+        }
+        .vertical-stream .novel-para {
+            margin-left: 1.8em !important;
+            margin-bottom: 0 !important;
+            text-indent: 2em !important;
+            line-height: 2.2 !important;
+        }
+
+        /* 🌸 轻小说官方插画画廊与卡片 */
+        .novel-illustration-gallery {
+            margin: 24px 0;
+            padding: 14px;
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px dashed rgba(194, 94, 56, 0.35);
+            border-radius: 12px;
+            writing-mode: horizontal-tb !important;
+            direction: ltr !important;
+        }
+        .novel-illustration-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #c25e38;
+            margin-bottom: 12px;
+        }
+        .novel-illustration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        @media (max-width: 640px) {
+            .novel-illustration-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .novel-illustration-card {
+            position: relative;
+            background: rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-align: center;
+        }
+        .novel-illustration-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+        .novel-illustration-card img {
+            width: 100%;
+            max-height: 380px;
+            object-fit: contain;
+            display: block;
+            background: rgba(0, 0, 0, 0.02);
+        }
+        .novel-illustration-badge {
+            display: block;
+            padding: 6px 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.03);
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* 🖼️ 轻小说全屏高画质插画灯箱 (Lightbox) */
+        .novel-lightbox-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(12px);
+            display: none;
+            flex-direction: column;
+            z-index: 10000;
+        }
+        .novel-lightbox-overlay.open {
+            display: flex;
+        }
+        .lightbox-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 18px;
+            background: rgba(20, 20, 25, 0.85);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 14px;
+        }
+        .lightbox-img-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            overflow: auto;
+        }
+        .lightbox-img-wrapper img {
+            max-width: 95vw;
+            max-height: 85vh;
+            object-fit: contain;
+            border-radius: 6px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            transition: transform 0.2s ease;
+        }
+
+        /* 📑 目录分卷标题分隔符 */
+        .catalog-volume-divider {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            margin-top: 12px;
+            margin-bottom: 4px;
+            background: rgba(194, 94, 56, 0.08);
+            border-left: 3.5px solid #c25e38;
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 13.5px;
+            font-weight: 600;
+        }
+        .catalog-volume-divider i {
+            color: #c25e38;
+            font-size: 12px;
+        }
+
+.reader-wrapper.theme-parchment {
             background: #f4ece1 !important;
             color: #2d261e !important;
             border: 1px solid rgba(180, 160, 140, 0.35) !important;
@@ -4779,6 +4982,8 @@
                 <!-- 快捷背景色切换 -->
                 <div class="theme-palette-group" style="margin-right:4px;">
                     <button class="palette-btn parchment" onclick="setNovelTheme('parchment')" title="羊皮纸"></button>
+                                <button class="palette-btn milk" onclick="setNovelTheme('milk')" title="纸间奶白"></button>
+                    <button class="palette-btn milk" onclick="setNovelTheme('milk')" title="纸间奶白"></button>
                     <button class="palette-btn night" onclick="setNovelTheme('night')" title="极夜黑"></button>
                     <button class="palette-btn mint" onclick="setNovelTheme('mint')" title="护眼绿"></button>
                 </div>
@@ -5204,7 +5409,7 @@
         currentNovelTheme = themeName;
         localStorage.setItem('novel_reading_theme', themeName);
         const container = document.getElementById('readerContainer');
-        const allThemes = ['parchment', 'night', 'mint', 'daylight', 'slate'];
+        const allThemes = ['parchment', 'milk', 'night', 'mint', 'daylight', 'slate'];
         if (container) {
             allThemes.forEach(t => container.classList.remove('theme-' + t));
             container.classList.add('theme-' + themeName);
@@ -7266,7 +7471,7 @@
     function switchNav(nav) {
         document.body.classList.remove('reading-mode', 'reader-mode-paginated');
         document.documentElement.classList.remove('reader-locked-paginated', 'reader-active');
-        const allThemes = ['parchment', 'night', 'mint', 'daylight', 'slate'];
+        const allThemes = ['parchment', 'milk', 'night', 'mint', 'daylight', 'slate'];
         allThemes.forEach(t => {
             document.body.classList.remove('reading-theme-' + t);
             document.documentElement.classList.remove('reading-theme-' + t);
@@ -7964,6 +8169,31 @@
         const indexed = currentCatalog.map((chap, idx) => ({ chap, idx }));
         if (_detailCatalogReversed) indexed.reverse();
 
+        const hasVolumes = currentCatalog.some(c => c && c.volume);
+        if (hasVolumes) {
+            let catHtml = '';
+            let lastVol = null;
+            for (const { chap, idx } of indexed) {
+                const volName = chap.volume || '正文分卷';
+                if (volName !== lastVol) {
+                    lastVol = volName;
+                    catHtml += `
+                        <div class="catalog-volume-divider">
+                            <i class="fas fa-bookmark"></i>
+                            <span>${escapeNovelHtml(volName)}</span>
+                        </div>
+                    `;
+                }
+                catHtml += `
+                    <div class="chap-btn ${currentChapterIndex === idx ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="onCatalogChapterClick(${idx})">
+                        ${escapeNovelHtml(chap.title)}
+                    </div>
+                `;
+            }
+            catalogList.innerHTML = catHtml;
+            return;
+        }
+
         catalogList.innerHTML = indexed.map(({ chap, idx }) => `
             <div class="chap-btn ${currentChapterIndex === idx ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="onCatalogChapterClick(${idx})">
                 ${escapeNovelHtml(chap.title)}
@@ -8254,12 +8484,33 @@
         return finalParas;
     }
 
-    function formatNovelContentToHtml(rawText, chapTitle, bookInfo) {
+    function formatNovelContentToHtml(rawText, chapTitle, bookInfo, images = []) {
         const bookName = bookInfo?.book_name || '小说正文';
         const sourceName = bookInfo?.source || '书源';
         const paras = smartSegmentNovelParagraphs(rawText, chapTitle, bookName);
         const totalChars = paras.reduce((sum, p) => sum + p.length, 0);
         const estMinutes = Math.max(1, Math.round(totalChars / 420));
+
+        let illustrationHtml = '';
+        if (Array.isArray(images) && images.length > 0) {
+            const illCards = images.map((img, i) => `
+                <div class="novel-illustration-card" onclick="openNovelLightbox('${escapeNovelHtml(img)}')">
+                    <img src="${escapeNovelHtml(img)}" referrerpolicy="no-referrer" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='/api/image-proxy?url=' + encodeURIComponent('${escapeNovelHtml(img)}')" />
+                    <div class="novel-illustration-badge"><i class="fas fa-search-plus"></i> 高清插画 #${i + 1} (轻触全屏放大)</div>
+                </div>
+            `).join('');
+            illustrationHtml = `
+                <div class="novel-illustration-gallery">
+                    <div class="novel-illustration-bar">
+                        <i class="fas fa-images"></i>
+                        <span>官方全彩插画 (${images.length}P · 轻触卡片开启高清灯箱)</span>
+                    </div>
+                    <div class="novel-illustration-grid">
+                        ${illCards}
+                    </div>
+                </div>
+            `;
+        }
 
         const headerHtml = `
             <header class="novel-chapter-header">
@@ -8270,20 +8521,44 @@
                 <h2 class="novel-chapter-title">${escapeNovelHtml(chapTitle || '正文')}</h2>
                 <div class="novel-chapter-meta">
                     <span><i class="far fa-file-word"></i> 本章 ${totalChars} 字</span>
-                    <span><i class="far fa-clock"></i> 约 ${estMinutes} 分钟读完</span>
+                    ${images && images.length > 0 ? `<span><i class="fas fa-images"></i> 附 ${images.length} 张插画</span>` : `<span><i class="far fa-clock"></i> 约 ${estMinutes} 分钟读完</span>`}
                     <span><i class="fas fa-feather-alt"></i> 赫蹏 Heti · 霞鹜文楷排版</span>
                 </div>
             </header>
         `;
 
-        const bodyHtml = paras.map(p => `<p class="novel-para">${escapeNovelHtml(p)}</p>`).join('');
+        const isIllOnly = (chapTitle && chapTitle.includes('插图')) || (paras.length <= 1 && images.length > 0);
+        const bodyContent = isIllOnly
+            ? `${illustrationHtml}${paras.map(p => `<p class="novel-para">${escapeNovelHtml(p)}</p>`).join('')}`
+            : `${paras.map(p => `<p class="novel-para">${escapeNovelHtml(p)}</p>`).join('')}${illustrationHtml}`;
+
         return {
             headerHtml,
-            bodyHtml,
-            fullScrollHtml: `<article class="text-stream heti" id="novelArticleStream">${headerHtml}${bodyHtml}</article>`,
+            bodyHtml: bodyContent,
+            fullScrollHtml: `<article class="text-stream heti" id="novelArticleStream">${headerHtml}${bodyContent}</article>`,
             totalChars,
-            paraCount: paras.length
+            paraCount: paras.length,
+            hasImages: images && images.length > 0
         };
+    }
+
+    
+    function openNovelLightbox(imgUrl) {
+        const lightbox = document.getElementById('novelImageLightbox');
+        if (!lightbox) return;
+        const img = document.getElementById('lightboxImg');
+        const origLink = document.getElementById('lightboxOriginalLink');
+        if (img) img.src = imgUrl;
+        if (origLink) origLink.href = imgUrl;
+        lightbox.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeNovelLightbox() {
+        const lightbox = document.getElementById('novelImageLightbox');
+        if (!lightbox) return;
+        lightbox.classList.remove('open');
+        document.body.style.overflow = '';
     }
 
     function applyHetiTypography() {
@@ -8318,13 +8593,38 @@
         }
         _lastRenderedNovelData = { formatted, chapTitle, idx, initialPage: _targetInitialPage };
 
-        // 确保小说始终应用小说专属排版偏好（默认左右翻页，不被漫画的上下滚动覆盖）
+        // 确保小说始终应用小说专属排版偏好（仿真单页 / 双页对开 / 和风竖排 / 卷轴）
         currentReaderMode = novelReaderMode || 'paginated';
 
-        const isPaginated = (currentReaderMode === 'paginated');
+        const isPaginated = (currentReaderMode === 'paginated' || currentReaderMode === 'spread');
+        const isVertical = (currentReaderMode === 'vertical');
         container.classList.toggle('mode-paginated', isPaginated);
+        container.classList.toggle('mode-vertical', isVertical);
         document.body.classList.toggle('reader-mode-paginated', isPaginated);
         document.documentElement.classList.toggle('reader-locked-paginated', isPaginated);
+
+        if (isVertical) {
+            if (bottomPager) bottomPager.style.display = 'none';
+            container.innerHTML = `
+                <div class="reader-vertical-viewport" id="readerVerticalViewport">
+                    <article class="text-stream heti vertical-stream" id="novelArticleStream">
+                        ${formatted.headerHtml}
+                        ${formatted.bodyHtml}
+                    </article>
+                </div>
+                <div class="reader-book-footer">
+                    <span class="reader-footer-chap">${escapeNovelHtml(chapTitle)}</span>
+                    <div class="reader-footer-nav">
+                        <button type="button" class="reader-page-step-btn" onclick="prevChapter()">‹ 上一章</button>
+                        <span>日式和风竖排 (← 滑动/方向键翻阅)</span>
+                        <button type="button" class="reader-page-step-btn" onclick="nextChapter()">下一章 ›</button>
+                    </div>
+                </div>
+            `;
+            applyHetiTypography();
+            window.scrollTo({ top: 0, behavior: 'auto' });
+            return;
+        }
 
         if (isPaginated) {
             if (bottomPager) bottomPager.style.display = 'none';
@@ -8377,7 +8677,7 @@
     }
 
     function recalcPaginatedLayout() {
-        if (currentReaderMode !== 'paginated') return;
+        if (currentReaderMode !== 'paginated' && currentReaderMode !== 'spread') return;
         const viewport = document.getElementById('readerPaginatedViewport');
         const stream = document.getElementById('novelArticleStream');
         if (!viewport || !stream) return;
@@ -8386,12 +8686,17 @@
         const pageHeight = Math.max(1, viewport.clientHeight);
         if (pageWidth <= 10 || pageHeight <= 10) return;
 
-        _paginatedColGap = window.innerWidth <= 640 ? 32 : 64;
+        const isSpread = (currentReaderMode === 'spread') && (window.innerWidth >= 768);
+        viewport.classList.toggle('mode-spread', isSpread);
+
+        _paginatedColGap = isSpread ? 48 : (window.innerWidth <= 640 ? 28 : 64);
+        const colWidth = isSpread ? Math.floor((pageWidth - _paginatedColGap) / 2) : pageWidth;
+
         stream.style.transition = 'none';
         stream.style.transform = 'none';
         stream.style.width = pageWidth + 'px';
         stream.style.height = pageHeight + 'px';
-        stream.style.columnWidth = pageWidth + 'px';
+        stream.style.columnWidth = colWidth + 'px';
         stream.style.columnGap = _paginatedColGap + 'px';
 
         // 强制浏览器同步完成多栏排版并读取最右侧哨兵节点的真实像素跨度
@@ -8457,7 +8762,7 @@
     }
 
     function turnPaginatedPage(delta) {
-        if (currentReaderMode !== 'paginated') return;
+        if (currentReaderMode !== 'paginated' && currentReaderMode !== 'spread') return;
         const target = _paginatedCurrentPage + delta;
         if (target < 0) {
             // 向前翻越章节边界：进入上一章最后一页（保持阅读倒退上下文连续性，无弹窗打扰）
@@ -8732,8 +9037,9 @@
             const data = await fetchChapterDataWithCache(idx, forceRefresh, currentSignal);
             if (reqToken !== _currentReadRequestToken) return;
 
-            // 1. 漫画图片
-            if (data && Array.isArray(data.images) && data.images.length > 0) {
+            // 1. 漫画图片 (仅对纯漫画作品强制切换漫画卷轴，小说作品附带插画保持纸质小说优雅排版)
+            const isMangaWork = (currentBookInfo && currentBookInfo.tab === '漫画');
+            if (isMangaWork && data && Array.isArray(data.images) && data.images.length > 0) {
                 _lastRenderedNovelData = null;
                 currentReaderMode = 'scroll';
                 container.classList.add('manga-reader-mode');
@@ -8782,7 +9088,7 @@
                 // 彻底恢复小说用户的专属排版（默认左右翻页，绝不受前次漫画上下卷轴影响）
                 currentReaderMode = novelReaderMode || 'paginated';
                 container.classList.remove('manga-reader-mode');
-                const formatted = formatNovelContentToHtml(cleanedText, chap.title, currentBookInfo);
+                const formatted = formatNovelContentToHtml(cleanedText, chap.title, currentBookInfo, (data && Array.isArray(data.images)) ? data.images : []);
                 renderNovelIntoContainer(formatted, chap.title, idx, initialPage);
                 prefetchNextChapter(idx + 1, false);
                 return;
@@ -9171,7 +9477,7 @@
             }
             abortActiveReaderImages();
             document.documentElement.classList.remove('reader-active');
-            const allThemes = ['parchment', 'night', 'mint', 'daylight', 'slate'];
+            const allThemes = ['parchment', 'milk', 'night', 'mint', 'daylight', 'slate'];
             allThemes.forEach(t => {
                 document.body.classList.remove('reading-theme-' + t);
                 document.documentElement.classList.remove('reading-theme-' + t);
@@ -9283,15 +9589,21 @@
             updateFormatLabels();
             return;
         }
-        novelReaderMode = (mode === 'paginated') ? 'paginated' : 'scroll';
-        currentReaderMode = novelReaderMode;
+        novelReaderMode = mode;
+        currentReaderMode = mode;
         localStorage.setItem('novel_layout_mode', novelReaderMode);
         localStorage.setItem('reader_layout_mode', novelReaderMode);
         updateFormatLabels();
         const isReading = document.body.classList.contains('reading-mode');
-        const isPaginated = isReading && (currentReaderMode === 'paginated');
+        const isPaginated = isReading && (currentReaderMode === 'paginated' || currentReaderMode === 'spread');
+        const isVertical = isReading && (currentReaderMode === 'vertical');
         document.body.classList.toggle('reader-mode-paginated', isPaginated);
         document.documentElement.classList.toggle('reader-locked-paginated', isPaginated);
+        const container = document.getElementById('readerContainer');
+        if (container) {
+            container.classList.toggle('mode-vertical', isVertical);
+            container.classList.toggle('mode-paginated', isPaginated);
+        }
         if (_lastRenderedNovelData) {
             renderNovelIntoContainer(_lastRenderedNovelData.formatted, _lastRenderedNovelData.chapTitle, _lastRenderedNovelData.idx);
         }
@@ -10553,5 +10865,19 @@
 
     init();
 </script>
+
+<div class="novel-lightbox-overlay" id="novelImageLightbox" onclick="closeNovelLightbox()">
+    <div class="lightbox-toolbar" onclick="event.stopPropagation()">
+        <span id="lightboxTitle"><i class="fas fa-image"></i> 轻小说高清插画赏析</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <a id="lightboxOriginalLink" target="_blank" class="btn" style="padding:4px 10px; font-size:12px; color:#fff;" referrerpolicy="no-referrer"><i class="fas fa-external-link-alt"></i> 查看原画</a>
+            <button class="btn" style="padding:4px 10px; font-size:12px;" onclick="closeNovelLightbox()"><i class="fas fa-times"></i> 关闭</button>
+        </div>
+    </div>
+    <div class="lightbox-img-wrapper" onclick="event.stopPropagation()">
+        <img id="lightboxImg" src="" referrerpolicy="no-referrer" alt="轻小说插画" />
+    </div>
+</div>
+
 </body>
 </html>

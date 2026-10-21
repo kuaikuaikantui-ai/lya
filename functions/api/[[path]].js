@@ -207,6 +207,198 @@ async function contentBanshanren(itemId) {
     }
 }
 
+// =========================================================================
+// 🌸 纸间轻小说文库 (Wenku8) 原生直连解析引擎 (支持全彩插图、分卷目录与高画质画廊)
+// =========================================================================
+const WENKU8_HOSTS = ['https://www.wenku8.cc', 'https://www.wenku8.net'];
+
+async function fetchWenku8Html(path) {
+    let lastErr = null;
+    for (const host of WENKU8_HOSTS) {
+        try {
+            const url = host + path;
+            const r = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                    'Referer': host + '/'
+                },
+                signal: AbortSignal.timeout(6500)
+            });
+            if (!r.ok) continue;
+            const buf = await r.arrayBuffer();
+            return new TextDecoder('gbk').decode(buf);
+        } catch(e) {
+            lastErr = e;
+        }
+    }
+    throw lastErr || new Error('轻小说文库源站网络超时');
+}
+
+async function catalogWenku8(bookId) {
+    try {
+        const cleanId = String(bookId).replace(/^wenku8_/, '').replace(/^wk8_/, '').trim();
+        const aid = parseInt(cleanId, 10);
+        if (isNaN(aid) || aid <= 0) return [];
+
+        const prefix = Math.floor(aid / 1000);
+        const html = await fetchWenku8Html(`/novel/${prefix}/${aid}/index.htm`);
+
+        const cells = [...html.matchAll(/<td class="(vcss|ccss)"[^>]*>([\s\S]*?)<\/td>/gi)];
+        let curVol = '第一卷';
+        const chapters = [];
+
+        for (const cell of cells) {
+            const cls = cell[1];
+            const inner = cell[2];
+            if (cls === 'vcss') {
+                const volText = inner.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+                if (volText) curVol = volText;
+            } else if (cls === 'ccss') {
+                const m = inner.match(/<a\s+href="(\d+)\.htm"[^>]*>([\s\S]*?)<\/a>/i);
+                if (m) {
+                    const cid = m[1];
+                    const rawTitle = m[2].replace(/&nbsp;/g, ' ').trim();
+                    chapters.push({
+                        title: rawTitle,
+                        item_id: `wenku8_${aid}_${cid}`,
+                        volume: curVol
+                    });
+                }
+            }
+        }
+        return chapters;
+    } catch(e) {
+        return [];
+    }
+}
+
+async function contentWenku8(itemId) {
+    try {
+        const parts = String(itemId).replace(/^wenku8_/, '').replace(/^wk8_/, '').split('_');
+        if (parts.length < 2) return { code: -1, msg: '无效的轻小说章节标识' };
+
+        const aid = parseInt(parts[0], 10);
+        const cid = parseInt(parts[1], 10);
+        const prefix = Math.floor(aid / 1000);
+
+        const html = await fetchWenku8Html(`/novel/${prefix}/${aid}/${cid}.htm`);
+
+        const titleMatch = html.match(/<div id="title">([\s\S]*?)<\/div>/i);
+        const rawTitle = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim() : '章节阅读';
+
+        const contentMatch = html.match(/<div id="content">([\s\S]*?)<\/div>/i);
+        if (!contentMatch) return { code: -1, msg: '源站未返回有效正文区域' };
+
+        const rawDiv = contentMatch[1];
+
+        // 提取所有高清插画
+        const imgMatches = [...rawDiv.matchAll(/<img[^>]+src="([^">]+)"/gi)];
+        const images = imgMatches.map(m => m[1].trim()).filter(Boolean);
+
+        // 纯净文本提取与排版清洗
+        let text = rawDiv
+            .replace(/<!--[\s\S]*?-->/g, '')
+            .replace(/<ul id="contentdp"[\s\S]*?<\/ul>/gi, '')
+            .replace(/<div class="divimage"[\s\S]*?<\/div>/gi, '')
+            .replace(/<img[^>]*>/gi, '')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\r/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        if (text.includes('因版权问题，文库不再提供该小说的阅读！')) {
+            text = '';
+        }
+
+        const isIllustrationsChapter = rawTitle.includes('插图') || (images.length > 0 && text.length === 0);
+        if (isIllustrationsChapter && images.length > 0) {
+            text = `【纸间全彩插画画廊 · 本卷收录 ${images.length} 张高清精美原画】\n\n轻触下方插画卡片可开启全屏沉浸灯箱浏览与高倍细节缩放。`;
+        }
+
+        return {
+            code: 0,
+            title: rawTitle,
+            content: cleanNovelText(text),
+            images: images,
+            source: '轻小说文库'
+        };
+    } catch(e) {
+        return { code: -1, msg: e.message };
+    }
+}
+
+const WENKU8_CURATED_NOVELS = [
+    { id: 1973, name: '欢迎来到实力至上主义的教室', author: '衣笠彰梧', abstract: '几乎百分之百实现升学、就业目标的全国首屈一指的名校──高度育成高中。真面目却是唯有优秀者才能享受优待的实力至上主义学校！' },
+    { id: 1787, name: '关于我转生变成史莱姆这档事', author: '伏濑', abstract: '三上悟过着不起眼的人生，在随机杀人魔肆虐下结束了三十七年人生……然而，他转生成为了史莱姆！' },
+    { id: 1269, name: '游戏人生 No Game No Life', author: '榎宫祐', abstract: '空与白既是尼特族又是家里蹲，但是在网络上却是被奉为都市传说的天才游戏玩家兄妹……' },
+    { id: 1, name: '文学少女', author: '野村美月', abstract: '在晴空下吃着撕碎书页的神秘美少女天野远子，与曾经的天才作家井上心叶的故事。' },
+    { id: 471, name: '刀剑神域', author: '川原砾', abstract: '无法完全攻略就无法离开游戏，Game Over也等于宣告玩家的“死亡”……' },
+    { id: 472, name: '加速世界', author: '川原砾', abstract: '无论时代如何进步，这世上总是少不了被霸凌者。校园欺凌的受害者有田春雪的飞翔奇迹！' },
+    { id: 1881, name: 'Re:从零开始的异世界生活', author: '长月达平', abstract: '走出便利店突然被召唤到异世界的少年菜月昴，获得的能力是唯一且残酷的“死亡回归”！' },
+    { id: 1636, name: '无职转生 ~到了异世界就拿出真本事~', author: '理不尽な孙の手', abstract: '三十四岁无职处男尼特族在卡车车祸后，转生到剑与魔法的异世界成为鲁迪乌斯！' },
+    { id: 2462, name: '魔王学院的不适任者', author: '秋', abstract: '历经两千年的时光，暴虐魔王阿诺斯·伏尔迪哥德转生来到和平的魔法学院！' },
+    { id: 41, name: '狼与香辛料', author: '支仓冻砂', abstract: '旅行商人克拉福·罗伦斯在麦捆车中发现了一位拥有狼耳与狼尾的美丽少女……' },
+    { id: 2267, name: '86-不存在的战区-', author: '安里アサト', abstract: '少年辛与指挥官蕾娜，在战火纷飞的共和国第八十六区拼死奋战的故事。' },
+    { id: 1707, name: '盾之勇者成名录', author: 'Aneko Yusagi', abstract: '作为盾之勇者被召唤至异世界的岩谷尚文，在遭到背叛后绝地求生的冒险史诗！' },
+    { id: 2898, name: '败犬女主太多了！', author: '雨森焚火', abstract: '八奈见杏菜、烧盐柠檬、小鞠知花，那些注定在恋爱中落败的败犬女主们！' },
+    { id: 2092, name: '弱角友崎同学', author: '屋久悠树', abstract: '人生是款粪作还是神作？日本顶级玩家的现实攻略指导！' },
+    { id: 2569, name: '关于邻家的天使大人不知不觉把我做成了废柴这档事', author: '佐伯さん', abstract: '藤宫周与住在隔壁的天使般的美少女椎名真昼之间的甘甜恋爱物语。' },
+    { id: 1086, name: '变态王子与不笑猫', author: '相乐总', abstract: '横寺阳人向不笑猫像祈祷后，失去了表面话，只能说出真心话的青春爆笑喜剧！' },
+    { id: 2216, name: '继母的拖油瓶是我的前女友', author: '纸城境介', abstract: '因为父母再婚，曾经是情侣的两人变成了义姐弟，在同一屋檐下的甜蜜拉扯！' },
+    { id: 2848, name: '间谍教室', author: '竹町', abstract: '死亡率高达九成的“不可能任务”！由世界最强间谍克劳斯率领的少女谍报团！' }
+];
+
+function searchWenku8Locally(keyword) {
+    const kw = (keyword || '').trim().toLowerCase();
+    const cleanKw = kw.replace(/^wenku8_/, '').replace(/^wk8_/, '');
+    const numId = parseInt(cleanKw, 10);
+    const results = [];
+
+    if (!isNaN(numId) && numId > 0) {
+        const exact = WENKU8_CURATED_NOVELS.find(n => n.id === numId);
+        const prefix = Math.floor(numId / 1000);
+        results.push({
+            book_name: exact ? exact.name : `轻小说 #${numId}`,
+            book_id: `wenku8_${numId}`,
+            author: exact ? exact.author : '轻小说文库',
+            abstract: exact ? exact.abstract : '输入ID直达阅读，带分卷与高清插画',
+            cover: `https://img.wenku8.com/image/${prefix}/${numId}/${numId}s.jpg`,
+            source: '轻小说文库',
+            tab: '小说'
+        });
+    }
+
+    if (!kw) {
+        return WENKU8_CURATED_NOVELS.slice(0, 12).map(n => ({
+            book_name: n.name,
+            book_id: `wenku8_${n.id}`,
+            author: n.author,
+            abstract: n.abstract,
+            cover: `https://img.wenku8.com/image/${Math.floor(n.id/1000)}/${n.id}/${n.id}s.jpg`,
+            source: '轻小说文库',
+            tab: '小说'
+        }));
+    }
+
+    for (const n of WENKU8_CURATED_NOVELS) {
+        if (results.some(r => r.book_id === `wenku8_${n.id}`)) continue;
+        if (n.name.toLowerCase().includes(kw) || n.author.toLowerCase().includes(kw) || n.abstract.toLowerCase().includes(kw) || kw.includes(n.name.toLowerCase())) {
+            results.push({
+                book_name: n.name,
+                book_id: `wenku8_${n.id}`,
+                author: n.author,
+                abstract: n.abstract,
+                cover: `https://img.wenku8.com/image/${Math.floor(n.id/1000)}/${n.id}/${n.id}s.jpg`,
+                source: '轻小说文库',
+                tab: '小说'
+            });
+        }
+    }
+    return results;
+}
+
 async function getLiveSourcesConfig() {
     const now = Date.now();
     // 24小时 (86400000ms) 自动拉取更新一次最新开源书源
@@ -218,12 +410,13 @@ async function getLiveSourcesConfig() {
             const data = await res.json();
             let rawNovelSources = (data["搜索小说"] || data["小说"] || ["番茄", "七猫", "全本小说", "半夏小说", "塔读", "QQ阅读", "书旗", "红烛小说"]).filter(s => s !== '老福特');
             if (!rawNovelSources.includes('搬山人')) rawNovelSources.unshift('搬山人');
+            if (!rawNovelSources.includes('轻小说文库')) rawNovelSources.unshift('轻小说文库');
 
             cachedConfig = {
                 version: data.version || '最新',
                 categories: {
                     "漫画": ["新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
-                    "小说": rawNovelSources.slice(0, 20)
+                    "小说": rawNovelSources.slice(0, 22)
                 }
             };
             lastConfigFetch = now;
@@ -235,7 +428,7 @@ async function getLiveSourcesConfig() {
         version: '昂哥构建',
         categories: {
             "漫画": ["新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
-            "小说": ["搬山人", "七猫", "番茄", "伪69", "半夏小说", "52书库", "爱下电子书", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
+            "小说": ["轻小说文库", "搬山人", "七猫", "番茄", "伪69", "半夏小说", "52书库", "爱下电子书", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
         }
     };
 }
@@ -423,6 +616,13 @@ const workerHandler = {
             const page = url.searchParams.get('page') || '1';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
+            if (source === '轻小说文库' || source === 'Wenku8') {
+                const results = searchWenku8Locally(title);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             if (source === '搬山人') {
                 const results = await searchBanshanren(title);
                 return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
@@ -434,9 +634,12 @@ const workerHandler = {
             if (source === 'ALL') {
                 const candidates = (tab === '漫画')
                     ? ['新新漫画', 'G社漫画', '全面漫画', '番茄']
-                    : ['搬山人', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
+                    : ['轻小说文库', '搬山人', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
 
                 const fetchTasks = candidates.map(async s => {
+                    if (s === '轻小说文库') {
+                        return searchWenku8Locally(title);
+                    }
                     if (s === '搬山人') {
                         return await searchBanshanren(title);
                     }
@@ -896,10 +1099,57 @@ const workerHandler = {
             });
         }
 
+        // 🖼️ 轻小说高清插画代理 (绕过防盗链与特定ISP访问限制)
+        if (url.pathname === '/api/image-proxy') {
+            const imgUrl = url.searchParams.get('url') || '';
+            if (!imgUrl || !imgUrl.startsWith('http')) {
+                return new Response('Missing or invalid url parameter', { status: 400 });
+            }
+            try {
+                const imgRes = await fetch(imgUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                        'Referer': imgUrl.includes('wenku8') ? 'https://www.wenku8.cc/' : imgUrl
+                    },
+                    signal: AbortSignal.timeout(8000)
+                });
+                if (!imgRes.ok) {
+                    return new Response('Upstream image error: ' + imgRes.status, { status: imgRes.status });
+                }
+                const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+                return new Response(imgRes.body, {
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': contentType,
+                        'Cache-Control': 'public, max-age=604800, immutable'
+                    }
+                });
+            } catch(e) {
+                return new Response('Proxy fetch error: ' + e.message, { status: 502 });
+            }
+        }
+
         if (url.pathname === '/api/detail') {
             const book_id = url.searchParams.get('book_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
+
+            if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('wenku8_') || book_id.startsWith('wk8_')) {
+                const aid = parseInt(book_id.replace(/^wenku8_/, '').replace(/^wk8_/, ''), 10) || 1;
+                const prefix = Math.floor(aid / 1000);
+                return new Response(JSON.stringify({
+                    code: 0,
+                    data: {
+                        book_id: book_id,
+                        book_name: url.searchParams.get('title') || '轻小说详情',
+                        source: '轻小说文库',
+                        tab: '小说',
+                        cover: `https://img.wenku8.com/image/${prefix}/${aid}/${aid}s.jpg`
+                    }
+                }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
 
             if (source === '搬山人' || book_id.startsWith('/novel/')) {
                 return new Response(JSON.stringify({
@@ -934,6 +1184,13 @@ const workerHandler = {
             const tab = url.searchParams.get('tab') || '漫画';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
+            if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('wenku8_') || book_id.startsWith('wk8_')) {
+                const chapters = await catalogWenku8(book_id);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             if (source === '搬山人' || book_id.startsWith('/novel/')) {
                 const chapters = await catalogBanshanren(book_id);
                 return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters }), {
@@ -963,6 +1220,46 @@ const workerHandler = {
             const chap_title = url.searchParams.get('chap_title') || '';
             const chap_idx = parseInt(url.searchParams.get('chap_idx') || '-1', 10);
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
+
+            if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('wenku8_') || item_id.startsWith('wk8_')) {
+                const wData = await contentWenku8(item_id);
+                // 若遇版权限制或正文空缺且有书名，自动启动优质源接力
+                if ((!wData.content || wData.content.length < 20) && (!wData.images || wData.images.length === 0) && title) {
+                    try {
+                        const bList = await searchBanshanren(title);
+                        const matchBook = bList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, ''));
+                        if (matchBook) {
+                            const bCat = await catalogBanshanren(matchBook.book_id);
+                            if (bCat && bCat.length > 0) {
+                                let targetChap = (chap_idx >= 0 && bCat[chap_idx]) ? bCat[chap_idx] : null;
+                                if (chap_title) {
+                                    const cleanChap = chap_title.replace(/[第章\s]/g, '');
+                                    const found = bCat.find(c => (c.title || '').replace(/[第章\s]/g, '').includes(cleanChap));
+                                    if (found) targetChap = found;
+                                }
+                                if (targetChap) {
+                                    const rescued = await contentBanshanren(targetChap.item_id);
+                                    if (rescued && rescued.code === 0 && rescued.content) {
+                                        return new Response(JSON.stringify({
+                                            code: 0,
+                                            msg: '已自动为您无缝接力至【搬山人】优质源畅读',
+                                            autoSwitched: true,
+                                            newSource: '搬山人',
+                                            title: targetChap.title,
+                                            content: rescued.content
+                                        }), {
+                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                }
+                return new Response(JSON.stringify(wData), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
 
             if (source === '搬山人' || item_id.startsWith('/novel/')) {
                 const bData = await contentBanshanren(item_id);
