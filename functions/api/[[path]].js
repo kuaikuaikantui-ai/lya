@@ -234,6 +234,92 @@ async function contentBanshanren(itemId) {
 }
 
 // =========================================================================
+// 🎨 看漫画 (Kanman) 官方直连超清引擎 (秒级极速翻阅、正版分话全彩画卷、杜绝502断层)
+// =========================================================================
+async function searchKanman(keyword) {
+    try {
+        const cleanKw = (keyword || '').trim().replace(/[\s《》]/g, '');
+        if (!cleanKw) return [];
+        const url = 'https://m.kanman.com/api/getsortlist?search_key=' + encodeURIComponent(cleanKw) + '&page=1&size=20';
+        const r = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15',
+                'Referer': 'https://m.kanman.com/'
+            },
+            signal: AbortSignal.timeout(4500)
+        });
+        if (!r.ok) return [];
+        const json = await r.json();
+        const list = json.data && json.data.data ? json.data.data : (Array.isArray(json.data) ? json.data : []);
+        return list.map(item => ({
+            book_name: item.comic_name,
+            book_id: 'kanman_' + item.comic_id,
+            author: item.comic_author || '看漫画',
+            abstract: item.cartoon_desc || (item.comic_name + ' 全彩连载中'),
+            thumb_url: 'https://image.yqmh.com/comic/' + item.comic_id + '/cover.jpg',
+            cover: 'https://image.yqmh.com/comic/' + item.comic_id + '/cover.jpg',
+            tab: '漫画',
+            source: '看漫画'
+        }));
+    } catch(e) {
+        return [];
+    }
+}
+
+async function catalogKanman(comicId) {
+    try {
+        const cleanId = String(comicId).replace(/^kanman_/, '').trim();
+        const url = 'https://m.kanman.com/api/getchapterlist?comic_id=' + encodeURIComponent(cleanId);
+        const r = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15',
+                'Referer': 'https://m.kanman.com/'
+            },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!r.ok) return [];
+        const json = await r.json();
+        const rawList = Array.isArray(json.data) ? json.data : [];
+        const sorted = rawList.slice().reverse();
+        return sorted.map((chap, idx) => ({
+            title: (chap.chapter_name || ('第 ' + (idx + 1) + ' 话')).trim(),
+            item_id: 'kanman_' + cleanId + '_' + chap.chapter_id,
+            order_num: chap.order_num !== undefined ? chap.order_num : idx
+        }));
+    } catch(e) {
+        return [];
+    }
+}
+
+async function contentKanman(comicId, chapterId) {
+    try {
+        const cleanCid = String(comicId).replace(/^kanman_/, '').trim();
+        const cleanChid = String(chapterId).replace(/^kanman_/, '').trim();
+        const url = 'https://m.kanman.com/api/getchapterinfov2?comic_id=' + encodeURIComponent(cleanCid) + '&chapter_id=' + encodeURIComponent(cleanChid);
+        const r = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15',
+                'Referer': 'https://m.kanman.com/'
+            },
+            signal: AbortSignal.timeout(6000)
+        });
+        if (!r.ok) return { code: -1, msg: '获取漫画章节画卷失败', images: [] };
+        const json = await r.json();
+        const cur = json.data && json.data.current_chapter;
+        const imgList = (cur && cur.chapter_img_list) ? cur.chapter_img_list : [];
+        return {
+            code: 0,
+            msg: 'ok',
+            title: (cur && cur.chapter_name) ? cur.chapter_name : '章节阅读',
+            images: imgList,
+            source: '看漫画'
+        };
+    } catch(e) {
+        return { code: -1, msg: e.message, images: [] };
+    }
+}
+
+// =========================================================================
 // 🌸 纸间轻小说文库 (Wenku8) 原生直连解析引擎 (支持全彩插图、分卷目录与高画质画廊)
 // =========================================================================
 const WENKU8_HOSTS = ['https://www.wenku8.cc', 'https://www.wenku8.net'];
@@ -442,7 +528,7 @@ async function getLiveSourcesConfig() {
             cachedConfig = {
                 version: data.version || '最新',
                 categories: {
-                    "漫画": ["新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
+                    "漫画": ["看漫画", "新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
                     "小说": rawNovelSources.slice(0, 20)
                 }
             };
@@ -735,7 +821,14 @@ const workerHandler = {
             const page = url.searchParams.get('page') || '1';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
-            if (source === '轻小说文库' || source === 'Wenku8') {
+                        if (source === '看漫画') {
+                const results = await searchKanman(title);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
+if (source === '轻小说文库' || source === 'Wenku8') {
                 const results = searchWenku8Locally(title);
                 return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
@@ -752,10 +845,13 @@ const workerHandler = {
             // ⚡ 聚合全网搜模式：对所有优质源进行高速并发请求并聚合呈现全部结果
             if (source === 'ALL') {
                 const candidates = (tab === '漫画')
-                    ? ['新新漫画', 'G社漫画', '全面漫画', '番茄']
+                    ? ['看漫画', '新新漫画', 'G社漫画', '全面漫画', '番茄']
                     : ['搬山人', '轻小说文库', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
 
                 const fetchTasks = candidates.map(async s => {
+                    if (s === '看漫画') {
+                        return await searchKanman(title);
+                    }
                     if (s === '搬山人') {
                         return await searchBanshanren(title);
                     }
@@ -809,6 +905,27 @@ const workerHandler = {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
+                                if (tab === '漫画' && title) {
+                    try {
+                        const kmList = await searchKanman(title);
+                        const match = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        if (match) {
+                            const kmCat = await catalogKanman(match.book_id);
+                            if (kmCat && kmCat.length > 0) {
+                                return new Response(JSON.stringify({
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【看漫画】超清源目录',
+                                    data: kmCat,
+                                    autoSwitched: true,
+                                    newSource: '看漫画',
+                                    newBookId: match.book_id
+                                }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                });
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
                 return new Response(JSON.stringify({ code: -1, msg: e.message, data: [] }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
@@ -1255,41 +1372,6 @@ const workerHandler = {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
-                if (tab === '小说' && title) {
-                    try {
-                        const bList = await searchBanshanren(title);
-                        const matchBook = bList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, ''));
-                        if (matchBook) {
-                            const bCat = await catalogBanshanren(matchBook.book_id);
-                            if (bCat && bCat.length > 0) {
-                                let targetChap = (chap_idx >= 0 && bCat[chap_idx]) ? bCat[chap_idx] : null;
-                                const cleanChap = chap_title.replace(/[第章\s]/g, '');
-                                if (cleanChap) {
-                                    const found = bCat.find(c => {
-                                        const ct = (c.title || '').replace(/[第章\s]/g, '');
-                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
-                                    });
-                                    if (found) targetChap = found;
-                                }
-                                if (targetChap) {
-                                    const rescuedData = await contentBanshanren(targetChap.item_id);
-                                    if (rescuedData && rescuedData.code === 0 && rescuedData.content && rescuedData.content.length > 50) {
-                                        return new Response(JSON.stringify({
-                                            code: 0,
-                                            msg: '已自动为您无缝接力至【搬山人】优质源畅读',
-                                            autoSwitched: true,
-                                            newSource: '搬山人',
-                                            title: targetChap.title,
-                                            content: rescuedData.content
-                                        }), {
-                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    } catch(rescueErr) {}
-                }
                 return new Response(JSON.stringify({ code: -1, msg: e.message }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
@@ -1303,7 +1385,22 @@ const workerHandler = {
             const title = url.searchParams.get('title') || '';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
-            if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('wenku8_') || book_id.startsWith('wk8_')) {
+                        if (source === '看漫画' || book_id.startsWith('kanman_')) {
+                let chapters = await catalogKanman(book_id);
+                if ((!chapters || chapters.length === 0) && title) {
+                    try {
+                        const kmList = await searchKanman(title);
+                        if (kmList && kmList.length > 0) {
+                            chapters = await catalogKanman(kmList[0].book_id);
+                        }
+                    } catch(e) {}
+                }
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters || [] }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
+if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('wenku8_') || book_id.startsWith('wk8_')) {
                 let chapters = await catalogWenku8(book_id);
                 if ((!chapters || chapters.length === 0) && title) {
                     try {
@@ -1341,10 +1438,68 @@ const workerHandler = {
                         }
                     } catch(rescueErr) {}
                 }
+                if (tab === '漫画' && (!data || !data.data || data.data.length === 0) && title) {
+                    try {
+                        const kmList = await searchKanman(title);
+                        const match = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        if (match) {
+                            const kmCat = await catalogKanman(match.book_id);
+                            if (kmCat && kmCat.length > 0) {
+                                return new Response(JSON.stringify({
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【看漫画】超清源目录',
+                                    data: kmCat,
+                                    autoSwitched: true,
+                                    newSource: '看漫画',
+                                    newBookId: match.book_id
+                                }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                });
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
                 return new Response(JSON.stringify(data), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
+                if (tab === '漫画' && title) {
+                    try {
+                        const kmList = await searchKanman(title);
+                        const matchBook = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        if (matchBook) {
+                            const kmCat = await catalogKanman(matchBook.book_id);
+                            if (kmCat && kmCat.length > 0) {
+                                let targetChap = (chap_idx >= 0 && kmCat[chap_idx]) ? kmCat[chap_idx] : null;
+                                const cleanChap = chap_title.replace(/[第话章\s]/g, '');
+                                if (cleanChap) {
+                                    const found = kmCat.find(c => {
+                                        const ct = (c.title || '').replace(/[第话章\s]/g, '');
+                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
+                                    });
+                                    if (found) targetChap = found;
+                                }
+                                if (!targetChap && kmCat.length > 0) targetChap = kmCat[0];
+                                if (targetChap) {
+                                    const p = targetChap.item_id.replace(/^kanman_/, '').split('_');
+                                    const rescuedData = await contentKanman(p[0], p[1]);
+                                    if (rescuedData && rescuedData.code === 0 && rescuedData.images && rescuedData.images.length > 0) {
+                                        return new Response(JSON.stringify({
+                                            code: 0,
+                                            msg: '已自动为您无缝接力至【看漫画】超清画卷',
+                                            autoSwitched: true,
+                                            newSource: '看漫画',
+                                            title: targetChap.title,
+                                            images: rescuedData.images
+                                        }), {
+                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
                 if (tab === '小说' && title) {
                     try {
                         const bList = await searchBanshanren(title);
@@ -1352,6 +1507,27 @@ const workerHandler = {
                             const bCat = await catalogBanshanren(bList[0].book_id);
                             if (bCat && bCat.length > 0) {
                                 return new Response(JSON.stringify({ code: 0, msg: '已自动为您无缝接力至【搬山人】优质源目录', data: bCat, autoSwitched: true }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                });
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
+                if (tab === '漫画' && title) {
+                    try {
+                        const kmList = await searchKanman(title);
+                        const match = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        if (match) {
+                            const kmCat = await catalogKanman(match.book_id);
+                            if (kmCat && kmCat.length > 0) {
+                                return new Response(JSON.stringify({
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【看漫画】超清源目录',
+                                    data: kmCat,
+                                    autoSwitched: true,
+                                    newSource: '看漫画',
+                                    newBookId: match.book_id
+                                }), {
                                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                                 });
                             }
@@ -1374,7 +1550,17 @@ const workerHandler = {
             const chap_idx = parseInt(url.searchParams.get('chap_idx') || '-1', 10);
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
-            if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('wenku8_') || item_id.startsWith('wk8_')) {
+                        if (source === '看漫画' || item_id.startsWith('kanman_')) {
+                const parts = item_id.replace(/^kanman_/, '').split('_');
+                const comicId = parts[0];
+                const chapterId = parts[1];
+                const kmData = await contentKanman(comicId, chapterId);
+                return new Response(JSON.stringify(kmData), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
+if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('wenku8_') || item_id.startsWith('wk8_')) {
                 const wData = await contentWenku8(item_id);
                 // 若遇版权限制或正文空缺且有书名，自动启动优质源接力
                 if ((!wData.content || wData.content.length < 20) && (!wData.images || wData.images.length === 0) && title) {
@@ -1461,6 +1647,45 @@ const workerHandler = {
                     data.msg = '';
                 }
 
+                // 如果是漫画且上游画卷缺失、报错或受限，启动看漫画官方超清源救援
+                if (tab === '漫画' && title && (!data || !data.images || data.images.length === 0 || data.code !== 0)) {
+                    try {
+                        const kmList = await searchKanman(title);
+                        const matchBook = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        if (matchBook) {
+                            const kmCat = await catalogKanman(matchBook.book_id);
+                            if (kmCat && kmCat.length > 0) {
+                                let targetChap = (chap_idx >= 0 && kmCat[chap_idx]) ? kmCat[chap_idx] : null;
+                                const cleanChap = chap_title.replace(/[第话章\s]/g, '');
+                                if (cleanChap) {
+                                    const found = kmCat.find(c => {
+                                        const ct = (c.title || '').replace(/[第话章\s]/g, '');
+                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
+                                    });
+                                    if (found) targetChap = found;
+                                }
+                                if (!targetChap && kmCat.length > 0) targetChap = kmCat[0];
+                                if (targetChap) {
+                                    const p = targetChap.item_id.replace(/^kanman_/, '').split('_');
+                                    const rescuedData = await contentKanman(p[0], p[1]);
+                                    if (rescuedData && rescuedData.code === 0 && rescuedData.images && rescuedData.images.length > 0) {
+                                        return new Response(JSON.stringify({
+                                            code: 0,
+                                            msg: '已自动为您无缝接力至【看漫画】超清画卷',
+                                            autoSwitched: true,
+                                            newSource: '看漫画',
+                                            title: targetChap.title,
+                                            images: rescuedData.images
+                                        }), {
+                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
+
                 // 如果是小说且上游正文缺失、报错或受限，启动后端无缝自动跨源救援 (优先使用搬山人优质无删减源)
                 if (tab === '小说' && title && (!data || !data.content || data.content.length < 50 || data.code !== 0)) {
                     try {
@@ -1502,6 +1727,43 @@ const workerHandler = {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
+                if (tab === '漫画' && title) {
+                    try {
+                        const kmList = await searchKanman(title);
+                        const matchBook = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        if (matchBook) {
+                            const kmCat = await catalogKanman(matchBook.book_id);
+                            if (kmCat && kmCat.length > 0) {
+                                let targetChap = (chap_idx >= 0 && kmCat[chap_idx]) ? kmCat[chap_idx] : null;
+                                const cleanChap = chap_title.replace(/[第话章\s]/g, '');
+                                if (cleanChap) {
+                                    const found = kmCat.find(c => {
+                                        const ct = (c.title || '').replace(/[第话章\s]/g, '');
+                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
+                                    });
+                                    if (found) targetChap = found;
+                                }
+                                if (!targetChap && kmCat.length > 0) targetChap = kmCat[0];
+                                if (targetChap) {
+                                    const p = targetChap.item_id.replace(/^kanman_/, '').split('_');
+                                    const rescuedData = await contentKanman(p[0], p[1]);
+                                    if (rescuedData && rescuedData.code === 0 && rescuedData.images && rescuedData.images.length > 0) {
+                                        return new Response(JSON.stringify({
+                                            code: 0,
+                                            msg: '已自动为您无缝接力至【看漫画】超清画卷',
+                                            autoSwitched: true,
+                                            newSource: '看漫画',
+                                            title: targetChap.title,
+                                            images: rescuedData.images
+                                        }), {
+                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
                 if (tab === '小说' && title) {
                     try {
                         const bList = await searchBanshanren(title);

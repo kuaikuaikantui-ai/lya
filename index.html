@@ -8147,10 +8147,16 @@
                 applyMergedPayloadToLocal(merged);
             }
 
-            const data = await res.json();
+            let data = null;
+            try {
+                data = await res.json();
+            } catch(e) {
+                data = { code: -1, data: [] };
+            }
             if (data && data.autoSwitched) {
-                const newSource = data.newSource || '搬山人';
+                const newSource = data.newSource || (activeTab === '漫画' ? '看漫画' : '搬山人');
                 currentBookInfo.source = newSource;
+                if (data.newBookId) currentBookInfo.book_id = data.newBookId;
                 const sourceTag = document.getElementById('detailSourceTag');
                 if (sourceTag) sourceTag.innerText = newSource + ' (已自动接力)';
             }
@@ -8912,6 +8918,11 @@
                     const rescuedBanner = data.autoSwitched && data.newSource
                         ? `<div style="background:rgba(16,185,129,0.15); color:#34d399; font-size:12px; text-align:center; padding:6px 12px;">✨ 原书源本话受限，已为您无缝接力至【${escapeNovelHtml(data.newSource)}】画源 (${data.images.length}P)</div>`
                         : '';
+                    if (data && data.autoSwitched && data.newSource) {
+                        currentBookInfo.source = data.newSource;
+                        const sourceTag = document.getElementById('detailSourceTag');
+                        if (sourceTag) sourceTag.innerText = data.newSource + ' (已自动接力)';
+                    }
                     container.innerHTML = `
                         ${rescuedBanner}
                         <div class="img-stream">
