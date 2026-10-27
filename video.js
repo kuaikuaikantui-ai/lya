@@ -194,57 +194,88 @@
 ];
 
 
-    // 判断是否为原站主力源（豆瓣1080P原画、暴风超清、茅台蓝光、量子、非凡 —— 速度最快、画质最佳、弹幕时间轴最准）
+    // 判断是否为源站优先与原站主力源（豆瓣1080P原画、暴风1080P超清、茅台1080P蓝光、原站全部直连源绝对置顶优先）
     function getRoutePriorityScore(rawName, sampleUrl) {
         const name = String(rawName || '').trim();
         const lower = name.toLowerCase();
         const urlStr = String(sampleUrl || '').toLowerCase();
-        if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf')) return 120;
-        if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('fengbao') || urlStr.includes('fengbao') || urlStr.includes('bvvvv')) return 115;
-        if (name.includes('茅台') || lower.includes('maotai') || urlStr.includes('uvjtih') || urlStr.includes('myqqdd')) return 110;
-        if (name.includes('1080P') || name.includes('4K') || name.includes('蓝光') || name.includes('原画')) return 105;
+
+        // 1. 最高优先级：源站/原站 1080P 三大顶级原画源（豆瓣原画、暴风超清、茅台蓝光）
+        if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf')) return 160;
+        if (name.includes('暴风') && (name.includes('1080') || name.includes('原站') || name.includes('源站') || lower.includes('fengbao') || urlStr.includes('fengbao'))) return 155;
+        if (name.includes('茅台') || lower.includes('maotai') || urlStr.includes('uvjtih') || urlStr.includes('myqqdd')) return 150;
+
+        // 2. 次高优先级：源站点(kanju)所有直连/原站线路（全网原站直连，优先播放与排在首选）
+        if (name.includes('原站') || name.includes('源站') || name.includes('原站直连')) {
+            if (name.includes('1080P') || name.includes('4K') || name.includes('原画') || name.includes('蓝光') || name.includes('超清')) return 140;
+            return 130;
+        }
+
+        // 3. 通用 1080P/4K/蓝光 高清标志
+        if (name.includes('1080P') || name.includes('4K') || name.includes('蓝光') || name.includes('原画')) return 110;
+
+        // 4. 第三方全网主力源
         if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz') || urlStr.includes('lzi')) return 100;
         if (name.includes('非凡') || lower.includes('feifan') || lower.includes('ff') || urlStr.includes('ffzy')) return 95;
+        if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf') || urlStr.includes('bvvvv')) return 90;
         if (name.includes('极速') || lower.includes('jszy') || urlStr.includes('jisuzy')) return 88;
-        if (name.includes('红牛') || lower.includes('hn') || lower.includes('hongniu')) return 55;
-        if (name.includes('金鹰') || lower.includes('jy') || lower.includes('jinying')) return 50;
-        if (name.includes('百度') || lower.includes('bd') || lower.includes('baidu')) return 45;
-        if (name.includes('360') || lower.includes('360zy')) return 42;
-        if (name.includes('如意') || lower.includes('ry') || lower.includes('ruyi')) return 40;
-        if (name.includes('速播') || lower.includes('subo') || lower.includes('sb')) return 38;
-        if (name.includes('ikun')) return 35;
-        if (name.includes('魔都') || lower.includes('modu') || lower.includes('md')) return 32;
-        if (name.includes('无尽') || lower.includes('wj') || lower.includes('wujin')) return 30;
-        if (name.includes('光速') || lower.includes('gs') || lower.includes('guangsu')) return 28;
+
+        // 5. 第三方备用专线
+        if (name.includes('红牛') || lower.includes('hn') || lower.includes('hongniu')) return 60;
+        if (name.includes('金鹰') || lower.includes('jy') || lower.includes('jinying')) return 55;
+        if (name.includes('百度') || lower.includes('bd') || lower.includes('baidu')) return 50;
+        if (name.includes('360') || lower.includes('360zy')) return 48;
+        if (name.includes('如意') || lower.includes('ry') || lower.includes('ruyi')) return 45;
+        if (name.includes('速播') || lower.includes('subo') || lower.includes('sb')) return 42;
+        if (name.includes('ikun')) return 40;
+        if (name.includes('魔都') || lower.includes('modu') || lower.includes('md')) return 38;
+        if (name.includes('无尽') || lower.includes('wj') || lower.includes('wujin')) return 35;
+        if (name.includes('光速') || lower.includes('gs') || lower.includes('guangsu')) return 30;
         return 20;
     }
 
-    // 人性化线路标签格式化 (原站三大主源优先置顶并标注主力弹幕源，其余作为备用专线)
+    // 人性化线路标签格式化 (源站点的源设置为绝对优先，高画质原站置顶并标注★原站首选)
     function formatFriendlyLineName(rawName, index, sampleUrl) {
         if (!rawName) return '线路' + (index + 1) + ' · 极速专线';
         const name = String(rawName).trim();
         const lower = name.toLowerCase();
         const urlStr = String(sampleUrl || '').toLowerCase();
+
+        // 1. 原站三大 1080P 顶级源
         if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf')) {
-            return '★ 主线' + (index + 1) + ' · 豆瓣1080P原画 (原站顶级·真1080P)';
+            return '★ 原站首选 · 豆瓣1080P原画 (源站顶级·真1080P)';
         }
-        if (name.includes('暴风') || lower.includes('baofeng') || urlStr.includes('fengbao')) {
-            return '★ 主线' + (index + 1) + ' · 暴风1080P超清 (原站直连·高码率)';
+        if (name.includes('暴风') && (name.includes('1080') || name.includes('原站') || name.includes('源站') || lower.includes('fengbao') || urlStr.includes('fengbao'))) {
+            return '★ 原站首选 · 暴风1080P超清 (源站直连·高码率)';
         }
         if (name.includes('茅台') || lower.includes('maotai') || urlStr.includes('uvjtih') || urlStr.includes('myqqdd')) {
-            return '★ 主线' + (index + 1) + ' · 茅台1080P蓝光 (原站臻彩·无损)';
+            return '★ 原站首选 · 茅台1080P蓝光 (源站臻彩·无损)';
         }
+
+        // 2. 原站其他直连线路
+        if (name.includes('原站') || name.includes('源站')) {
+            let cleanSub = name.replace(/^(原站|源站)[·・\s\-_]*/g, '').replace(/^(1080P|超清|蓝光)[·・\s\-_]*/g, '').trim();
+            if (!cleanSub) cleanSub = '官方直连';
+            return '★ 原站直连 · ' + cleanSub + ' (源站优先)';
+        }
+
+        // 3. 第三方主力源
         if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz')) {
-            return '★ 主线' + (index + 1) + ' · 量子蓝光 (原站秒播·弹幕)';
+            return '主力' + (index + 1) + ' · 量子蓝光 (全网秒播)';
         }
         if (name.includes('非凡') || lower.includes('feifan') || lower.includes('ffm3u8') || lower.includes('ff') || urlStr.includes('ffzy')) {
-            return '★ 主线' + (index + 1) + ' · 非凡超清 (原站1080P·弹幕)';
+            return '主力' + (index + 1) + ' · 非凡超清 (全网1080P)';
         }
         if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf') || urlStr.includes('bvvvv')) {
-            return '★ 主线' + (index + 1) + ' · 暴风直连 (原站防卡·弹幕)';
+            return '主力' + (index + 1) + ' · 暴风专线 (全网备选)';
         }
+
+        // 4. 第三方备用源
         if (name.includes('红牛') || lower.includes('hongniu') || lower.includes('hn') || lower.includes('hnm3u8')) {
             return '备用' + (index + 1) + ' · 红牛高速专线';
+        }
+        if (name.includes('极速') || lower.includes('jszy') || urlStr.includes('jisuzy')) {
+            return '备用' + (index + 1) + ' · 极速蓝光专线';
         }
         if (name.includes('金鹰') || lower.includes('jinying') || lower.includes('jy') || lower.includes('jinyingm3u8')) {
             return '备用' + (index + 1) + ' · 金鹰蓝光专线';
@@ -278,6 +309,9 @@
         }
         return '备用' + (index + 1) + ' · 超清专线';
     }
+
+    window.getRoutePriorityScore = getRoutePriorityScore;
+    window.formatFriendlyLineName = formatFriendlyLineName;
 
     const VIDEO_HISTORY_KEY = 'openreader_video_history';
 
@@ -1026,7 +1060,10 @@
 
                 let matched = null;
                 for (const q of candidateQueries) {
-                    const res = await fetch('/api/video/search?wd=' + encodeURIComponent(q));
+                    const origKanjuId = item.kanju_id || (String(item.vod_id || '').startsWith('av_') ? item.vod_id : '');
+                    let searchApiUrl = '/api/video/search?wd=' + encodeURIComponent(q);
+                    if (origKanjuId) searchApiUrl += '&id=' + encodeURIComponent(origKanjuId);
+                    const res = await fetch(searchApiUrl);
                     if (res.ok) {
                         const searchData = await res.json();
                         if (searchData.list && searchData.list.length > 0) {
@@ -1156,24 +1193,40 @@
                             const scoreB = getRoutePriorityScore(b.name, b.episodes[0] && b.episodes[0].url);
                             return scoreB - scoreA;
                         });
-                        if (currentActiveName) {
+                        const currentActiveScore = currentActiveGroup ? getRoutePriorityScore(currentActiveGroup.name, currentActiveGroup.episodes[0]?.url) : 0;
+                        const bestRouteIdx = window.selectBestVideoRoute(window.currentVideo.groups, targetEpIdx);
+                        const bestScore = getRoutePriorityScore(window.currentVideo.groups[bestRouteIdx].name, window.currentVideo.groups[bestRouteIdx].episodes[0]?.url);
+                        if (currentActiveScore < 120 && bestScore >= 120) {
+                            window.switchPlayGroup(bestRouteIdx, targetEpIdx);
+                            if (window.dpInstance && window.dpInstance.notice) {
+                                window.dpInstance.notice('✨ 已自动升级切换至源站点 1080P 原画顶级首选线路', 3000);
+                            }
+                        } else if (currentActiveName) {
                             const newIdx = window.currentVideo.groups.findIndex(g => g.name === currentActiveName);
                             if (newIdx !== -1) window.currentGroupIdx = newIdx;
+                            window.renderVideoSourceTabs(window.currentVideo.groups);
                         }
-                        window.renderVideoSourceTabs(window.currentVideo.groups);
                     }
                 })
                 .catch(() => {});
         }
     };
 
-    // 智能选源算法：优先选择原站三大弹幕主源（量子/非凡/暴风）中含有目标集数且未超时的最佳线路
+    // 智能选源算法：源站点(kanju)的源绝对优先（score >= 120），其次第三方主力源（score >= 90）
     window.selectBestVideoRoute = function(groups, targetEpIdx = 0) {
         if (!groups || groups.length === 0) return 0;
         const failedSet = window._failedRouteSet || new Set();
         const bannedNames = window._sessionSlowRouteNames || new Set();
 
-        // 1. 优先在原站主力源 (score >= 90) 中寻找未失败且有该集数的线路
+        // 1. 严格优先在源站点优先线路 (score >= 120, 包含原站1080P豆瓣/暴风/茅台及原站全部直连源) 中寻找未失败且含有该集数的线路
+        for (let i = 0; i < groups.length; i++) {
+            const g = groups[i];
+            const score = getRoutePriorityScore(g.name, g.episodes[0] && g.episodes[0].url);
+            if (score >= 120 && !failedSet.has(i) && !bannedNames.has(g.name) && g.episodes && g.episodes[targetEpIdx]) {
+                return i;
+            }
+        }
+        // 2. 次选第三方主力源 (score >= 90)
         for (let i = 0; i < groups.length; i++) {
             const g = groups[i];
             const score = getRoutePriorityScore(g.name, g.episodes[0] && g.episodes[0].url);
@@ -1181,7 +1234,7 @@
                 return i;
             }
         }
-        // 2. 次选任何未失败且有该集数的线路（按优先级顺序）
+        // 3. 次选任何未失败且有该集数的线路（按优先级顺序）
         for (let i = 0; i < groups.length; i++) {
             const g = groups[i];
             if (!failedSet.has(i) && g.episodes && g.episodes[targetEpIdx]) {
@@ -1230,11 +1283,11 @@
         const valid = results.filter(r => r.ok);
 
         if (valid.length > 0) {
-            // 原站主源 (score >= 90) 只要响应正常 (< 2600ms)，永远优先于备用源；同级内取延迟最低者
+            // 源站点线路 (score >= 120) 只要响应正常 (< 2800ms)，永远绝对优先于第三方源；同级内取延迟最低者
             valid.sort((a, b) => {
-                const aPrimary = a.score >= 90 && a.latency < 2600 ? 1 : 0;
-                const bPrimary = b.score >= 90 && b.latency < 2600 ? 1 : 0;
-                if (aPrimary !== bPrimary) return bPrimary - aPrimary;
+                const aOrigin = a.score >= 120 && a.latency < 2800 ? 2 : (a.score >= 90 && a.latency < 2800 ? 1 : 0);
+                const bOrigin = b.score >= 120 && b.latency < 2800 ? 2 : (b.score >= 90 && b.latency < 2800 ? 1 : 0);
+                if (aOrigin !== bOrigin) return bOrigin - aOrigin;
                 return a.latency - b.latency;
             });
             const best = valid[0];

@@ -657,20 +657,31 @@ async function fetchDirectFromOrigin(decodedItem) {
 
 const KANJU_SECRET = '557d0e4ae929f438da6bd84412374e6086b8af09b3fed54bf22601d5bf8c54a0';
 
-// 影视原站 kanju3.com 深度解析直连高品质 1080P/蓝光 播放源
-async function searchOriginKanju(keyword) {
+// 影视原站 kanju3.com 深度解析直连高品质 1080P/蓝光 播放源（源站点源绝对优先）
+async function searchOriginKanju(keyword, originId = '') {
     try {
         const cleanKw = (keyword || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
-        if (!cleanKw) return [];
-        const suggestData = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(cleanKw) + '&limit=6&mode=home&scope=public');
-        if (!suggestData || !Array.isArray(suggestData.suggestions)) return [];
-
-        const targets = suggestData.suggestions
-            .filter(s => s && s.target && (s.target.variant_id || s.target.id))
-            .map(s => ({
-                id: s.target.variant_id || s.target.id,
-                title: s.target.title || s.label || ''
-            }));
+        const targets = [];
+        if (originId && originId.startsWith('av_')) {
+            targets.push({ id: originId, title: cleanKw });
+        }
+        if (cleanKw) {
+            const suggestData = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(cleanKw) + '&limit=6&mode=home&scope=public');
+            if (suggestData && Array.isArray(suggestData.suggestions)) {
+                suggestData.suggestions
+                    .filter(s => s && s.target && (s.target.variant_id || s.target.id))
+                    .forEach(s => {
+                        const tid = s.target.variant_id || s.target.id;
+                        if (!targets.some(t => t.id === tid)) {
+                            targets.push({
+                                id: tid,
+                                title: s.target.title || s.label || ''
+                            });
+                        }
+                    });
+            }
+        }
+        if (targets.length === 0) return [];
 
         const results = [];
         for (const target of targets.slice(0, 3)) {
@@ -702,8 +713,8 @@ async function searchOriginKanju(keyword) {
                         if (line.url && line.url.startsWith('http') && (line.url.includes('.m3u8') || line.url.includes('.mp4'))) {
                             let pName = line.display_label || line.provider_name || '原站直连';
                             if (pName.includes('豆瓣') || pName.includes('暴风') || pName.includes('茅台')) {
-                                pName = '1080P·' + pName;
-                            } else if (!pName.includes('1080P') && !pName.includes('超清') && !pName.includes('原画') && !pName.includes('蓝光')) {
+                                pName = '原站1080P·' + pName.replace(/^1080P[·・\s\-_]*/g, '');
+                            } else if (!pName.startsWith('原站') && !pName.startsWith('源站')) {
                                 pName = '原站·' + pName;
                             }
                             if (!providerMap.has(pName)) {
@@ -717,9 +728,20 @@ async function searchOriginKanju(keyword) {
                     });
                 });
 
+                const originRank = (name) => {
+                    if (name.includes('豆瓣')) return 100;
+                    if (name.includes('暴风')) return 90;
+                    if (name.includes('茅台')) return 80;
+                    if (name.includes('1080P') || name.includes('4K') || name.includes('原画') || name.includes('蓝光') || name.includes('超清')) return 70;
+                    if (name.includes('极速')) return 60;
+                    if (name.includes('红牛')) return 50;
+                    return 40;
+                };
+
+                const sortedEntries = Array.from(providerMap.entries()).sort((a, b) => originRank(b[0]) - originRank(a[0]));
                 const playFroms = [];
                 const playUrls = [];
-                for (const [pName, epList] of providerMap.entries()) {
+                for (const [pName, epList] of sortedEntries) {
                     if (epList.length > 0) {
                         playFroms.push(pName);
                         playUrls.push(epList.join('#'));
@@ -732,13 +754,14 @@ async function searchOriginKanju(keyword) {
                         vod_id: cat.id || target.id,
                         vod_name: cat.title || target.title,
                         vod_pic: cat.poster_url || cat.backdrop_url || '',
-                        vod_remarks: has1080 ? '1080P超清原画' : (cat.remarks || '高清'),
+                        vod_remarks: has1080 ? '源站1080P顶级原画' : (cat.remarks || '原站高清'),
                         vod_year: String(cat.year || ''),
                         vod_actor: (cat.actors || []).slice(0, 4).join(', '),
                         vod_director: (cat.directors || []).slice(0, 2).join(', '),
                         vod_content: cat.description || '',
                         vod_play_from: playFroms.join('$$$'),
-                        vod_play_url: playUrls.join('$$$')
+                        vod_play_url: playUrls.join('$$$'),
+                        is_origin_source: true
                     });
                 }
             } catch(e) {}
@@ -1236,20 +1259,21 @@ if (source === '轻小说文库' || source === 'Wenku8') {
         // 🎬 影视聚合检索接口 (原站主力源优先 + 10条高速备用源并发容灾)
         if (url.pathname === '/api/video/search') {
             const wd = (url.searchParams.get('wd') || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
-            if (!wd) {
+            const id = (url.searchParams.get('id') || '').trim();
+            if (!wd && !id) {
                 return new Response(JSON.stringify({ code: 0, list: [] }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
             }
 
-            // 第一梯队：原站三大主力源（画质最佳、正片时间轴与原站弹幕100%对齐，最高优先级）
-            // 第二梯队：10条实测高速备用源（当主线超时或缺失时自动无缝接力）
+            // 第一梯队：源站点官方直连源（豆瓣1080P/暴风1080P/茅台1080P/全网原站直连，绝对优先）
+            // 第二梯队：全网高速聚合采集源（当原站资源未收录时作为丰富补充与备选）
             const apis = [
-                'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',                   // ★原站主线1: 量子蓝光 (CORS:*)
-                'https://cj.ffzyapi.com/api.php/provide/vod/?ac=detail',                  // ★原站主线2: 非凡超清
-                'https://bfzyapi.com/api.php/provide/vod/?ac=detail',                     // ★原站主线3: 暴风专线 (CORS:*)
-                'https://jszyapi.com/api.php/provide/vod/?ac=detail',                     // ★主力极速: 极速蓝光
-                'https://www.subocaiji.com/api.php/provide/vod/?ac=detail',               // ★高速专线: 速播蓝光
+                'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',                   // ★主力1: 量子蓝光 (CORS:*)
+                'https://cj.ffzyapi.com/api.php/provide/vod/?ac=detail',                  // ★主力2: 非凡超清
+                'https://bfzyapi.com/api.php/provide/vod/?ac=detail',                     // ★主力3: 暴风专线 (CORS:*)
+                'https://jszyapi.com/api.php/provide/vod/?ac=detail',                     // ★极速蓝光
+                'https://www.subocaiji.com/api.php/provide/vod/?ac=detail',               // ★速播蓝光
                 'https://jyzyapi.com/provide/vod/from/jinyingm3u8/?ac=detail',            // 备用2: 金鹰蓝光
                 'https://api.apibdzy.com/api.php/provide/vod/?ac=detail',                 // 备用3: 百度超清
                 'https://360zy.com/api.php/provide/vod/?ac=detail',                       // 备用4: 360超清
@@ -1262,6 +1286,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             ];
 
             const fetchOne = async (base) => {
+                if (!wd) return [];
                 const controller = new AbortController();
                 const timer = setTimeout(() => controller.abort(), 2600);
                 try {
@@ -1281,13 +1306,13 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             };
 
             const [originList, ...settled] = await Promise.all([
-                searchOriginKanju(wd),
+                searchOriginKanju(wd, id),
                 ...apis.map(fetchOne)
             ]);
 
             const mergedMap = new Map();
 
-            // 优先置顶原站 1080P 超清解析结果 (豆瓣1080P 1920x840 3.4Mbps, 暴风, 茅台)
+            // 绝对优先置顶源站点的全部源 (豆瓣1080P原画 1920x840 3.4Mbps, 暴风1080P, 茅台1080P, 原站直连各线路)
             if (Array.isArray(originList)) {
                 originList.forEach(item => {
                     if (!item || !item.vod_name || !item.vod_play_url) return;
@@ -1297,45 +1322,52 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             }
 
             settled.forEach(res => {
-                if (res.status === 'fulfilled' && Array.isArray(res.value)) {
-                    res.value.forEach(item => {
-                        if (!item || !item.vod_name || !item.vod_play_url) return;
-                        const rawFroms = (item.vod_play_from || '').split('$$$').filter(Boolean);
-                        const rawUrls = (item.vod_play_url || '').split('$$$').filter(Boolean);
-                        const validFroms = [];
-                        const validUrls = [];
-                        rawUrls.forEach((u, idx) => {
-                            if (u && (u.includes('.m3u8') || u.includes('.mp4'))) {
-                                validFroms.push(rawFroms[idx] || ('线路' + (idx + 1)));
-                                validUrls.push(u);
-                            }
-                        });
-                        if (validUrls.length === 0) return;
-
-                        const key = item.vod_name.replace(/[:：\s·・\-]/g, '').toLowerCase();
-                        if (!mergedMap.has(key)) {
-                            mergedMap.set(key, {
-                                ...item,
-                                vod_play_from: validFroms.join('$$$'),
-                                vod_play_url: validUrls.join('$$$')
-                            });
-                        } else {
-                            const existing = mergedMap.get(key);
-                            const existingFroms = (existing.vod_play_from || '').split('$$$').filter(Boolean);
-                            validFroms.forEach((nf, idx) => {
-                                if (!existingFroms.includes(nf) && validUrls[idx]) {
-                                    existingFroms.push(nf);
-                                    existing.vod_play_from = (existing.vod_play_from ? existing.vod_play_from + '$$$' : '') + nf;
-                                    existing.vod_play_url = (existing.vod_play_url ? existing.vod_play_url + '$$$' : '') + validUrls[idx];
-                                }
-                            });
-                            if (!existing.vod_pic && item.vod_pic) existing.vod_pic = item.vod_pic;
+                const list = Array.isArray(res) ? res : (res && res.status === 'fulfilled' && Array.isArray(res.value) ? res.value : (res && Array.isArray(res.list) ? res.list : []));
+                list.forEach(item => {
+                    if (!item || !item.vod_name || !item.vod_play_url) return;
+                    const rawFroms = (item.vod_play_from || '').split('$$$').filter(Boolean);
+                    const rawUrls = (item.vod_play_url || '').split('$$$').filter(Boolean);
+                    const validFroms = [];
+                    const validUrls = [];
+                    rawUrls.forEach((u, idx) => {
+                        if (u && (u.includes('.m3u8') || u.includes('.mp4'))) {
+                            validFroms.push(rawFroms[idx] || ('线路' + (idx + 1)));
+                            validUrls.push(u);
                         }
                     });
-                }
+                    if (validUrls.length === 0) return;
+
+                    const key = item.vod_name.replace(/[:：\s·・\-]/g, '').toLowerCase();
+                    if (!mergedMap.has(key)) {
+                        mergedMap.set(key, {
+                            ...item,
+                            vod_play_from: validFroms.join('$$$'),
+                            vod_play_url: validUrls.join('$$$')
+                        });
+                    } else {
+                        // 若已存在源站点项目，采集源仅在末尾作为备选追加，源站点线路永远保持在最前
+                        const existing = mergedMap.get(key);
+                        const existingFroms = (existing.vod_play_from || '').split('$$$').filter(Boolean);
+                        validFroms.forEach((nf, idx) => {
+                            if (!existingFroms.includes(nf) && validUrls[idx]) {
+                                existingFroms.push(nf);
+                                existing.vod_play_from = (existing.vod_play_from ? existing.vod_play_from + '$$$' : '') + nf;
+                                existing.vod_play_url = (existing.vod_play_url ? existing.vod_play_url + '$$$' : '') + validUrls[idx];
+                            }
+                        });
+                        if (!existing.vod_pic && item.vod_pic) existing.vod_pic = item.vod_pic;
+                    }
+                });
             });
 
-            const combinedList = Array.from(mergedMap.values());
+            // 保证源站点结果排在最前
+            const combinedList = Array.from(mergedMap.values()).sort((a, b) => {
+                const aIsOrigin = !!(a.is_origin_source || (a.vod_play_from || '').includes('原站') || (a.vod_play_from || '').includes('源站') || (a.vod_play_from || '').includes('1080P'));
+                const bIsOrigin = !!(b.is_origin_source || (b.vod_play_from || '').includes('原站') || (b.vod_play_from || '').includes('源站') || (b.vod_play_from || '').includes('1080P'));
+                if (aIsOrigin !== bIsOrigin) return bIsOrigin ? 1 : -1;
+                return 0;
+            });
+
             return new Response(JSON.stringify({
                 code: 0,
                 msg: 'ok',
