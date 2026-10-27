@@ -351,6 +351,98 @@ async function fetchDirectFromOrigin(decodedItem) {
 
 const KANJU_SECRET = '557d0e4ae929f438da6bd84412374e6086b8af09b3fed54bf22601d5bf8c54a0';
 
+// 影视原站 kanju3.com 深度解析直连高品质 1080P/蓝光 播放源
+async function searchOriginKanju(keyword) {
+    try {
+        const cleanKw = (keyword || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
+        if (!cleanKw) return [];
+        const suggestData = await fetchKanjuSigned('/v1/suggest', '?q=' + encodeURIComponent(cleanKw) + '&limit=6&mode=home&scope=public');
+        if (!suggestData || !Array.isArray(suggestData.suggestions)) return [];
+
+        const targets = suggestData.suggestions
+            .filter(s => s && s.target && (s.target.variant_id || s.target.id))
+            .map(s => ({
+                id: s.target.variant_id || s.target.id,
+                title: s.target.title || s.label || ''
+            }));
+
+        const results = [];
+        for (const target of targets.slice(0, 3)) {
+            try {
+                const cat = await fetchKanjuSigned('/v1/catalog/' + encodeURIComponent(target.id));
+                if (!cat || !cat.episodes || cat.episodes.length === 0) continue;
+
+                const eps = cat.episodes.slice(0, 10);
+                const resolvedList = await Promise.all(
+                    eps.map(ep => ep.token ? fetchKanjuSigned('/v1/playback/resolve/' + encodeURIComponent(ep.token)).catch(() => null) : null)
+                );
+
+                const providerMap = new Map();
+                const priorityKeys = ['豆瓣', '暴风', '茅台'];
+
+                resolvedList.forEach((res, epIdx) => {
+                    if (!res || !Array.isArray(res.line_options)) return;
+                    const epTitle = cat.episodes[epIdx].title || (eps.length === 1 ? '正片' : ('第' + (epIdx + 1) + '集'));
+
+                    const sortedOptions = [...res.line_options].sort((a, b) => {
+                        const nameA = a.display_label || a.provider_name || '';
+                        const nameB = b.display_label || b.provider_name || '';
+                        const prioA = priorityKeys.some(k => nameA.includes(k)) ? 1 : 0;
+                        const prioB = priorityKeys.some(k => nameB.includes(k)) ? 1 : 0;
+                        return prioB - prioA;
+                    });
+
+                    sortedOptions.forEach(line => {
+                        if (line.url && line.url.startsWith('http') && (line.url.includes('.m3u8') || line.url.includes('.mp4'))) {
+                            let pName = line.display_label || line.provider_name || '原站直连';
+                            if (pName.includes('豆瓣') || pName.includes('暴风') || pName.includes('茅台')) {
+                                pName = '1080P·' + pName;
+                            } else if (!pName.includes('1080P') && !pName.includes('超清') && !pName.includes('原画') && !pName.includes('蓝光')) {
+                                pName = '原站·' + pName;
+                            }
+                            if (!providerMap.has(pName)) {
+                                providerMap.set(pName, []);
+                            }
+                            const epEntry = epTitle + '$' + line.url;
+                            if (!providerMap.get(pName).some(e => e.split('$')[0] === epTitle)) {
+                                providerMap.get(pName).push(epEntry);
+                            }
+                        }
+                    });
+                });
+
+                const playFroms = [];
+                const playUrls = [];
+                for (const [pName, epList] of providerMap.entries()) {
+                    if (epList.length > 0) {
+                        playFroms.push(pName);
+                        playUrls.push(epList.join('#'));
+                    }
+                }
+
+                if (playFroms.length > 0) {
+                    const has1080 = playFroms.some(f => f.includes('1080P') || f.includes('豆瓣') || f.includes('暴风') || f.includes('茅台'));
+                    results.push({
+                        vod_id: cat.id || target.id,
+                        vod_name: cat.title || target.title,
+                        vod_pic: cat.poster_url || cat.backdrop_url || '',
+                        vod_remarks: has1080 ? '1080P超清原画' : (cat.remarks || '高清'),
+                        vod_year: String(cat.year || ''),
+                        vod_actor: (cat.actors || []).slice(0, 4).join(', '),
+                        vod_director: (cat.directors || []).slice(0, 2).join(', '),
+                        vod_content: cat.description || '',
+                        vod_play_from: playFroms.join('$$$'),
+                        vod_play_url: playUrls.join('$$$')
+                    });
+                }
+            } catch(e) {}
+        }
+        return results;
+    } catch(e) {
+        return [];
+    }
+}
+
 async function fetchKanjuSigned(pathname, search = '') {
     const timestamp = String(Date.now());
     const nonceArr = new Uint8Array(16);
@@ -844,8 +936,21 @@ const workerHandler = {
                 }
             };
 
-            const settled = await Promise.allSettled(apis.map(fetchOne));
+            const [originList, ...settled] = await Promise.all([
+                searchOriginKanju(wd),
+                ...apis.map(fetchOne)
+            ]);
+
             const mergedMap = new Map();
+
+            // 优先置顶原站 1080P 超清解析结果 (豆瓣1080P 1920x840 3.4Mbps, 暴风, 茅台)
+            if (Array.isArray(originList)) {
+                originList.forEach(item => {
+                    if (!item || !item.vod_name || !item.vod_play_url) return;
+                    const normKey = item.vod_name.replace(/[:：\s·・\-]/g, '').toLowerCase();
+                    mergedMap.set(normKey, { ...item });
+                });
+            }
 
             settled.forEach(res => {
                 if (res.status === 'fulfilled' && Array.isArray(res.value)) {
@@ -863,7 +968,7 @@ const workerHandler = {
                         });
                         if (validUrls.length === 0) return;
 
-                        const key = item.vod_name.trim();
+                        const key = item.vod_name.replace(/[:：\s·・\-]/g, '').toLowerCase();
                         if (!mergedMap.has(key)) {
                             mergedMap.set(key, {
                                 ...item,

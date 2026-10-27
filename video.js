@@ -194,14 +194,18 @@
 ];
 
 
-    // 判断是否为原站主力源（量子、非凡、暴风 —— 速度最快、画质最佳、弹幕时间轴最准）
+    // 判断是否为原站主力源（豆瓣1080P原画、暴风超清、茅台蓝光、量子、非凡 —— 速度最快、画质最佳、弹幕时间轴最准）
     function getRoutePriorityScore(rawName, sampleUrl) {
         const name = String(rawName || '').trim();
         const lower = name.toLowerCase();
         const urlStr = String(sampleUrl || '').toLowerCase();
+        if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf')) return 120;
+        if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('fengbao') || urlStr.includes('fengbao') || urlStr.includes('bvvvv')) return 115;
+        if (name.includes('茅台') || lower.includes('maotai') || urlStr.includes('uvjtih') || urlStr.includes('myqqdd')) return 110;
+        if (name.includes('1080P') || name.includes('4K') || name.includes('蓝光') || name.includes('原画')) return 105;
         if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz') || urlStr.includes('lzi')) return 100;
         if (name.includes('非凡') || lower.includes('feifan') || lower.includes('ff') || urlStr.includes('ffzy')) return 95;
-        if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf') || urlStr.includes('bfzy') || urlStr.includes('bvvvv')) return 90;
+        if (name.includes('极速') || lower.includes('jszy') || urlStr.includes('jisuzy')) return 88;
         if (name.includes('红牛') || lower.includes('hn') || lower.includes('hongniu')) return 55;
         if (name.includes('金鹰') || lower.includes('jy') || lower.includes('jinying')) return 50;
         if (name.includes('百度') || lower.includes('bd') || lower.includes('baidu')) return 45;
@@ -221,6 +225,15 @@
         const name = String(rawName).trim();
         const lower = name.toLowerCase();
         const urlStr = String(sampleUrl || '').toLowerCase();
+        if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf')) {
+            return '★ 主线' + (index + 1) + ' · 豆瓣1080P原画 (原站顶级·真1080P)';
+        }
+        if (name.includes('暴风') || lower.includes('baofeng') || urlStr.includes('fengbao')) {
+            return '★ 主线' + (index + 1) + ' · 暴风1080P超清 (原站直连·高码率)';
+        }
+        if (name.includes('茅台') || lower.includes('maotai') || urlStr.includes('uvjtih') || urlStr.includes('myqqdd')) {
+            return '★ 主线' + (index + 1) + ' · 茅台1080P蓝光 (原站臻彩·无损)';
+        }
         if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz')) {
             return '★ 主线' + (index + 1) + ' · 量子蓝光 (原站秒播·弹幕)';
         }
@@ -913,11 +926,23 @@
             const data = await res.json();
             const remoteList = data.list || [];
 
-            // 合并去重
-            const merged = [...localMatches];
+            // 合并去重：以远程搜索结果为准（包含原站最新 1080P 豆瓣/暴风直连播放源与清晰度标识）
+            const merged = [];
+            const seen = new Set();
             remoteList.forEach(r => {
-                if (!merged.some(m => m.vod_name === r.vod_name)) {
+                if (!r || !r.vod_name) return;
+                const key = r.vod_name.replace(/[:：\s·・\-]/g, '').toLowerCase();
+                if (!seen.has(key)) {
+                    seen.add(key);
                     merged.push(r);
+                }
+            });
+            localMatches.forEach(loc => {
+                if (!loc || !loc.vod_name) return;
+                const key = loc.vod_name.replace(/[:：\s·・\-]/g, '').toLowerCase();
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    merged.push(loc);
                 }
             });
 
