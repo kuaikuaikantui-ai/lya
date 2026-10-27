@@ -4593,7 +4593,8 @@
             <div class="filter-row">
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质漫画源：</label>
                 <select id="mangaSourceSelect" class="select-filter">
-                    <option value="新新漫画" selected>新新漫画 (韩漫主线·超230话高清连载)</option>
+                    <option value="看漫画" selected>★ 看漫画 (官方超清·极速秒开·万人热榜)</option>
+                    <option value="新新漫画">新新漫画 (韩漫主线·超230话高清连载)</option>
                     <option value="极速韩漫">极速韩漫 (韩漫专线·同步汉化追更)</option>
                     <option value="G社漫画">G社漫画 (韩漫精选·热门条漫番外)</option>
                     <option value="全面漫画">全面漫画 (国漫全彩·官方正版连载)</option>
@@ -7669,8 +7670,10 @@
 
         try {
             const res = await fetch(`/api/search?title=${encodeURIComponent(title)}&tab=${encodeURIComponent('小说')}&source=${encodeURIComponent(source)}`);
-            const data = await res.json();
-            let rawList = data.data || [];
+            if (!res.ok) throw new Error(`服务响应异常 (HTTP ${res.status})`);
+            let data = null;
+            try { data = await res.json(); } catch(je) { throw new Error('源站返回格式异常，请稍后重试'); }
+            let rawList = (data && data.data) ? data.data : [];
 
             const spamKeywords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助', '专属'];
             let list = rawList.filter(item => {
@@ -7734,7 +7737,7 @@
         const title = (input && input.value.trim()) ? input.value.trim() : fallbackKw;
         if (window.checkSecretUnlockKeyword && window.checkSecretUnlockKeyword(title, input)) return;
         const sourceSelect = document.getElementById('mangaSourceSelect');
-        const source = sourceSelect ? sourceSelect.value : '新新漫画';
+        const source = sourceSelect ? sourceSelect.value : '看漫画';
         const grid = document.getElementById('mangaResultsGrid');
         const searchBlock = document.getElementById('mangaSearchResultBlock');
         const plaza = document.getElementById('mangaRecommendSectionsContainer');
@@ -7751,8 +7754,10 @@
 
         try {
             const res = await fetch(`/api/search?title=${encodeURIComponent(title)}&tab=${encodeURIComponent('漫画')}&source=${encodeURIComponent(source)}`);
-            const data = await res.json();
-            let rawList = data.data || [];
+            if (!res.ok) throw new Error(`服务响应异常 (HTTP ${res.status})`);
+            let data = null;
+            try { data = await res.json(); } catch(je) { throw new Error('源站返回格式异常，请稍后重试'); }
+            let rawList = (data && data.data) ? data.data : [];
 
             const spamKeywords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助', '专属'];
             let list = rawList.filter(item => {
@@ -7789,16 +7794,32 @@
 
             if (finalList.length === 0) {
                 grid.innerHTML = `
-                    <div style="color:var(--text-muted); padding:40px; text-align:center; grid-column:1/-1;">
-                        未检索到漫画《${title}》，可尝试更换上方漫画源或简化书名。
+                    <div style="color:var(--text-muted); padding:40px 20px; text-align:center; grid-column:1/-1;">
+                        <i class="fas fa-search" style="color:var(--accent); font-size:24px; margin-bottom:10px; display:block;"></i>
+                        <div style="font-weight:600; color:var(--text-main); margin-bottom:6px;">未检索到漫画《${title}》</div>
+                        <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">
+                            ${(title.includes('秘密教学') || source === '新新漫画' || source === '极速韩漫')
+                                ? '此作品属于特约韩漫，海外第三方图源节点正在维护同步中；建议切换上方「看漫画」官方源浏览热门漫画。'
+                                : '可尝试更换上方漫画源或简化书名再次搜索。'}
+                        </div>
                     </div>
                 `;
                 return;
             }
 
-            grid.innerHTML = finalList.map(item => renderBookPosterCard(item, '漫画', source === 'ALL' ? '新新漫画' : source)).join('');
+            grid.innerHTML = finalList.map(item => renderBookPosterCard(item, '漫画', source === 'ALL' ? (item.source || '看漫画') : source)).join('');
         } catch(e) {
-            grid.innerHTML = `<div style="color:red; padding:30px; text-align:center; grid-column:1/-1;">漫画检索失败: ${e.message}</div>`;
+            grid.innerHTML = `
+                <div style="color:var(--text-muted); padding:35px 20px; text-align:center; grid-column:1/-1;">
+                    <i class="fas fa-exclamation-circle" style="color:#f59e0b; font-size:24px; margin-bottom:10px; display:block;"></i>
+                    <div style="font-weight:600; color:var(--text-main); margin-bottom:6px;">未检索到相关漫画</div>
+                    <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">
+                        ${(title.includes('秘密教学') || source === '新新漫画' || source === '极速韩漫')
+                            ? '当前特约韩漫图源节点正在维护中，建议切换上方「看漫画」官方源浏览热门漫画。'
+                            : '该源站暂无返回，请尝试切换上方漫画源或稍后再试。'}
+                    </div>
+                </div>
+            `;
         }
     };
 

@@ -540,8 +540,8 @@ async function getLiveSourcesConfig() {
     return {
         version: '昂哥构建',
         categories: {
-            "漫画": ["新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
-            "小说": ["搬山人", "七猫", "番茄", "伪69", "半夏小说", "52书库", "爱下电子书", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
+            "漫画": ["看漫画", "新新漫画", "极速韩漫", "G社漫画", "全面漫画", "番茄"],
+            "小说": ["搬山人", "轻小说文库", "七猫", "番茄", "伪69", "半夏小说", "52书库", "爱下电子书", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
         }
     };
 }
@@ -889,12 +889,13 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     if (s === '搬山人') {
                         return await searchBanshanren(title);
                     }
+                    if (s === '轻小说文库' || s === 'Wenku8') {
+                        return searchWenku8Locally(title);
+                    }
                     try {
-                        const targetUrl = UPSTREAM + '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(s) + '&page=' + page + '&disabled_sources=0';
-                        const r = await fetch(targetUrl, { headers: getRandomHeaders() });
-                        if (!r.ok) return [];
-                        const json = await r.json();
-                        const list = (json.data || []).filter(item => {
+                        const apiPath = '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(s) + '&page=' + page + '&disabled_sources=0';
+                        const json = await fetchUpstreamWithFailover(apiPath, false);
+                        const list = (json && Array.isArray(json.data) ? json.data : []).filter(item => {
                             const name = item.book_name || '';
                             return !name.includes('@vip') && !name.includes('@svip') && !name.includes('打赏后获取') && !name.includes('客服');
                         });
@@ -918,24 +919,21 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             }
 
             try {
-                const targetUrl = UPSTREAM + '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(upstreamSource) + '&page=' + page + '&disabled_sources=0';
-                const r = await fetch(targetUrl, { headers: getRandomHeaders() });
-                const text = await r.text();
-                let output = text;
-                try {
-                    const json = JSON.parse(text);
-                    if (json && Array.isArray(json.data)) {
-                        json.data = json.data.filter(item => {
-                            const name = item.book_name || '';
-                            return !name.includes('@vip') && !name.includes('@svip') && !name.includes('打赏后获取') && !name.includes('客服');
-                        });
-                        if (source === '极速韩漫') {
-                            json.data = json.data.map(item => ({ ...item, source: '极速韩漫' }));
-                        }
-                        output = JSON.stringify(json);
+                const apiPath = '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(upstreamSource) + '&page=' + page + '&disabled_sources=0';
+                const json = await fetchUpstreamWithFailover(apiPath, false);
+                if (json && Array.isArray(json.data)) {
+                    json.data = json.data.filter(item => {
+                        const name = item.book_name || '';
+                        return !name.includes('@vip') && !name.includes('@svip') && !name.includes('打赏后获取') && !name.includes('客服');
+                    });
+                    if (source === '极速韩漫') {
+                        json.data = json.data.map(item => ({ ...item, source: '极速韩漫' }));
                     }
-                } catch(e) {}
-                return new Response(output, {
+                    return new Response(JSON.stringify(json), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                    });
+                }
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: [] }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
@@ -954,8 +952,8 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                         }
                     } catch(rescueErr) {}
                 }
-                return new Response(JSON.stringify({ code: -1, msg: e.message, data: [] }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: [] }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             }
         }
