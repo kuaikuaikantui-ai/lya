@@ -4132,7 +4132,111 @@
         body.reading-mode .mobile-top-search-wrap {
             display: none !important;
         }
-    </style>
+    
+        .catalog-volume-divider {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            margin-top: 12px;
+            margin-bottom: 4px;
+            background: rgba(194, 94, 56, 0.08);
+            border-left: 3.5px solid #c25e38;
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 13.5px;
+            font-weight: 600;
+        }
+        .catalog-volume-divider i {
+            color: #c25e38;
+        }
+        .novel-illustration-gallery {
+            margin: 24px 0;
+            padding: 14px;
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px dashed rgba(194, 94, 56, 0.35);
+            border-radius: 12px;
+            writing-mode: horizontal-tb !important;
+            direction: ltr !important;
+        }
+        .novel-illustration-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #c25e38;
+            margin-bottom: 12px;
+        }
+        .novel-illustration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        @media (max-width: 640px) {
+            .novel-illustration-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .novel-illustration-card {
+            position: relative;
+            background: rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .novel-illustration-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+        .novel-illustration-card img {
+            width: 100%;
+            height: 280px;
+            object-fit: cover;
+            display: block;
+        }
+        .novel-illustration-badge {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+            color: #fff;
+            padding: 8px 10px;
+            font-size: 11.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .lightbox-img-wrapper {
+            max-width: 90vw;
+            max-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .lightbox-img-wrapper img {
+            max-width: 100%;
+            max-height: 80vh;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            object-fit: contain;
+        }
+        .lightbox-toolbar {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            z-index: 210;
+        }
+</style>
     <!-- 开源中文专业排版引擎 Heti (赫蹏) + 霞鹜文楷屏幕阅读字体 (LXGW WenKai Screen) -->
     <link rel="stylesheet" href="https://unpkg.com/heti/umd/heti.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css">
@@ -7964,11 +8068,20 @@
         const indexed = currentCatalog.map((chap, idx) => ({ chap, idx }));
         if (_detailCatalogReversed) indexed.reverse();
 
-        catalogList.innerHTML = indexed.map(({ chap, idx }) => `
-            <div class="chap-btn ${currentChapterIndex === idx ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="onCatalogChapterClick(${idx})">
-                ${escapeNovelHtml(chap.title)}
-            </div>
-        `).join('');
+        let lastVol = null;
+        let catHtml = '';
+        for (const { chap, idx } of indexed) {
+            if (chap.volume && chap.volume !== lastVol) {
+                lastVol = chap.volume;
+                catHtml += `<div class="catalog-volume-divider"><i class="fas fa-bookmark"></i> ${escapeNovelHtml(lastVol)}</div>`;
+            }
+            catHtml += `
+                <div class="chap-btn ${currentChapterIndex === idx ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="onCatalogChapterClick(${idx})">
+                    ${escapeNovelHtml(chap.title)}
+                </div>
+            `;
+        }
+        catalogList.innerHTML = catHtml;
     }
 
     // 目录项点击响应：点击正在阅读的历史章节自动恢复章内精确位置，点击新章节从头开始
@@ -8024,7 +8137,7 @@
             const cloudFetchPromise = (cloudUser && cloudUser.uid) ? fetchCloudSnapshot(cloudUser.uid).catch(() => null) : Promise.resolve(null);
 
             const [res, cloudPayload] = await Promise.all([
-                fetch(`/api/catalog?book_id=${encodeURIComponent(book.book_id)}&source=${encodeURIComponent(book.source)}&tab=${encodeURIComponent(activeTab)}`),
+                fetch(`/api/catalog?book_id=${encodeURIComponent(book.book_id)}&source=${encodeURIComponent(book.source)}&tab=${encodeURIComponent(activeTab)}&title=${encodeURIComponent(book.book_name || '')}`),
                 cloudFetchPromise
             ]);
 
@@ -8035,6 +8148,12 @@
             }
 
             const data = await res.json();
+            if (data && data.autoSwitched) {
+                const newSource = data.newSource || '搬山人';
+                currentBookInfo.source = newSource;
+                const sourceTag = document.getElementById('detailSourceTag');
+                if (sourceTag) sourceTag.innerText = newSource + ' (已自动接力)';
+            }
             const rawCatalog = data.data || [];
 
             const normalized = normalizeAndSortCatalog(rawCatalog, activeTab);
@@ -8254,12 +8373,49 @@
         return finalParas;
     }
 
-    function formatNovelContentToHtml(rawText, chapTitle, bookInfo) {
+    function openNovelLightbox(imgUrl) {
+        const lightbox = document.getElementById('novelImageLightbox');
+        if (!lightbox) return;
+        const img = document.getElementById('lightboxImg');
+        const origLink = document.getElementById('lightboxOriginalLink');
+        if (img) img.src = imgUrl;
+        if (origLink) origLink.href = imgUrl;
+        lightbox.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeNovelLightbox() {
+        const lightbox = document.getElementById('novelImageLightbox');
+        if (!lightbox) return;
+        lightbox.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    function formatNovelContentToHtml(rawText, chapTitle, bookInfo, images = []) {
         const bookName = bookInfo?.book_name || '小说正文';
         const sourceName = bookInfo?.source || '书源';
         const paras = smartSegmentNovelParagraphs(rawText, chapTitle, bookName);
         const totalChars = paras.reduce((sum, p) => sum + p.length, 0);
         const estMinutes = Math.max(1, Math.round(totalChars / 420));
+
+        let illustrationHtml = '';
+        if (Array.isArray(images) && images.length > 0) {
+            const illCards = images.map((img, i) => `
+                <div class="novel-illustration-card" onclick="openNovelLightbox('${escapeNovelHtml(img)}')">
+                    <img src="${escapeNovelHtml(img)}" referrerpolicy="no-referrer" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='/api/image-proxy?url=' + encodeURIComponent('${escapeNovelHtml(img)}')" />
+                    <div class="novel-illustration-badge"><i class="fas fa-search-plus"></i> 高清插画 #${i + 1} (轻触全屏放大)</div>
+                </div>
+            `).join('');
+            illustrationHtml = `
+                <div class="novel-illustration-gallery">
+                    <div class="novel-illustration-bar">
+                        <i class="fas fa-images"></i>
+                        <span>官方全彩插画 (${images.length}P · 轻触卡片开启高清灯箱)</span>
+                    </div>
+                    <div class="novel-illustration-grid">${illCards}</div>
+                </div>
+            `;
+        }
 
         const headerHtml = `
             <header class="novel-chapter-header">
@@ -8276,7 +8432,7 @@
             </header>
         `;
 
-        const bodyHtml = paras.map(p => `<p class="novel-para">${escapeNovelHtml(p)}</p>`).join('');
+        const bodyHtml = illustrationHtml + paras.map(p => `<p class="novel-para">${escapeNovelHtml(p)}</p>`).join('');
         return {
             headerHtml,
             bodyHtml,
@@ -8782,7 +8938,12 @@
                 // 彻底恢复小说用户的专属排版（默认左右翻页，绝不受前次漫画上下卷轴影响）
                 currentReaderMode = novelReaderMode || 'paginated';
                 container.classList.remove('manga-reader-mode');
-                const formatted = formatNovelContentToHtml(cleanedText, chap.title, currentBookInfo);
+                if (data && data.autoSwitched && data.newSource) {
+                    currentBookInfo.source = data.newSource;
+                    const sourceTag = document.getElementById('detailSourceTag');
+                    if (sourceTag) sourceTag.innerText = data.newSource + ' (已自动接力)';
+                }
+                const formatted = formatNovelContentToHtml(cleanedText, chap.title, currentBookInfo, data ? data.images : []);
                 renderNovelIntoContainer(formatted, chap.title, idx, initialPage);
                 prefetchNextChapter(idx + 1, false);
                 return;
@@ -10553,5 +10714,18 @@
 
     init();
 </script>
+
+<div class="modal-overlay" id="novelImageLightbox" onclick="closeNovelLightbox()">
+    <div class="lightbox-toolbar" onclick="event.stopPropagation()">
+        <span id="lightboxTitle"><i class="fas fa-image"></i> 轻小说高清插画赏析</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <a id="lightboxOriginalLink" target="_blank" class="btn" style="padding:4px 10px; font-size:12px; color:#fff;" referrerpolicy="no-referrer"><i class="fas fa-external-link-alt"></i> 查看原画</a>
+            <button class="btn" style="padding:4px 10px; font-size:12px;" onclick="closeNovelLightbox()"><i class="fas fa-times"></i> 关闭</button>
+        </div>
+    </div>
+    <div class="lightbox-img-wrapper" onclick="event.stopPropagation()">
+        <img id="lightboxImg" src="" referrerpolicy="no-referrer" alt="轻小说插画" />
+    </div>
+</div>
 </body>
 </html>
