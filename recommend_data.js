@@ -1051,15 +1051,16 @@ window.MANGA_RECOMMEND_SECTIONS = [
       },
       {
         "book_name": "妖神记",
-        "book_id": "eyJuYW1lIjoi5aaW56We6K6wIiwidCI6InNlYXJjaCIsInVybCI6Imh0dHBzOi8vd3d3Lnh4aW0uY2MvYTIyMjk5Lmh0bWwiLCJ2YXJpYWJsZSI6IiJ9",
+        "book_id": "kanman_27417",
         "author": "踏雪动漫",
-        "score": "9.4",
-        "category": "连载中",
+        "score": "9.9",
+        "category": "热血玄幻",
         "last_chapter": "全彩连载",
-        "abstract": "妖神一出，谁与争锋？这是一个妖灵的世界，融合了妖灵，就可以成为强大的妖灵师。因为一本时空妖灵之书，时空发生了扭转，当一切重新开始之时，命运之轮缓缓转动。",
-        "thumb_url": "https://p.wx4.top/cdn/baozi/yaoshenji-taxuedongman/yaoshenji-taxuedongman.jpg",
+        "abstract": "妖神一出，谁与争锋？时空逆转重生少年时代，以至强功法傲视九重天！",
+        "thumb_url": "https://image.yqmh.com/comic/27417/cover.jpg",
+        "cover": "https://image.yqmh.com/comic/27417/cover.jpg",
         "tab": "漫画",
-        "source": "新新漫画"
+        "source": "看漫画"
       },
       {
         "book_name": "全职法师",
@@ -1087,15 +1088,16 @@ window.MANGA_RECOMMEND_SECTIONS = [
       },
       {
         "book_name": "元尊",
-        "book_id": "eyJuYW1lIjoi5YWD5bCKIiwidCI6InNlYXJjaCIsInVybCI6Imh0dHBzOi8vd3d3Lnh4aW0uY2MvYTIwMjgzLmh0bWwiLCJ2YXJpYWJsZSI6IiJ9",
-        "author": "未天传媒",
-        "score": "9.4",
-        "category": "连载中",
+        "book_id": "kanman_105855",
+        "author": "天蚕土豆 / 未天传媒",
+        "score": "9.8",
+        "category": "玄幻修真",
         "last_chapter": "全彩连载",
-        "abstract": "主人公周元，为周朝皇子天生圣龙气运。因一道预言，气运被夺身中剧毒，经脉被锁无法修炼。背负国仇家恨，周元没有被这种困境摧毁，而是靠着坚强意志重开八脉，在家族存亡的危机时刻强势崛起。未来路漫漫兮，天生大才注定不凡的少年将在修行路上继续铿锵前行…",
-        "thumb_url": "https://p.wx4.top/cdn/baozi/yuanzun-weitianchuanmei/yuanzun-weitianchuanmei.jpg",
+        "abstract": "天地为炉，万物为铜，阴阳为炭，造化为工！少年周元执笔踏碎诸天！",
+        "thumb_url": "https://image.yqmh.com/comic/105855/cover.jpg",
+        "cover": "https://image.yqmh.com/comic/105855/cover.jpg",
         "tab": "漫画",
-        "source": "新新漫画"
+        "source": "看漫画"
       },
       {
         "book_name": "沧元图",
@@ -1147,15 +1149,16 @@ window.MANGA_RECOMMEND_SECTIONS = [
       },
       {
         "book_name": "修仙者大战超能力",
-        "book_id": "eyJuYW1lIjoi5L-u5LuZ6ICF5aSn5oiY6LaF6IO95YqbIiwidCI6InNlYXJjaCIsInVybCI6Imh0dHBzOi8vd3d3Lnh4aW0uY2MvYTM5MzY1Lmh0bWwiLCJ2YXJpYWJsZSI6IiJ9",
-        "author": "若鸿文化",
-        "score": "9.4",
-        "category": "连载中",
+        "book_id": "kanman_108225",
+        "author": "二次元动漫",
+        "score": "9.7",
+        "category": "热血冒险",
         "last_chapter": "全彩连载",
-        "abstract": "修仙大陆有一位大能者，意外穿越到了现代英雄社会，在这渺小的地球中仙法和超能力展开了激烈的对抗……",
-        "thumb_url": "https://p.wx4.top/cdn/baozi/xiuxianzhedazhanchaonengli-ruohongwenhua/xiuxianzhedazhanchaonengli-ruohongwenhua.jpg",
+        "abstract": "修仙大陆最强者穿越现代都市，收小弟惩恶扬善，横扫各种超能力者！",
+        "thumb_url": "https://image.yqmh.com/comic/108225/cover.jpg",
+        "cover": "https://image.yqmh.com/comic/108225/cover.jpg",
         "tab": "漫画",
-        "source": "新新漫画"
+        "source": "看漫画"
       },
       {
         "book_name": "重生之都市修仙",

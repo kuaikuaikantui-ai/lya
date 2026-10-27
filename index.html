@@ -6386,11 +6386,12 @@
         (cloudPayload.shelf || []).forEach(pushShelfItem);
         const mergedShelf = Array.from(shelfMap.values());
 
-        // 3. 合并【小说与漫画阅读记录】(按 book_name 聚合，严格最远章节原则，彻底杜绝回退)
+        // 3. 合并【小说与漫画阅读记录】(按 tab+book_name 聚合，严格最远章节原则，彻底杜绝回退)
         const histMap = new Map();
         const pushHistItem = (item) => {
             if (!item || !item.book_name) return;
-            const key = item.book_name.trim();
+            const isManga = item.tab === '漫画' || item.source === '看漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画' || item.source === '极速韩漫' || String(item.book_id || '').startsWith('kanman_');
+            const key = (isManga ? 'manga:' : 'novel:') + item.book_name.trim();
             const delTs = mergedDeleted['hist:' + key] || 0;
             const itemTs = Number(item.readTime || 0);
             if (delTs > 0 && delTs > itemTs) return;
@@ -7108,7 +7109,7 @@
 
         empty.style.display = 'none';
         grid.innerHTML = list.map((b) => {
-            const isManga = b.tab === '漫画' || b.source === '新新漫画' || b.source === '全面漫画' || b.source === 'G社漫画';
+            const isManga = b.tab === '漫画' || b.source === '看漫画' || b.source === '新新漫画' || b.source === '全面漫画' || b.source === 'G社漫画' || b.source === '极速韩漫' || String(b.book_id || '').startsWith('kanman_');
             const typeBadge = isManga ? '<i class="fas fa-images"></i> 漫画' : '<i class="fas fa-book-open"></i> 小说';
             return `
                 <div class="card" onclick="openBookFromHistory('${encodeURIComponent(JSON.stringify(b))}')">
@@ -7185,7 +7186,7 @@
         if (!grid || !empty) return;
 
         const all = getRecentHistory();
-        const list = all.filter(item => item.tab === '小说' || (!item.tab && item.source !== '新新漫画' && item.source !== '全面漫画' && item.source !== 'G社漫画'));
+        const list = all.filter(item => item.tab === '小说' || (!item.tab && item.source !== '看漫画' && item.source !== '新新漫画' && item.source !== '全面漫画' && item.source !== 'G社漫画' && item.source !== '极速韩漫' && !String(item.book_id || '').startsWith('kanman_')));
         if (badge) badge.textContent = `${list.length} 本`;
         if (tabBadge) tabBadge.textContent = `${list.length}`;
 
@@ -7222,7 +7223,7 @@
         if (!grid || !empty) return;
 
         const all = getRecentHistory();
-        const list = all.filter(item => item.tab === '漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画');
+        const list = all.filter(item => item.tab === '漫画' || item.source === '看漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画' || item.source === '极速韩漫' || String(item.book_id || '').startsWith('kanman_'));
         if (badge) badge.textContent = `${list.length} 部`;
         if (tabBadge) tabBadge.textContent = `${list.length}`;
 
@@ -7344,17 +7345,30 @@
     function openBookFromHistory(encodedBook) {
         let book = JSON.parse(decodeURIComponent(encodedBook));
         const bName = book.book_name ? book.book_name.trim() : '';
-        const shelf = getLocalShelf().find(b => b.book_name && b.book_name.trim() === bName);
-        const hist = getRecentHistory().find(b => b.book_name && b.book_name.trim() === bName);
+        const isManga = book.tab === '漫画' || book.source === '看漫画' || book.source === '新新漫画' || book.source === '全面漫画' || book.source === 'G社漫画' || book.source === '极速韩漫' || String(book.book_id || '').startsWith('kanman_');
+        const bTab = isManga ? '漫画' : '小说';
+
+        // 严格精确匹配同媒介（小说 vs 漫画）的记录，严禁将同名小说与漫画混淆错接
+        const shelf = getLocalShelf().find(b => b.book_name && b.book_name.trim() === bName && ((b.tab === '漫画' || b.source === '看漫画' || b.source === '新新漫画' || b.source === '全面漫画' || b.source === 'G社漫画' || b.source === '极速韩漫' || String(b.book_id || '').startsWith('kanman_')) === isManga));
+        const hist = getRecentHistory().find(b => b.book_name && b.book_name.trim() === bName && ((b.tab === '漫画' || b.source === '看漫画' || b.source === '新新漫画' || b.source === '全面漫画' || b.source === 'G社漫画' || b.source === '极速韩漫' || String(b.book_id || '').startsWith('kanman_')) === isManga));
 
         const sIdx = shelf ? Number(shelf.lastReadIndex || 0) : -1;
         const hIdx = hist ? Number(hist.lastReadIndex || 0) : -1;
         const bIdx = Number(book.lastReadIndex || 0);
         const maxIdx = Math.max(bIdx, sIdx, hIdx);
 
-        let targetBook = book;
-        if (sIdx === maxIdx && shelf) targetBook = { ...targetBook, ...shelf };
-        else if (hIdx === maxIdx && hist) targetBook = { ...targetBook, ...hist };
+        // 严格以当前点击的 book（含其真实 book_id、source、tab）为主体，只融合最新阅读章节进度，绝不允许被其他书籍信息覆盖
+        let targetBook = { ...book, tab: bTab };
+        const progressSource = (sIdx === maxIdx && shelf) ? shelf : ((hIdx === maxIdx && hist) ? hist : null);
+        if (progressSource) {
+            if (progressSource.lastReadIndex !== undefined) targetBook.lastReadIndex = progressSource.lastReadIndex;
+            if (progressSource.lastReadTitle) targetBook.lastReadTitle = progressSource.lastReadTitle;
+            if (progressSource.lastReadPage !== undefined) targetBook.lastReadPage = progressSource.lastReadPage;
+            if (progressSource.lastScrollTop !== undefined) targetBook.lastScrollTop = progressSource.lastScrollTop;
+            if (progressSource.lastScrollRatio !== undefined) targetBook.lastScrollRatio = progressSource.lastScrollRatio;
+            if (progressSource.lastMangaImgIndex !== undefined) targetBook.lastMangaImgIndex = progressSource.lastMangaImgIndex;
+            if (progressSource.lastProgressLabel) targetBook.lastProgressLabel = progressSource.lastProgressLabel;
+        }
 
         const pos = {
             page: targetBook.lastReadPage,
@@ -8109,8 +8123,9 @@
     // ==========================================
     async function loadBookDetail(encodedItem, autoReadIndex = null, initialPosition = null) {
         const book = JSON.parse(decodeURIComponent(encodedItem));
-        const activeTab = book.tab || (previousView === 'manga' ? '漫画' : '小说');
-        const cleanSource = ((book.source || (activeTab === '漫画' ? '新新漫画' : '七猫')) + '').replace(/^svip_/, '');
+        const isMangaSource = book.source === '看漫画' || book.source === '新新漫画' || book.source === '全面漫画' || book.source === 'G社漫画' || book.source === '极速韩漫' || String(book.book_id || '').startsWith('kanman_');
+        const activeTab = book.tab || (isMangaSource || previousView === 'manga' ? '漫画' : '小说');
+        const cleanSource = ((book.source || (activeTab === '漫画' ? '看漫画' : '七猫')) + '').replace(/^svip_/, '');
         currentBookInfo = { ...book, tab: activeTab, source: cleanSource };
         _detailCatalogReversed = false;
         _readerCatalogReversed = false;

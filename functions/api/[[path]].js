@@ -804,6 +804,17 @@ async function fetchKanjuSigned(pathname, search = '') {
     return await res.json();
 }
 
+// 智能精准匹配对应书籍，严禁胡乱替换成其他不相干作品
+function findStrictBookMatch(list, targetTitle) {
+    if (!Array.isArray(list) || !targetTitle) return null;
+    const cleanT = String(targetTitle).replace(/[\s:：·・\-_《》第季]/g, '').toLowerCase();
+    if (!cleanT) return null;
+    return list.find(b => {
+        const bName = String(b.book_name || '').replace(/[\s:：·・\-_《》第季]/g, '').toLowerCase();
+        return bName === cleanT || (cleanT.length >= 3 && (bName.startsWith(cleanT) || cleanT.startsWith(bName)));
+    }) || null;
+}
+
 const workerHandler = {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
@@ -928,24 +939,18 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             } catch(e) {
-                                if (tab === '漫画' && title) {
+                if (tab === '漫画' && title) {
                     try {
                         const kmList = await searchKanman(title);
-                        const match = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
-                        if (match) {
-                            const kmCat = await catalogKanman(match.book_id);
-                            if (kmCat && kmCat.length > 0) {
-                                return new Response(JSON.stringify({
-                                    code: 0,
-                                    msg: '已自动为您无缝接力至【看漫画】超清源目录',
-                                    data: kmCat,
-                                    autoSwitched: true,
-                                    newSource: '看漫画',
-                                    newBookId: match.book_id
-                                }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
-                            }
+                        const cleanT = String(title).replace(/[\s:：·・\-_《》]/g, '').toLowerCase();
+                        const filtered = kmList.filter(b => {
+                            const bName = String(b.book_name || '').replace(/[\s:：·・\-_《》]/g, '').toLowerCase();
+                            return bName.includes(cleanT) || cleanT.includes(bName);
+                        });
+                        if (filtered.length > 0) {
+                            return new Response(JSON.stringify({ code: 0, msg: 'ok', data: filtered }), {
+                                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                            });
                         }
                     } catch(rescueErr) {}
                 }
@@ -1417,13 +1422,14 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             const title = url.searchParams.get('title') || '';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
-                        if (source === '看漫画' || book_id.startsWith('kanman_')) {
+            if (source === '看漫画' || book_id.startsWith('kanman_')) {
                 let chapters = await catalogKanman(book_id);
                 if ((!chapters || chapters.length === 0) && title) {
                     try {
                         const kmList = await searchKanman(title);
-                        if (kmList && kmList.length > 0) {
-                            chapters = await catalogKanman(kmList[0].book_id);
+                        const match = findStrictBookMatch(kmList, title);
+                        if (match) {
+                            chapters = await catalogKanman(match.book_id);
                         }
                     } catch(e) {}
                 }
@@ -1432,13 +1438,14 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 });
             }
 
-if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('wenku8_') || book_id.startsWith('wk8_')) {
+            if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('wenku8_') || book_id.startsWith('wk8_')) {
                 let chapters = await catalogWenku8(book_id);
                 if ((!chapters || chapters.length === 0) && title) {
                     try {
                         const bList = await searchBanshanren(title);
-                        if (bList && bList.length > 0) {
-                            chapters = await catalogBanshanren(bList[0].book_id);
+                        const match = findStrictBookMatch(bList, title);
+                        if (match) {
+                            chapters = await catalogBanshanren(match.book_id);
                         }
                     } catch(e) {}
                 }
@@ -1457,23 +1464,35 @@ if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('w
             try {
                 const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await fetchUpstreamWithFailover(apiPath, false);
+
+                // 小说目录灾备救援（仅当精确书名匹配时方可接力，严禁错接）
                 if (tab === '小说' && (!data || !data.data || data.data.length === 0) && title) {
                     try {
                         const bList = await searchBanshanren(title);
-                        if (bList && bList.length > 0) {
-                            const bCat = await catalogBanshanren(bList[0].book_id);
+                        const matchBook = findStrictBookMatch(bList, title);
+                        if (matchBook) {
+                            const bCat = await catalogBanshanren(matchBook.book_id);
                             if (bCat && bCat.length > 0) {
-                                return new Response(JSON.stringify({ code: 0, msg: '已自动为您无缝接力至【搬山人】优质源目录', data: bCat, autoSwitched: true }), {
+                                return new Response(JSON.stringify({
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【搬山人】优质源目录',
+                                    data: bCat,
+                                    autoSwitched: true,
+                                    newSource: '搬山人',
+                                    newBookId: matchBook.book_id
+                                }), {
                                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                                 });
                             }
                         }
                     } catch(rescueErr) {}
                 }
+
+                // 漫画目录灾备救援（仅当官方看漫画超清库中能精准匹配同名漫画时方可接力）
                 if (tab === '漫画' && (!data || !data.data || data.data.length === 0) && title) {
                     try {
                         const kmList = await searchKanman(title);
-                        const match = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        const match = findStrictBookMatch(kmList, title);
                         if (match) {
                             const kmCat = await catalogKanman(match.book_id);
                             if (kmCat && kmCat.length > 0) {
@@ -1491,6 +1510,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('w
                         }
                     } catch(rescueErr) {}
                 }
+
                 return new Response(JSON.stringify(data), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
@@ -1498,57 +1518,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('w
                 if (tab === '漫画' && title) {
                     try {
                         const kmList = await searchKanman(title);
-                        const matchBook = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
-                        if (matchBook) {
-                            const kmCat = await catalogKanman(matchBook.book_id);
-                            if (kmCat && kmCat.length > 0) {
-                                let targetChap = (chap_idx >= 0 && kmCat[chap_idx]) ? kmCat[chap_idx] : null;
-                                const cleanChap = chap_title.replace(/[第话章\s]/g, '');
-                                if (cleanChap) {
-                                    const found = kmCat.find(c => {
-                                        const ct = (c.title || '').replace(/[第话章\s]/g, '');
-                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
-                                    });
-                                    if (found) targetChap = found;
-                                }
-                                if (!targetChap && kmCat.length > 0) targetChap = kmCat[0];
-                                if (targetChap) {
-                                    const p = targetChap.item_id.replace(/^kanman_/, '').split('_');
-                                    const rescuedData = await contentKanman(p[0], p[1]);
-                                    if (rescuedData && rescuedData.code === 0 && rescuedData.images && rescuedData.images.length > 0) {
-                                        return new Response(JSON.stringify({
-                                            code: 0,
-                                            msg: '已自动为您无缝接力至【看漫画】超清画卷',
-                                            autoSwitched: true,
-                                            newSource: '看漫画',
-                                            title: targetChap.title,
-                                            images: rescuedData.images
-                                        }), {
-                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    } catch(rescueErr) {}
-                }
-                if (tab === '小说' && title) {
-                    try {
-                        const bList = await searchBanshanren(title);
-                        if (bList && bList.length > 0) {
-                            const bCat = await catalogBanshanren(bList[0].book_id);
-                            if (bCat && bCat.length > 0) {
-                                return new Response(JSON.stringify({ code: 0, msg: '已自动为您无缝接力至【搬山人】优质源目录', data: bCat, autoSwitched: true }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
-                            }
-                        }
-                    } catch(rescueErr) {}
-                }
-                if (tab === '漫画' && title) {
-                    try {
-                        const kmList = await searchKanman(title);
-                        const match = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        const match = findStrictBookMatch(kmList, title);
                         if (match) {
                             const kmCat = await catalogKanman(match.book_id);
                             if (kmCat && kmCat.length > 0) {
@@ -1559,6 +1529,27 @@ if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('w
                                     autoSwitched: true,
                                     newSource: '看漫画',
                                     newBookId: match.book_id
+                                }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                });
+                            }
+                        }
+                    } catch(rescueErr) {}
+                }
+                if (tab === '小说' && title) {
+                    try {
+                        const bList = await searchBanshanren(title);
+                        const matchBook = findStrictBookMatch(bList, title);
+                        if (matchBook) {
+                            const bCat = await catalogBanshanren(matchBook.book_id);
+                            if (bCat && bCat.length > 0) {
+                                return new Response(JSON.stringify({
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【搬山人】优质源目录',
+                                    data: bCat,
+                                    autoSwitched: true,
+                                    newSource: '搬山人',
+                                    newBookId: matchBook.book_id
                                 }), {
                                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                                 });
@@ -1572,7 +1563,6 @@ if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('w
             }
         }
 
-        // 核心正文与画卷直连提取（双模：漫画 + 小说全支持 + 5节点自动容灾轮换）
         if (url.pathname === '/api/content') {
             const item_id = url.searchParams.get('item_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
@@ -1683,7 +1673,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 if (tab === '漫画' && title && (!data || !data.images || data.images.length === 0 || data.code !== 0)) {
                     try {
                         const kmList = await searchKanman(title);
-                        const matchBook = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        const matchBook = findStrictBookMatch(kmList, title);
                         if (matchBook) {
                             const kmCat = await catalogKanman(matchBook.book_id);
                             if (kmCat && kmCat.length > 0) {
@@ -1762,7 +1752,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 if (tab === '漫画' && title) {
                     try {
                         const kmList = await searchKanman(title);
-                        const matchBook = kmList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, '')) || kmList[0];
+                        const matchBook = findStrictBookMatch(kmList, title);
                         if (matchBook) {
                             const kmCat = await catalogKanman(matchBook.book_id);
                             if (kmCat && kmCat.length > 0) {
