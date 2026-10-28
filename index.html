@@ -5624,6 +5624,12 @@
             } catch(e) {}
         }
 
+        // 边缘图片极速直通通道
+        if (pathname === '/api/img_proxy') {
+            const targetUrl = url.searchParams.get('url') || '';
+            return (window.__rawFetch || fetch)(targetUrl);
+        }
+
         // 1. 获取书源配置
         if (pathname === '/api/info') {
             const infoData = {
@@ -8729,35 +8735,37 @@
         } catch (e) {}
     }
 
-    // 单张漫画图片加载失败自动重试与点击重刷
+    // 单张漫画图片加载失败自动重试、边缘通道切换与点击重刷
     window.retryMangaImg = function(imgEl, isManualClick = false) {
         if (!imgEl) return;
         const origSrc = imgEl.getAttribute('data-orig-src') || imgEl.src;
         if (!origSrc) return;
         let retryCount = parseInt(imgEl.getAttribute('data-retry') || '0', 10);
 
-        if (!isManualClick && retryCount < 2) {
+        if (!isManualClick && retryCount < 3) {
             retryCount++;
             imgEl.setAttribute('data-retry', String(retryCount));
             setTimeout(() => {
-                const sep = origSrc.includes('?') ? '&' : '?';
-                imgEl.src = origSrc + sep + '_r=' + retryCount + '_' + Date.now();
-            }, 450 * retryCount);
+                const cleanRaw = origSrc.replace(/^.*\/api\/(?:img_)?proxy\?url=/i, '');
+                const unescaped = decodeURIComponent(cleanRaw);
+                imgEl.src = '/api/img_proxy?url=' + encodeURIComponent(unescaped) + '&_retry=' + retryCount + '&_t=' + Date.now();
+            }, 300 * retryCount);
             return;
         }
 
         imgEl.setAttribute('data-loaded', '1');
         imgEl.style.minHeight = '140px';
         imgEl.style.border = '1px dashed rgba(255,255,255,0.2)';
-        imgEl.alt = '图片加载缓慢，点击此区域重新加载本图';
+        imgEl.alt = '画卷加载稍缓，轻触此区域立即重新极速刷新';
         imgEl.onclick = function(ev) {
             ev.stopPropagation();
             imgEl.onclick = null;
             imgEl.removeAttribute('data-loaded');
             imgEl.style.minHeight = '240px';
             imgEl.style.border = 'none';
-            const sep = origSrc.includes('?') ? '&' : '?';
-            imgEl.src = origSrc + sep + '_manual=' + Date.now();
+            const cleanRaw = origSrc.replace(/^.*\/api\/(?:img_)?proxy\?url=/i, '');
+            const unescaped = decodeURIComponent(cleanRaw);
+            imgEl.src = '/api/img_proxy?url=' + encodeURIComponent(unescaped) + '&_manual=' + Date.now();
         };
     };
 
@@ -8978,7 +8986,17 @@
                     container.innerHTML = `
                         ${rescuedBanner}
                         <div class="img-stream">
-                            ${data.images.map((img, i) => `<img src="${escapeNovelHtml(img)}" data-orig-src="${escapeNovelHtml(img)}" loading="${i < 5 ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer" onload="this.setAttribute('data-loaded','1')" onerror="window.retryMangaImg(this)" />`).join('')}
+                            ${data.images.map((img, i) => {
+                                let proxiedSrc = img;
+                                let origSrc = img;
+                                if (img.startsWith('/api/img_proxy?url=')) {
+                                    try { origSrc = decodeURIComponent(img.split('url=')[1]); } catch(e) {}
+                                } else if (img.startsWith('http') && (img.includes('du8.in') || img.includes('veryim'))) {
+                                    proxiedSrc = '/api/img_proxy?url=' + encodeURIComponent(img);
+                                }
+                                const isTop = (i < 3);
+                                return `<img src="${escapeNovelHtml(proxiedSrc)}" data-orig-src="${escapeNovelHtml(origSrc)}" loading="${isTop ? 'eager' : 'lazy'}" ${isTop ? 'fetchpriority="high"' : ''} decoding="async" referrerpolicy="no-referrer" onload="this.setAttribute('data-loaded','1')" onerror="window.retryMangaImg(this)" />`;
+                            }).join('')}
                         </div>
                     `;
                 }

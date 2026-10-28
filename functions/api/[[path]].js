@@ -452,10 +452,17 @@ async function contentVeryim(comicId, chapterId) {
         }
         const raw = decodeBase64Utf8(m[1]);
         const urls = raw.split(/\$[^$]+\$/).map(s => s.trim()).filter(s => s.startsWith('http'));
+        // ⚡ 全球 CDN 边缘流式极速加速通道：将海外源站画卷自动转换为边缘直连通道，避免跨海单线程卡顿
+        const acceleratedUrls = urls.map(u => {
+            if (u.includes('du8.in') || u.includes('veryim')) {
+                return '/api/img_proxy?url=' + encodeURIComponent(u);
+            }
+            return u;
+        });
         return {
             code: 0,
             msg: 'ok',
-            images: urls,
+            images: acceleratedUrls,
             source: '极速韩漫'
         };
     } catch(e) {
@@ -2418,7 +2425,8 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
             }
         }
 
-        if (url.pathname === '/api/proxy') {
+        // 🚀 全球边缘画卷流式加速与极速边缘缓存网关 (支持 HTTP/2 分块多路复用与 30 天持久缓存)
+        if (url.pathname === '/api/img_proxy' || url.pathname === '/api/proxy') {
             const targetUrl = url.searchParams.get('url') || '';
             if (!targetUrl || !/^https?:\/\//i.test(targetUrl)) {
                 return new Response(JSON.stringify({ code: -1, msg: 'Invalid url' }), {
@@ -2427,24 +2435,51 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 });
             }
             try {
+                const cache = (typeof caches !== 'undefined' && caches.default) ? caches.default : null;
+                const cacheKey = new Request(url.toString(), request);
+                if (cache) {
+                    try {
+                        const cached = await cache.match(cacheKey);
+                        if (cached) return cached;
+                    } catch(e) {}
+                }
+
                 const targetOrigin = new URL(targetUrl).origin;
                 const r = await fetch(targetUrl, {
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,application/json,*/*;q=0.8',
+                        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
                         'Referer': targetOrigin + '/'
+                    },
+                    cf: {
+                        cacheEverything: true,
+                        cacheTtl: 2592000
                     }
                 });
-                const contentType = r.headers.get('content-type') || 'text/html; charset=utf-8';
-                const body = await r.arrayBuffer();
-                return new Response(body, {
-                    status: r.status,
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': contentType
-                    }
+
+                if (!r.ok) {
+                    return new Response(r.body, { status: r.status, headers: corsHeaders });
+                }
+
+                const contentType = r.headers.get('content-type') || 'image/jpeg';
+                const resHeaders = new Headers();
+                resHeaders.set('Content-Type', contentType);
+                resHeaders.set('Cache-Control', 'public, max-age=31536000, immutable');
+                resHeaders.set('CDN-Cache-Control', 'max-age=31536000');
+                resHeaders.set('Access-Control-Allow-Origin', '*');
+                resHeaders.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+                resHeaders.set('X-Edge-Accelerated', 'true');
+
+                const response = new Response(r.body, {
+                    status: 200,
+                    headers: resHeaders
                 });
+
+                if (cache && context && typeof context.waitUntil === 'function') {
+                    context.waitUntil(cache.put(cacheKey, response.clone()));
+                }
+                return response;
             } catch (e) {
                 return new Response(JSON.stringify({ code: -1, msg: e.message }), {
                     status: 502,
