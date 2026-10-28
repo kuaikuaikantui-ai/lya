@@ -320,6 +320,149 @@ async function contentKanman(comicId, chapterId) {
 }
 
 // =========================================================================
+
+// =========================================================================
+// ⚡ 极速韩漫 (Veryim) 原生直连超清解析引擎 (独家特约未删减·热血韩漫专线·分话全彩画卷)
+// =========================================================================
+function decodeBase64Utf8(str) {
+    try {
+        if (typeof Buffer !== 'undefined') {
+            return Buffer.from(str, 'base64').toString('utf8');
+        }
+        const bin = atob(str);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) {
+            bytes[i] = bin.charCodeAt(i);
+        }
+        return new TextDecoder('utf-8').decode(bytes);
+    } catch(e) {
+        return '';
+    }
+}
+
+async function searchVeryim(keyword) {
+    try {
+        const cleanKw = (keyword || '').trim().replace(/[s《》]/g, '');
+        if (!cleanKw) return [];
+        const url = 'https://www.veryim.com/statics/search.aspx?key=' + encodeURIComponent(cleanKw);
+        const r = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.veryim.com/'
+            },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!r.ok) return [];
+        const html = await r.text();
+        const blocks = html.split('<div class="media"').slice(1);
+        const results = [];
+        for (const block of blocks) {
+            const mId = block.match(/href=["']\/manhua\/(\d+)\/?["']/);
+            const mTitle = block.match(/title=['"]([^'"]+)['"]/);
+            const mImg = block.match(/<img[^>]+src=['"]([^'"]+)['"]/);
+            const mAuthor = block.match(/作者:\s*(?:<a[^>]*>)?([^<]*)(?:<\/a>)?/);
+            if (mId && mTitle) {
+                const id = mId[1];
+                const name = mTitle[1].trim();
+                const cover = mImg ? mImg[1].trim() : '';
+                const author = (mAuthor && mAuthor[1]) ? mAuthor[1].trim() : '极速韩漫';
+                results.push({
+                    book_name: name,
+                    book_id: 'veryim_' + id,
+                    author: author || '未知',
+                    abstract: name + ' (超清全彩·极速韩漫专线连载)',
+                    thumb_url: cover,
+                    cover: cover,
+                    tab: '漫画',
+                    source: '极速韩漫'
+                });
+            }
+        }
+        return results;
+    } catch(e) {
+        return [];
+    }
+}
+
+async function catalogVeryim(comicId) {
+    try {
+        const cleanId = String(comicId).replace(/^(?:veryim_|xxim_|qingtian_)/, '').trim();
+        const url = 'https://www.veryim.com/manhua/' + encodeURIComponent(cleanId) + '/';
+        const r = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.veryim.com/'
+            },
+            signal: AbortSignal.timeout(6000)
+        });
+        if (!r.ok) return [];
+        const html = await r.text();
+        const re = /<a[^>]*href=["']\/manhua\/\d+\/(\d+)\.html["'][^>]*>([\s\S]*?)<\/a>/gi;
+        let m;
+        const rawChapters = [];
+        const seen = new Set();
+        while ((m = re.exec(html)) !== null) {
+            const chapId = m[1];
+            const title = m[2].replace(/<[^>]+>/g, '').trim();
+            if (chapId && !seen.has(chapId)) {
+                seen.add(chapId);
+                rawChapters.push({
+                    title: title || ('第 ' + (rawChapters.length + 1) + ' 话'),
+                    item_id: 'veryim_' + cleanId + '_' + chapId
+                });
+            }
+        }
+        const ascending = rawChapters.slice().reverse();
+        return ascending.map((chap, idx) => ({
+            ...chap,
+            order_num: idx
+        }));
+    } catch(e) {
+        return [];
+    }
+}
+
+async function contentVeryim(comicId, chapterId) {
+    try {
+        const cleanCid = String(comicId).replace(/^(?:veryim_|xxim_|qingtian_)/, '').trim();
+        const cleanChid = String(chapterId).replace(/^(?:veryim_|xxim_|qingtian_)/, '').split('_').pop().trim();
+        const url = 'https://www.veryim.com/manhua/' + encodeURIComponent(cleanCid) + '/' + encodeURIComponent(cleanChid) + '.html';
+        const r = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.veryim.com/'
+            },
+            signal: AbortSignal.timeout(6500)
+        });
+        if (!r.ok) return { code: -1, msg: '获取章节画卷失败', images: [] };
+        const html = await r.text();
+        const m = html.match(/"chapter_images2"\s*:\s*"([^"]+)"/);
+        if (!m) {
+            const m1 = html.match(/"chapter_images"\s*:\s*"([^"]+)"/);
+            if (m1) {
+                try {
+                    const raw = decodeBase64Utf8(m1[1]);
+                    const urls = raw.split(/\$[^$]+\$/).map(s => s.trim()).filter(s => s.startsWith('http'));
+                    if (urls.length > 0) {
+                        return { code: 0, msg: 'ok', images: urls, source: '极速韩漫' };
+                    }
+                } catch(e) {}
+            }
+            return { code: -1, msg: '未找到本话画卷', images: [] };
+        }
+        const raw = decodeBase64Utf8(m[1]);
+        const urls = raw.split(/\$[^$]+\$/).map(s => s.trim()).filter(s => s.startsWith('http'));
+        return {
+            code: 0,
+            msg: 'ok',
+            images: urls,
+            source: '极速韩漫'
+        };
+    } catch(e) {
+        return { code: -1, msg: e.message, images: [] };
+    }
+}
+
 // 🌸 纸间轻小说文库 (Wenku8) 原生直连解析引擎 (支持全彩插图、分卷目录与高画质画廊)
 // =========================================================================
 const WENKU8_HOSTS = ['https://www.wenku8.cc', 'https://www.wenku8.net'];
@@ -862,6 +1005,13 @@ const workerHandler = {
                 });
             }
 
+            if (source === '极速韩漫' || source === 'Veryim') {
+                const results = await searchVeryim(title);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
 if (source === '轻小说文库' || source === 'Wenku8') {
                 const results = searchWenku8Locally(title);
                 return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
@@ -879,10 +1029,13 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             // ⚡ 聚合全网搜模式：对所有优质源进行高速并发请求并聚合呈现全部结果
             if (source === 'ALL') {
                 const candidates = (tab === '漫画')
-                    ? ['看漫画', '新新漫画', 'G社漫画', '全面漫画', '番茄']
+                    ? ['极速韩漫', '看漫画', '新新漫画', 'G社漫画', '全面漫画', '番茄']
                     : ['搬山人', '轻小说文库', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
 
                 const fetchTasks = candidates.map(async s => {
+                    if (s === '极速韩漫') {
+                        return await searchVeryim(title);
+                    }
                     if (s === '看漫画') {
                         return await searchKanman(title);
                     }
@@ -938,6 +1091,25 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 });
             } catch(e) {
                 if (tab === '漫画' && title) {
+                    try {
+                        const vList = await searchVeryim(title);
+                        const match = findStrictBookMatch(vList, title);
+                        if (match) {
+                            const vCat = await catalogVeryim(match.book_id);
+                            if (vCat && vCat.length > 0) {
+                                return new Response(JSON.stringify({
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【极速韩漫】超清目录',
+                                    data: vCat,
+                                    autoSwitched: true,
+                                    newSource: '极速韩漫',
+                                    newBookId: match.book_id
+                                }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                });
+                            }
+                        }
+                    } catch(rescueErr) {}
                     try {
                         const kmList = await searchKanman(title);
                         const cleanT = String(title).replace(/[\s:：·・\-_《》]/g, '').toLowerCase();
@@ -1400,6 +1572,34 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 });
             }
 
+            if (source === '极速韩漫' || book_id.startsWith('veryim_')) {
+                return new Response(JSON.stringify({
+                    code: 0,
+                    data: {
+                        book_id: book_id,
+                        book_name: url.searchParams.get('title') || '漫画详情',
+                        source: '极速韩漫',
+                        tab: '漫画'
+                    }
+                }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
+            if (source === '看漫画' || book_id.startsWith('kanman_')) {
+                return new Response(JSON.stringify({
+                    code: 0,
+                    data: {
+                        book_id: book_id,
+                        book_name: url.searchParams.get('title') || '漫画详情',
+                        source: '看漫画',
+                        tab: '漫画'
+                    }
+                }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             try {
                 const apiPath = '/detail?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(source) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await fetchUpstreamWithFailover(apiPath, false);
@@ -1419,6 +1619,22 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             const tab = url.searchParams.get('tab') || '漫画';
             const title = url.searchParams.get('title') || '';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
+
+            if (source === '极速韩漫' || book_id.startsWith('veryim_')) {
+                let chapters = await catalogVeryim(book_id);
+                if ((!chapters || chapters.length === 0) && title) {
+                    try {
+                        const vList = await searchVeryim(title);
+                        const match = findStrictBookMatch(vList, title);
+                        if (match) {
+                            chapters = await catalogVeryim(match.book_id);
+                        }
+                    } catch(e) {}
+                }
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters || [] }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
 
             if (source === '看漫画' || book_id.startsWith('kanman_')) {
                 let chapters = await catalogKanman(book_id);
@@ -1486,8 +1702,27 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     } catch(rescueErr) {}
                 }
 
-                // 漫画目录灾备救援（仅当官方看漫画超清库中能精准匹配同名漫画时方可接力）
+                // 漫画目录灾备救援（优先匹配【极速韩漫】原画库与【看漫画】超清库）
                 if (tab === '漫画' && (!data || !data.data || data.data.length === 0) && title) {
+                    try {
+                        const vList = await searchVeryim(title);
+                        const match = findStrictBookMatch(vList, title);
+                        if (match) {
+                            const vCat = await catalogVeryim(match.book_id);
+                            if (vCat && vCat.length > 0) {
+                                return new Response(JSON.stringify({
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【极速韩漫】超清目录',
+                                    data: vCat,
+                                    autoSwitched: true,
+                                    newSource: '极速韩漫',
+                                    newBookId: match.book_id
+                                }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                });
+                            }
+                        }
+                    } catch(rescueErr) {}
                     try {
                         const kmList = await searchKanman(title);
                         const match = findStrictBookMatch(kmList, title);
@@ -1514,6 +1749,25 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 });
             } catch(e) {
                 if (tab === '漫画' && title) {
+                    try {
+                        const vList = await searchVeryim(title);
+                        const match = findStrictBookMatch(vList, title);
+                        if (match) {
+                            const vCat = await catalogVeryim(match.book_id);
+                            if (vCat && vCat.length > 0) {
+                                return new Response(JSON.stringify({
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【极速韩漫】超清目录',
+                                    data: vCat,
+                                    autoSwitched: true,
+                                    newSource: '极速韩漫',
+                                    newBookId: match.book_id
+                                }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                });
+                            }
+                        }
+                    } catch(rescueErr) {}
                     try {
                         const kmList = await searchKanman(title);
                         const match = findStrictBookMatch(kmList, title);
@@ -1570,7 +1824,17 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             const chap_idx = parseInt(url.searchParams.get('chap_idx') || '-1', 10);
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
-                        if (source === '看漫画' || item_id.startsWith('kanman_')) {
+            if (source === '极速韩漫' || item_id.startsWith('veryim_')) {
+                const parts = item_id.replace(/^veryim_/, '').split('_');
+                const comicId = parts[0];
+                const chapterId = parts[1];
+                const vData = await contentVeryim(comicId, chapterId);
+                return new Response(JSON.stringify(vData), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
+            if (source === '看漫画' || item_id.startsWith('kanman_')) {
                 const parts = item_id.replace(/^kanman_/, '').split('_');
                 const comicId = parts[0];
                 const chapterId = parts[1];
@@ -1667,8 +1931,43 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     data.msg = '';
                 }
 
-                // 如果是漫画且上游画卷缺失、报错或受限，启动看漫画官方超清源救援
+                // 如果是漫画且上游画卷缺失、报错或受限，启动【极速韩漫】与【看漫画】无缝画卷救援
                 if (tab === '漫画' && title && (!data || !data.images || data.images.length === 0 || data.code !== 0)) {
+                    try {
+                        const vList = await searchVeryim(title);
+                        const matchBook = findStrictBookMatch(vList, title);
+                        if (matchBook) {
+                            const vCat = await catalogVeryim(matchBook.book_id);
+                            if (vCat && vCat.length > 0) {
+                                let targetChap = (chap_idx >= 0 && vCat[chap_idx]) ? vCat[chap_idx] : null;
+                                const cleanChap = chap_title.replace(/[第话章\s]/g, '');
+                                if (cleanChap) {
+                                    const found = vCat.find(c => {
+                                        const ct = (c.title || '').replace(/[第话章\s]/g, '');
+                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
+                                    });
+                                    if (found) targetChap = found;
+                                }
+                                if (!targetChap && vCat.length > 0) targetChap = vCat[0];
+                                if (targetChap) {
+                                    const p = targetChap.item_id.replace(/^veryim_/, '').split('_');
+                                    const rescuedData = await contentVeryim(p[0], p[1]);
+                                    if (rescuedData && rescuedData.code === 0 && rescuedData.images && rescuedData.images.length > 0) {
+                                        return new Response(JSON.stringify({
+                                            code: 0,
+                                            msg: '已自动为您无缝接力至【极速韩漫】超清画卷',
+                                            autoSwitched: true,
+                                            newSource: '极速韩漫',
+                                            title: targetChap.title,
+                                            images: rescuedData.images
+                                        }), {
+                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch(rescueErr) {}
                     try {
                         const kmList = await searchKanman(title);
                         const matchBook = findStrictBookMatch(kmList, title);
@@ -1748,6 +2047,41 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 });
             } catch(e) {
                 if (tab === '漫画' && title) {
+                    try {
+                        const vList = await searchVeryim(title);
+                        const matchBook = findStrictBookMatch(vList, title);
+                        if (matchBook) {
+                            const vCat = await catalogVeryim(matchBook.book_id);
+                            if (vCat && vCat.length > 0) {
+                                let targetChap = (chap_idx >= 0 && vCat[chap_idx]) ? vCat[chap_idx] : null;
+                                const cleanChap = chap_title.replace(/[第话章\s]/g, '');
+                                if (cleanChap) {
+                                    const found = vCat.find(c => {
+                                        const ct = (c.title || '').replace(/[第话章\s]/g, '');
+                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
+                                    });
+                                    if (found) targetChap = found;
+                                }
+                                if (!targetChap && vCat.length > 0) targetChap = vCat[0];
+                                if (targetChap) {
+                                    const p = targetChap.item_id.replace(/^veryim_/, '').split('_');
+                                    const rescuedData = await contentVeryim(p[0], p[1]);
+                                    if (rescuedData && rescuedData.code === 0 && rescuedData.images && rescuedData.images.length > 0) {
+                                        return new Response(JSON.stringify({
+                                            code: 0,
+                                            msg: '已自动为您无缝接力至【极速韩漫】超清画卷',
+                                            autoSwitched: true,
+                                            newSource: '极速韩漫',
+                                            title: targetChap.title,
+                                            images: rescuedData.images
+                                        }), {
+                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch(rescueErr) {}
                     try {
                         const kmList = await searchKanman(title);
                         const matchBook = findStrictBookMatch(kmList, title);

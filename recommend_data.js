@@ -703,7 +703,94 @@ window.NOVEL_RECOMMEND_SECTIONS = [
 ];
 
 window.MANGA_RECOMMEND_SECTIONS = [
+  {
+    "title": "极速韩漫 · 独家特约精选榜",
+    "subtitle": "超清全彩未删减 · 350+话连载追更 · 极速专线秒开",
+    "icon": "fa-fire",
+    "color": "#f43f5e",
+    "cards": [
+      {
+        "book_name": "秘密教学",
+        "book_id": "veryim_48202",
+        "author": "极速韩漫",
+        "score": "9.9",
+        "category": "韩漫特约",
+        "last_chapter": "第325话连载中",
+        "abstract": "13岁时成为孤儿的子豪，被父亲的朋友收养。但对成人男女一无所知的他，在阿姨和姐姐们的特别辅导下，逐渐打开新世界的大门……超清全彩325+话完整追更！",
+        "thumb_url": "https://www.veryim.com/upload2/48202/2026/06-18/2026061813484874brlg_small.jpg",
+        "cover": "https://www.veryim.com/upload2/48202/2026/06-18/2026061813484874brlg_small.jpg",
+        "tab": "漫画",
+        "source": "极速韩漫"
+      },
+      {
+        "book_name": "重考生",
+        "book_id": "veryim_48676",
+        "author": "极速韩漫",
+        "score": "9.8",
+        "category": "韩漫特约",
+        "last_chapter": "116话全彩连载",
+        "abstract": "落榜复读的高考重考生，在补习班与合租屋里遇到了形形色色的迷人女性，一段充满刺激与心跳的重考生涯悄然拉开序幕……超清全彩分话追更！",
+        "thumb_url": "https://www.veryim.com/upload2/48676/2024/07-07/20240707105603dhwupu_small.jpg",
+        "cover": "https://www.veryim.com/upload2/48676/2024/07-07/20240707105603dhwupu_small.jpg",
+        "tab": "漫画",
+        "source": "极速韩漫"
+      },
+      {
+        "book_name": "继母的朋友们",
+        "book_id": "veryim_48223",
+        "author": "极速韩漫",
+        "score": "9.8",
+        "category": "韩漫特约",
+        "last_chapter": "150话全彩连载",
+        "abstract": "年轻英俊的继母经常带优雅性感的朋友们来家里做客，在一次偶然的误会之后，他和继母的朋友们之间产生了微妙而大胆的羁绊……超清全彩画卷！",
+        "thumb_url": "https://www.veryim.com/upload2/48223/2024/08-25/20240825140644ayd19j_small.jpg",
+        "cover": "https://www.veryim.com/upload2/48223/2024/08-25/20240825140644ayd19j_small.jpg",
+        "tab": "漫画",
+        "source": "极速韩漫"
+      },
+      {
+        "book_name": "健身教练",
+        "book_id": "veryim_48491",
+        "author": "极速韩漫",
+        "score": "9.7",
+        "category": "韩漫特约",
+        "last_chapter": "108话全彩连载",
+        "abstract": "原本碌碌无为的健身教练，在得到全新塑形秘密训练法则后，吸引了众多VIP女学员的光临。超清原画、分话连载追更！",
+        "thumb_url": "https://www.veryim.com/upload2/48491/2026/06-18/20260618133935v0ubce_small.jpg",
+        "cover": "https://www.veryim.com/upload2/48491/2026/06-18/20260618133935v0ubce_small.jpg",
+        "tab": "漫画",
+        "source": "极速韩漫"
+      },
+      {
+        "book_name": "美丽新世界",
+        "book_id": "veryim_48220",
+        "author": "极速韩漫",
+        "score": "9.7",
+        "category": "韩漫特约",
+        "last_chapter": "271话全彩连载",
+        "abstract": "大公司底层员工在职场勾心斗角与尔虞我诈中，意外掌握了高层上司们的绝密把柄，从而逆转乾坤，开启属于他的美丽新世界！",
+        "thumb_url": "https://www.veryim.com/upload2/48220/2024/06-25/20240625121716rhjw59_small.png",
+        "cover": "https://www.veryim.com/upload2/48220/2024/06-25/20240625121716rhjw59_small.png",
+        "tab": "漫画",
+        "source": "极速韩漫"
+      },
+      {
+        "book_name": "爱撒娇的邻家姐姐",
+        "book_id": "veryim_71757",
+        "author": "极速韩漫",
+        "score": "9.6",
+        "category": "韩漫特约",
+        "last_chapter": "31话全彩连载",
+        "abstract": "青梅竹马搬到隔壁的邻家姐姐，性格软萌又爱撒娇，两人重聚后心跳加速的日常故事。超清全彩连载！",
+        "thumb_url": "https://www.veryim.com/upload2/71757/2026/06-17/20260617194534ptye1h_small.jpg",
+        "cover": "https://www.veryim.com/upload2/71757/2026/06-17/20260617194534ptye1h_small.jpg",
+        "tab": "漫画",
+        "source": "极速韩漫"
+      }
+    ]
+  },
 {
+
     "title": "官方超清 · 热血仙侠巅峰榜",
     "subtitle": "全网霸榜IP · 官方原画直连 · 无缝极速秒开",
     "icon": "fa-gem",

@@ -4594,8 +4594,8 @@
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质漫画源：</label>
                 <select id="mangaSourceSelect" class="select-filter">
                     <option value="看漫画" selected>★ 看漫画 (官方超清·极速秒开·万人热榜)</option>
-                    <option value="新新漫画">新新漫画 (韩漫主线·超230话高清连载)</option>
-                    <option value="极速韩漫">极速韩漫 (韩漫专线·同步汉化追更)</option>
+                    <option value="极速韩漫">极速韩漫 (未删减原画·《秘密教学》专线·超325话连载)</option>
+                    <option value="新新漫画">新新漫画 (韩漫备用线路)</option>
                     <option value="G社漫画">G社漫画 (韩漫精选·热门条漫番外)</option>
                     <option value="全面漫画">全面漫画 (国漫全彩·官方正版连载)</option>
                     <option value="番茄">番茄漫画 (官方正版·精选高清画质)</option>
@@ -6391,7 +6391,7 @@
         const histMap = new Map();
         const pushHistItem = (item) => {
             if (!item || !item.book_name) return;
-            const isManga = item.tab === '漫画' || item.source === '看漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画' || item.source === '极速韩漫' || String(item.book_id || '').startsWith('kanman_');
+            const isManga = item.tab === '漫画' || item.source === '看漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画' || item.source === '极速韩漫' || String(item.book_id || '').startsWith('kanman_') || String(item.book_id || '').startsWith('veryim_');
             const key = (isManga ? 'manga:' : 'novel:') + item.book_name.trim();
             const delTs = mergedDeleted['hist:' + key] || 0;
             const itemTs = Number(item.readTime || 0);
@@ -7110,7 +7110,7 @@
 
         empty.style.display = 'none';
         grid.innerHTML = list.map((b) => {
-            const isManga = b.tab === '漫画' || b.source === '看漫画' || b.source === '新新漫画' || b.source === '全面漫画' || b.source === 'G社漫画' || b.source === '极速韩漫' || String(b.book_id || '').startsWith('kanman_');
+            const isManga = b.tab === '漫画' || b.source === '看漫画' || b.source === '新新漫画' || b.source === '全面漫画' || b.source === 'G社漫画' || b.source === '极速韩漫' || String(b.book_id || '').startsWith('kanman_') || String(b.book_id || '').startsWith('veryim_');
             const typeBadge = isManga ? '<i class="fas fa-images"></i> 漫画' : '<i class="fas fa-book-open"></i> 小说';
             return `
                 <div class="card" onclick="openBookFromHistory('${encodeURIComponent(JSON.stringify(b))}')">
@@ -7346,7 +7346,7 @@
     function openBookFromHistory(encodedBook) {
         let book = JSON.parse(decodeURIComponent(encodedBook));
         const bName = book.book_name ? book.book_name.trim() : '';
-        const isManga = book.tab === '漫画' || book.source === '看漫画' || book.source === '新新漫画' || book.source === '全面漫画' || book.source === 'G社漫画' || book.source === '极速韩漫' || String(book.book_id || '').startsWith('kanman_');
+        const isManga = book.tab === '漫画' || book.source === '看漫画' || book.source === '新新漫画' || book.source === '全面漫画' || book.source === 'G社漫画' || book.source === '极速韩漫' || String(book.book_id || '').startsWith('kanman_') || String(book.book_id || '').startsWith('veryim_');
         const bTab = isManga ? '漫画' : '小说';
 
         // 严格精确匹配同媒介（小说 vs 漫画）的记录，严禁将同名小说与漫画混淆错接
@@ -7798,9 +7798,9 @@
                         <i class="fas fa-search" style="color:var(--accent); font-size:24px; margin-bottom:10px; display:block;"></i>
                         <div style="font-weight:600; color:var(--text-main); margin-bottom:6px;">未检索到漫画《${title}》</div>
                         <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">
-                            ${(title.includes('秘密教学') || source === '新新漫画' || source === '极速韩漫')
-                                ? '此作品属于特约韩漫，海外第三方图源节点正在维护同步中；建议切换上方「看漫画」官方源浏览热门漫画。'
-                                : '可尝试更换上方漫画源或简化书名再次搜索。'}
+                            ${(source !== '极速韩漫' && (title.includes('秘密教学') || title.includes('韩漫')))
+                                ? '未在当前源检索到该特约作品，可点击下方一键切换至<strong>「极速韩漫」</strong>专线畅读！<br><button class="btn primary" style="margin-top:10px; font-size:12px; padding:6px 14px;" onclick="switchToSource(&quot;极速韩漫&quot;)"><i class="fas fa-fire"></i> 切换至「极速韩漫」重新搜索</button>'
+                                : '可尝试更换上方漫画源或选择「⚡ 聚合全网搜」再次搜索。'}
                         </div>
                     </div>
                 `;
@@ -7814,8 +7814,8 @@
                     <i class="fas fa-exclamation-circle" style="color:#f59e0b; font-size:24px; margin-bottom:10px; display:block;"></i>
                     <div style="font-weight:600; color:var(--text-main); margin-bottom:6px;">未检索到相关漫画</div>
                     <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">
-                        ${(title.includes('秘密教学') || source === '新新漫画' || source === '极速韩漫')
-                            ? '当前特约韩漫图源节点正在维护中，建议切换上方「看漫画」官方源浏览热门漫画。'
+                        ${(source !== '极速韩漫' && (title.includes('秘密教学') || title.includes('韩漫')))
+                            ? '当前线路暂无返回，建议点击下方切换至<strong>「极速韩漫」</strong>原画专线！<br><button class="btn primary" style="margin-top:10px; font-size:12px; padding:6px 14px;" onclick="switchToSource(&quot;极速韩漫&quot;)"><i class="fas fa-fire"></i> 切换至「极速韩漫」重试</button>'
                             : '该源站暂无返回，请尝试切换上方漫画源或稍后再试。'}
                     </div>
                 </div>
@@ -8144,7 +8144,7 @@
     // ==========================================
     async function loadBookDetail(encodedItem, autoReadIndex = null, initialPosition = null) {
         const book = JSON.parse(decodeURIComponent(encodedItem));
-        const isMangaSource = book.source === '看漫画' || book.source === '新新漫画' || book.source === '全面漫画' || book.source === 'G社漫画' || book.source === '极速韩漫' || String(book.book_id || '').startsWith('kanman_');
+        const isMangaSource = book.source === '看漫画' || book.source === '新新漫画' || book.source === '全面漫画' || book.source === 'G社漫画' || book.source === '极速韩漫' || String(book.book_id || '').startsWith('kanman_') || String(book.book_id || '').startsWith('veryim_');
         const activeTab = book.tab || (isMangaSource || previousView === 'manga' ? '漫画' : '小说');
         const cleanSource = ((book.source || (activeTab === '漫画' ? '看漫画' : '七猫')) + '').replace(/^svip_/, '');
         currentBookInfo = { ...book, tab: activeTab, source: cleanSource };
@@ -8214,9 +8214,12 @@
                             <i class="fas fa-satellite-dish" style="color:#f59e0b; font-size:26px; margin-bottom:12px; display:block;"></i>
                             <div style="font-weight:600; color:var(--text-main); font-size:15px; margin-bottom:8px;">暂无该线路章节目录</div>
                             <div style="font-size:12px; color:var(--text-muted); line-height:1.7; max-width:440px; margin:0 auto 16px;">
-                                当前第三方海外图源节点正在维护中；建议点击下方按钮一键切换至<strong>「看漫画」</strong>超清官方源畅读！
+                                当前线路暂未收录该作品目录，建议点击下方按钮一键切换线路畅读！
                             </div>
-                            <button class="btn primary" onclick="switchToSource('看漫画')"><i class="fas fa-random"></i> 立即切换「看漫画」官方超清源</button>
+                            <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+                                <button class="btn primary" onclick="switchToSource('极速韩漫')"><i class="fas fa-fire"></i> 切换「极速韩漫」专线</button>
+                                <button class="btn secondary" onclick="switchToSource('看漫画')"><i class="fas fa-random"></i> 切换「看漫画」官方源</button>
+                            </div>
                         </div>
                     `;
                 } else {
@@ -9436,7 +9439,7 @@
 
         const tab = currentBookInfo.tab || '小说';
         const candidateSources = (tab === '漫画') 
-            ? ['看漫画', '新新漫画', '极速韩漫', 'G社漫画', '全面漫画', '番茄'] 
+            ? ['看漫画', '极速韩漫', '新新漫画', 'G社漫画', '全面漫画', '番茄'] 
             : ['搬山人', '轻小说文库', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '百度', '淘小说', '笔趣阁78', '知乎'];
 
         const otherSources = candidateSources.filter(s => s !== currentBookInfo.source);
