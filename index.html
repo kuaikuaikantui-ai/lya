@@ -4608,24 +4608,24 @@
             <div class="kanju-suggestion-row">
                 <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热门漫画:</span>
                 <div class="kanju-suggestion-chips">
-                    <button class="kanju-chip" onclick="quickSearchManga('秘密教学')">秘密教学</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('重考生')">重考生</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('继母的朋友们')">继母的朋友们</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('社团学姐')">社团学姐</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('一人之下')">一人之下</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('狐妖小红娘')">狐妖小红娘</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('咒术回战')">咒术回战</button>
-                    <button class="kanju-chip" onclick="quickSearchManga('海贼王')">海贼王</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('万相之王')">万相之王</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('妖神记')">妖神记</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('元尊')">元尊</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('灵剑尊')">灵剑尊</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('一剑独尊')">一剑独尊</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('仙武帝尊')">仙武帝尊</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('逆天邪神')">逆天邪神</button>
+                    <button class="kanju-chip" onclick="quickSearchManga('星武神诀')">星武神诀</button>
                 </div>
             </div>
             <div class="kanju-suggestion-row">
                 <span class="kanju-suggestion-label"><i class="fas fa-compass" style="color:var(--accent);"></i> 漫城分类:</span>
                 <div class="kanju-suggestion-chips">
-                    <button class="kanju-chip sub" onclick="quickSearchManga('学姐')">人气韩漫</button>
                     <button class="kanju-chip sub" onclick="quickSearchManga('修仙')">国漫修仙</button>
-                    <button class="kanju-chip sub" onclick="quickSearchManga('恋爱')">恋爱甜宠</button>
-                    <button class="kanju-chip sub" onclick="quickSearchManga('女神')">都市校园</button>
-                    <button class="kanju-chip sub" onclick="quickSearchManga('3D')">3D全彩</button>
+                    <button class="kanju-chip sub" onclick="quickSearchManga('武神')">热血战神</button>
+                    <button class="kanju-chip sub" onclick="quickSearchManga('剑尊')">剑道独尊</button>
+                    <button class="kanju-chip sub" onclick="quickSearchManga('天下')">古风传奇</button>
+                    <button class="kanju-chip sub" onclick="quickSearchManga('都市')">都市异能</button>
                 </div>
             </div>
         </div>
@@ -8208,7 +8208,20 @@
             }
 
             if (currentCatalog.length === 0) {
-                catalogList.innerHTML = '<div style="color:var(--text-muted); padding:20px;">暂无目录数据，可点击上方【换源】</div>';
+                if (activeTab === '漫画') {
+                    catalogList.innerHTML = `
+                        <div style="color:var(--text-muted); padding:35px 20px; text-align:center; grid-column:1/-1;">
+                            <i class="fas fa-satellite-dish" style="color:#f59e0b; font-size:26px; margin-bottom:12px; display:block;"></i>
+                            <div style="font-weight:600; color:var(--text-main); font-size:15px; margin-bottom:8px;">暂无该线路章节目录</div>
+                            <div style="font-size:12px; color:var(--text-muted); line-height:1.7; max-width:440px; margin:0 auto 16px;">
+                                当前第三方海外图源节点正在维护中；建议点击下方按钮一键切换至<strong>「看漫画」</strong>超清官方源畅读！
+                            </div>
+                            <button class="btn primary" onclick="switchToSource('看漫画')"><i class="fas fa-random"></i> 立即切换「看漫画」官方超清源</button>
+                        </div>
+                    `;
+                } else {
+                    catalogList.innerHTML = '<div style="color:var(--text-muted); padding:20px; text-align:center; grid-column:1/-1;">暂无目录数据，可点击上方【换源】切换其他书源</div>';
+                }
                 return;
             }
 
@@ -9423,8 +9436,8 @@
 
         const tab = currentBookInfo.tab || '小说';
         const candidateSources = (tab === '漫画') 
-            ? ['新新漫画', '极速韩漫', 'G社漫画', '全面漫画', '番茄'] 
-            : ['搬山人', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '百度', '淘小说', '笔趣阁78', '知乎'];
+            ? ['看漫画', '新新漫画', '极速韩漫', 'G社漫画', '全面漫画', '番茄'] 
+            : ['搬山人', '轻小说文库', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '百度', '淘小说', '笔趣阁78', '知乎'];
 
         const otherSources = candidateSources.filter(s => s !== currentBookInfo.source);
 
