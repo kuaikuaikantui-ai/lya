@@ -6081,6 +6081,14 @@
         return false;
     }
 
+    // 严格类型识别助手：精准隔离小说与漫画，彻底杜绝同名跨媒介串台
+    function getBookTab(b) {
+        if (!b) return '小说';
+        if (b.tab === '漫画' || b.tab === '小说') return b.tab;
+        const isManga = b.source === '看漫画' || b.source === '新新漫画' || b.source === '全面漫画' || b.source === 'G社漫画' || b.source === '极速韩漫' || String(b.book_id || '').startsWith('kanman_') || String(b.book_id || '').startsWith('veryim_');
+        return isManga ? '漫画' : '小说';
+    }
+
     // ====================================================================
     // ☁️ 轻量通行证与多端进度实时云同步引擎 (书架 + 小说 + 漫画 + 影视集数/秒数 + 阅读偏好)
     // ====================================================================
@@ -6225,11 +6233,13 @@
     function updateRecentHistory(book, chapTitle, chapIdx, extraProgress = {}) {
         if (!book || !book.book_name) return;
         const now = Date.now();
-        clearCloudDeletion('hist:' + book.book_name);
+        const curTab = getBookTab(book);
+        const bookKey = curTab + ':' + book.book_name.trim();
+        clearCloudDeletion('hist:' + bookKey);
 
-        // 同步更新书架中的阅读进度（包含章节以及章内精确页码/滚动位置/图片序号）
+        // 同步更新书架中的阅读进度（严格按 tab + 书名独立匹配，避免同名串章）
         let shelf = getLocalShelf();
-        const sIdx = shelf.findIndex(b => b.book_name === book.book_name);
+        const sIdx = shelf.findIndex(b => b.book_name === book.book_name && getBookTab(b) === curTab);
         if (sIdx !== -1) {
             shelf[sIdx].lastReadTitle = chapTitle || '第一章';
             shelf[sIdx].lastReadIndex = chapIdx || 0;
@@ -6243,13 +6253,14 @@
             saveLocalShelf(shelf, true);
         }
 
-        // 同步更新最近阅读历史
+        // 同步更新最近阅读历史（严格隔离小说与漫画，绝不互斥覆盖）
         let history = getRecentHistory();
-        const existingHist = history.find(b => b.book_name === book.book_name) || {};
-        history = history.filter(b => b.book_name !== book.book_name);
+        const existingHist = history.find(b => b.book_name === book.book_name && getBookTab(b) === curTab) || {};
+        history = history.filter(b => !(b.book_name === book.book_name && getBookTab(b) === curTab));
         history.unshift({
             ...existingHist,
             ...book,
+            tab: curTab,
             lastReadTitle: chapTitle || '第一章',
             lastReadIndex: chapIdx || 0,
             lastReadPage: extraProgress.page !== undefined ? extraProgress.page : (existingHist.lastReadPage || 0),
@@ -6485,9 +6496,11 @@
             .sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0))
             .slice(0, 30);
 
-        // 5. 双向校准：书架与阅读历史互相对齐最远章节进度
+        // 5. 双向校准：书架与阅读历史互相对齐最远章节进度 (按 tab+书名精准对齐)
         mergedShelf.forEach(sItem => {
-            const matchedHist = histMap.get(sItem.book_name.trim());
+            const sTab = getBookTab(sItem);
+            const key = (sTab === '漫画' ? 'manga:' : 'novel:') + sItem.book_name.trim();
+            const matchedHist = histMap.get(key);
             if (matchedHist) {
                 const hIdx = Number(matchedHist.lastReadIndex || 0);
                 const sIdx = Number(sItem.lastReadIndex || 0);
@@ -6628,16 +6641,16 @@
                 user.lastSyncAt = _lastCloudSyncTime;
                 saveCloudUser(user);
 
-                // 若当前正处于小说/漫画阅读视图中，检测另一端是否有更新的阅读进度
+                // 若当前正处于小说/漫画阅读视图中，检测同类型作品是否有更新的阅读进度 (静默更新顶部标记，绝不乱弹窗)
                 if (currentBookInfo && currentBookInfo.book_name) {
                     const rView = document.getElementById('readerView');
                     if (rView && rView.style.display !== 'none') {
                         const bName = currentBookInfo.book_name.trim();
-                        const matched = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bName);
+                        const curTab = getBookTab(currentBookInfo);
+                        const matched = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
                         if (matched && Number(matched.lastReadIndex || 0) > currentChapterIndex) {
                             const btn = document.getElementById('readerCloudSyncBtn');
                             if (btn) btn.classList.add('has-update');
-                            showCloudToast(`另一端已读至【${matched.lastReadTitle || '最新章节'}】，点击顶部【同步】立即无缝对齐`, 'fa-cloud-arrow-down', '#00d1c1');
                         }
                     }
                 }
@@ -6806,11 +6819,12 @@
             user.lastSyncAt = _lastCloudSyncTime;
             saveCloudUser(user);
 
-            // 3. 针对当前正在阅读的书籍进行双端对齐检测
+            // 3. 针对当前正在阅读的书籍进行双端对齐检测 (严格按类型匹配，防止小说与漫画互串)
             if (currentBookInfo && currentBookInfo.book_name) {
                 const bName = currentBookInfo.book_name.trim();
-                const matchedHist = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bName);
-                const matchedShelf = (merged.shelf || []).find(b => b.book_name && b.book_name.trim() === bName);
+                const curTab = getBookTab(currentBookInfo);
+                const matchedHist = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
+                const matchedShelf = (merged.shelf || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
 
                 const furthestChapIdx = Math.max(
                     matchedHist ? Number(matchedHist.lastReadIndex || 0) : -1,
@@ -8236,8 +8250,8 @@
 
             // 获取合并后本书全网最远阅读进度，绝不因设备差异回退
             const bName = book.book_name ? book.book_name.trim() : '';
-            const matchedHist = getRecentHistory().find(b => b.book_name && b.book_name.trim() === bName);
-            const matchedShelf = getLocalShelf().find(b => b.book_name && b.book_name.trim() === bName);
+            const matchedHist = getRecentHistory().find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === activeTab);
+            const matchedShelf = getLocalShelf().find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === activeTab);
 
             const furthestKnownIdx = Math.max(
                 autoReadIndex !== null ? Number(autoReadIndex) : -1,
@@ -9407,6 +9421,9 @@
         if (!isReader) {
             if (typeof flushReadingPositionSync === 'function') {
                 flushReadingPositionSync();
+            }
+            if (name !== 'detail') {
+                currentBookInfo = null;
             }
             if (_activeChapterFetchController) {
                 try { _activeChapterFetchController.abort(); } catch (e) {}
