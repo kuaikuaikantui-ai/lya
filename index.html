@@ -8756,30 +8756,46 @@
         if (!origSrc) return;
         let retryCount = parseInt(imgEl.getAttribute('data-retry') || '0', 10);
 
+        const cleanRaw = origSrc.replace(/^.*\/api\/(?:img_)?proxy\?url=/i, '');
+        const unescaped = decodeURIComponent(cleanRaw);
+
+        // 判断是否有后端代理通道（非纯静态 GitHub Pages，或配置了自定义后端）
+        const isPureStatic = (location.hostname.includes('github.io') || location.protocol === 'file:');
+        const customApiBase = (typeof getApiBase === 'function') ? getApiBase() : '';
+        const canUseProxy = (!isPureStatic || !!customApiBase);
+        const proxyBase = customApiBase || '';
+
         if (!isManualClick && retryCount < 3) {
             retryCount++;
             imgEl.setAttribute('data-retry', String(retryCount));
             setTimeout(() => {
-                const cleanRaw = origSrc.replace(/^.*\/api\/(?:img_)?proxy\?url=/i, '');
-                const unescaped = decodeURIComponent(cleanRaw);
-                imgEl.src = '/api/img_proxy?url=' + encodeURIComponent(unescaped) + '&_retry=' + retryCount + '&_t=' + Date.now();
-            }, 300 * retryCount);
+                // 如果有代理能力且重试第2次以上，尝试走边缘代理；否则继续走直连带重试防缓存参数
+                if (retryCount >= 2 && canUseProxy) {
+                    imgEl.src = proxyBase + '/api/img_proxy?url=' + encodeURIComponent(unescaped) + '&_r=' + retryCount + '&_t=' + Date.now();
+                } else {
+                    const sep = unescaped.includes('?') ? '&' : '?';
+                    imgEl.src = unescaped + sep + '_retry=' + retryCount + '_' + Date.now();
+                }
+            }, 350 * retryCount);
             return;
         }
 
         imgEl.setAttribute('data-loaded', '1');
         imgEl.style.minHeight = '140px';
         imgEl.style.border = '1px dashed rgba(255,255,255,0.2)';
-        imgEl.alt = '画卷加载稍缓，轻触此区域立即重新极速刷新';
+        imgEl.alt = '画卷加载稍缓，轻触此区域立即重新刷新';
         imgEl.onclick = function(ev) {
             ev.stopPropagation();
             imgEl.onclick = null;
             imgEl.removeAttribute('data-loaded');
             imgEl.style.minHeight = '240px';
             imgEl.style.border = 'none';
-            const cleanRaw = origSrc.replace(/^.*\/api\/(?:img_)?proxy\?url=/i, '');
-            const unescaped = decodeURIComponent(cleanRaw);
-            imgEl.src = '/api/img_proxy?url=' + encodeURIComponent(unescaped) + '&_manual=' + Date.now();
+            if (canUseProxy) {
+                imgEl.src = proxyBase + '/api/img_proxy?url=' + encodeURIComponent(unescaped) + '&_manual=' + Date.now();
+            } else {
+                const sep = unescaped.includes('?') ? '&' : '?';
+                imgEl.src = unescaped + sep + '_manual=' + Date.now();
+            }
         };
     };
 
@@ -9001,15 +9017,12 @@
                         ${rescuedBanner}
                         <div class="img-stream">
                             ${data.images.map((img, i) => {
-                                let proxiedSrc = img;
                                 let origSrc = img;
                                 if (img.startsWith('/api/img_proxy?url=')) {
                                     try { origSrc = decodeURIComponent(img.split('url=')[1]); } catch(e) {}
-                                } else if (img.startsWith('http') && (img.includes('du8.in') || img.includes('veryim'))) {
-                                    proxiedSrc = '/api/img_proxy?url=' + encodeURIComponent(img);
                                 }
-                                const isTop = (i < 3);
-                                return `<img src="${escapeNovelHtml(proxiedSrc)}" data-orig-src="${escapeNovelHtml(origSrc)}" loading="${isTop ? 'eager' : 'lazy'}" ${isTop ? 'fetchpriority="high"' : ''} decoding="async" referrerpolicy="no-referrer" onload="this.setAttribute('data-loaded','1')" onerror="window.retryMangaImg(this)" />`;
+                                const isTop = (i < 2);
+                                return `<img src="${escapeNovelHtml(origSrc)}" data-orig-src="${escapeNovelHtml(origSrc)}" loading="${isTop ? 'eager' : 'lazy'}" ${isTop ? 'fetchpriority="high"' : ''} decoding="async" referrerpolicy="no-referrer" onload="this.setAttribute('data-loaded','1')" onerror="window.retryMangaImg(this)" />`;
                             }).join('')}
                         </div>
                     `;

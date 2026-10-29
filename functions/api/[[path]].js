@@ -452,17 +452,10 @@ async function contentVeryim(comicId, chapterId) {
         }
         const raw = decodeBase64Utf8(m[1]);
         const urls = raw.split(/\$[^$]+\$/).map(s => s.trim()).filter(s => s.startsWith('http'));
-        // ⚡ 全球 CDN 边缘流式极速加速通道：将海外源站画卷自动转换为边缘直连通道，避免跨海单线程卡顿
-        const acceleratedUrls = urls.map(u => {
-            if (u.includes('du8.in') || u.includes('veryim')) {
-                return '/api/img_proxy?url=' + encodeURIComponent(u);
-            }
-            return u;
-        });
         return {
             code: 0,
             msg: 'ok',
-            images: acceleratedUrls,
+            images: urls,
             source: '极速韩漫'
         };
     } catch(e) {
@@ -2445,6 +2438,8 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 }
 
                 const targetOrigin = new URL(targetUrl).origin;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8500);
                 const r = await fetch(targetUrl, {
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -2452,11 +2447,13 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
                         'Referer': targetOrigin + '/'
                     },
+                    signal: controller.signal,
                     cf: {
                         cacheEverything: true,
                         cacheTtl: 2592000
                     }
                 });
+                clearTimeout(timeoutId);
 
                 if (!r.ok) {
                     return new Response(r.body, { status: r.status, headers: corsHeaders });
@@ -2476,8 +2473,9 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     headers: resHeaders
                 });
 
-                if (cache && context && typeof context.waitUntil === 'function') {
-                    context.waitUntil(cache.put(cacheKey, response.clone()));
+                const waitCtx = ctx || (typeof context !== 'undefined' ? context : null);
+                if (cache && waitCtx && typeof waitCtx.waitUntil === 'function') {
+                    waitCtx.waitUntil(cache.put(cacheKey, response.clone()));
                 }
                 return response;
             } catch (e) {
