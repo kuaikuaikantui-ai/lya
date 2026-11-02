@@ -2429,7 +2429,8 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
             }
             try {
                 const cache = (typeof caches !== 'undefined' && caches.default) ? caches.default : null;
-                const cacheKey = new Request(url.toString(), request);
+                // 规范化缓存键，去除重试随机参数以最大化命中全球边缘共享缓存
+                const cacheKey = new Request(url.origin + '/api/img_proxy?url=' + encodeURIComponent(targetUrl));
                 if (cache) {
                     try {
                         const cached = await cache.match(cacheKey);
@@ -2437,26 +2438,46 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     } catch(e) {}
                 }
 
-                const targetOrigin = new URL(targetUrl).origin;
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8500);
-                const r = await fetch(targetUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                        'Referer': targetOrigin + '/'
-                    },
-                    signal: controller.signal,
-                    cf: {
-                        cacheEverything: true,
-                        cacheTtl: 2592000
-                    }
-                });
-                clearTimeout(timeoutId);
+                let r = null;
+                const candidateUrls = [targetUrl];
+                if (targetUrl.includes('du8.in')) {
+                    ['img2.du8.in', 'img3.du8.in', 'img5.du8.in'].forEach(h => {
+                        const alt = targetUrl.replace(/img\d*\.du8\.in/, h);
+                        if (!candidateUrls.includes(alt)) candidateUrls.push(alt);
+                    });
+                }
 
-                if (!r.ok) {
-                    return new Response(r.body, { status: r.status, headers: corsHeaders });
+                for (const curUrl of candidateUrls) {
+                    try {
+                        const targetOrigin = new URL(curUrl).origin;
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6500);
+                        const resp = await fetch(curUrl, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                                'Referer': targetOrigin + '/'
+                            },
+                            signal: controller.signal,
+                            cf: {
+                                cacheEverything: true,
+                                cacheTtl: 2592000
+                            }
+                        });
+                        clearTimeout(timeoutId);
+                        if (resp.ok) {
+                            r = resp;
+                            break;
+                        }
+                    } catch(err) {}
+                }
+
+                if (!r || !r.ok) {
+                    return new Response(JSON.stringify({ code: -1, msg: 'Upstream image fetch failed' }), {
+                        status: 502,
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                    });
                 }
 
                 const contentType = r.headers.get('content-type') || 'image/jpeg';

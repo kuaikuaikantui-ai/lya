@@ -8764,19 +8764,28 @@
         const customApiBase = (typeof getApiBase === 'function') ? getApiBase() : '';
         const canUseProxy = (!isPureStatic || !!customApiBase);
         const proxyBase = customApiBase || '';
+        const du8Hosts = ['img2.du8.in', 'img3.du8.in', 'img5.du8.in', 'img1.du8.in'];
 
         if (!isManualClick && retryCount < 3) {
             retryCount++;
             imgEl.setAttribute('data-retry', String(retryCount));
             setTimeout(() => {
-                // 如果有代理能力且重试第2次以上，尝试走边缘代理；否则继续走直连带重试防缓存参数
-                if (retryCount >= 2 && canUseProxy) {
+                const curSrc = imgEl.src || '';
+                // 智能切换：如果当前走的是代理并报错，退回多镜像直连；如果直连慢/错，切换到备用镜像或代理
+                if (curSrc.includes('/api/img_proxy')) {
+                    const targetHost = du8Hosts[retryCount % du8Hosts.length];
+                    const altDirect = unescaped.includes('du8.in') ? unescaped.replace(/img\d*\.du8\.in/, targetHost) : unescaped;
+                    const sep = altDirect.includes('?') ? '&' : '?';
+                    imgEl.src = altDirect + sep + '_retry=' + retryCount + '_' + Date.now();
+                } else if (canUseProxy) {
                     imgEl.src = proxyBase + '/api/img_proxy?url=' + encodeURIComponent(unescaped) + '&_r=' + retryCount + '&_t=' + Date.now();
                 } else {
-                    const sep = unescaped.includes('?') ? '&' : '?';
-                    imgEl.src = unescaped + sep + '_retry=' + retryCount + '_' + Date.now();
+                    const targetHost = du8Hosts[retryCount % du8Hosts.length];
+                    const altDirect = unescaped.includes('du8.in') ? unescaped.replace(/img\d*\.du8\.in/, targetHost) : unescaped;
+                    const sep = altDirect.includes('?') ? '&' : '?';
+                    imgEl.src = altDirect + sep + '_retry=' + retryCount + '_' + Date.now();
                 }
-            }, 350 * retryCount);
+            }, 300 * retryCount);
             return;
         }
 
@@ -8790,11 +8799,14 @@
             imgEl.removeAttribute('data-loaded');
             imgEl.style.minHeight = '240px';
             imgEl.style.border = 'none';
-            if (canUseProxy) {
+            const curSrc = imgEl.src || '';
+            if (canUseProxy && !curSrc.includes('/api/img_proxy')) {
                 imgEl.src = proxyBase + '/api/img_proxy?url=' + encodeURIComponent(unescaped) + '&_manual=' + Date.now();
             } else {
-                const sep = unescaped.includes('?') ? '&' : '?';
-                imgEl.src = unescaped + sep + '_manual=' + Date.now();
+                const targetHost = du8Hosts[(retryCount + 1) % du8Hosts.length];
+                const altDirect = unescaped.includes('du8.in') ? unescaped.replace(/img\d*\.du8\.in/, targetHost) : unescaped;
+                const sep = altDirect.includes('?') ? '&' : '?';
+                imgEl.src = altDirect + sep + '_manual=' + Date.now();
             }
         };
     };
@@ -9016,14 +9028,27 @@
                     container.innerHTML = `
                         ${rescuedBanner}
                         <div class="img-stream">
-                            ${data.images.map((img, i) => {
-                                let origSrc = img;
-                                if (img.startsWith('/api/img_proxy?url=')) {
-                                    try { origSrc = decodeURIComponent(img.split('url=')[1]); } catch(e) {}
-                                }
-                                const isTop = (i < 2);
-                                return `<img src="${escapeNovelHtml(origSrc)}" data-orig-src="${escapeNovelHtml(origSrc)}" loading="${isTop ? 'eager' : 'lazy'}" ${isTop ? 'fetchpriority="high"' : ''} decoding="async" referrerpolicy="no-referrer" onload="this.setAttribute('data-loaded','1')" onerror="window.retryMangaImg(this)" />`;
-                            }).join('')}
+                            ${(() => {
+                                const isPureStatic = (location.hostname.includes('github.io') || location.protocol === 'file:');
+                                const customApiBase = (typeof getApiBase === 'function') ? getApiBase() : '';
+                                const canUseProxy = (!isPureStatic || !!customApiBase);
+                                const proxyBase = customApiBase || '';
+                                const du8Hosts = ['img1.du8.in', 'img2.du8.in', 'img3.du8.in', 'img5.du8.in'];
+
+                                return data.images.map((img, i) => {
+                                    let origSrc = img;
+                                    if (img.startsWith('/api/img_proxy?url=')) {
+                                        try { origSrc = decodeURIComponent(img.split('url=')[1]); } catch(e) {}
+                                    }
+                                    let shardedSrc = origSrc;
+                                    if (origSrc.includes('du8.in')) {
+                                        shardedSrc = origSrc.replace(/img\d*\.du8\.in/, du8Hosts[i % du8Hosts.length]);
+                                    }
+                                    const activeSrc = canUseProxy ? (proxyBase + '/api/img_proxy?url=' + encodeURIComponent(origSrc)) : shardedSrc;
+                                    const isTop = (i < 2);
+                                    return `<img src="${escapeNovelHtml(activeSrc)}" data-orig-src="${escapeNovelHtml(origSrc)}" data-sharded-src="${escapeNovelHtml(shardedSrc)}" loading="${isTop ? 'eager' : 'lazy'}" ${isTop ? 'fetchpriority="high"' : ''} decoding="async" referrerpolicy="no-referrer" onload="this.setAttribute('data-loaded','1')" onerror="window.retryMangaImg(this)" />`;
+                                }).join('');
+                            })()}
                         </div>
                     `;
                 }
