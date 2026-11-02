@@ -4521,13 +4521,13 @@
             <div class="filter-row">
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质小说源：</label>
                 <select id="novelSourceSelect" class="select-filter">
-                    <option value="搬山人" selected>搬山人 (全本精校、长篇大作无删减)</option>
+                    <option value="爱下电子书" selected>爱下电子书 (海量全本、天启预报/玄幻都市)</option>
+                    <option value="搬山人">搬山人 (全本精校、长篇大作无删减)</option>
                     <option value="七猫">七猫 (官方正版、都市玄幻爆款)</option>
                     <option value="番茄">番茄 (原创百万好书、全本连载)</option>
                     <option value="伪69">伪69 (全网无删减、海量同人全集)</option>
                     <option value="半夏小说">半夏小说 (纯爱言情、精品高分)</option>
                     <option value="52书库">52书库 (完结经典精选)</option>
-                    <option value="爱下电子书">爱下电子书 (实体出版精校版)</option>
                     <option value="全本小说">全本小说 (完本经典大作)</option>
                     <option value="淘小说">淘小说 (冷门完本书库)</option>
                     <option value="百度">百度 (百度小说官方库)</option>
@@ -4542,6 +4542,7 @@
             <div class="kanju-suggestion-row">
                 <span class="kanju-suggestion-label"><i class="fas fa-fire" style="color:#ef4444;"></i> 热搜小说:</span>
                 <div class="kanju-suggestion-chips">
+                    <button class="kanju-chip" onclick="quickSearchNovel('天启预报')">天启预报</button>
                     <button class="kanju-chip" onclick="quickSearchNovel('剑来')">剑来</button>
                     <button class="kanju-chip" onclick="quickSearchNovel('十日终焉')">十日终焉</button>
                     <button class="kanju-chip" onclick="quickSearchNovel('雪中悍刀行')">雪中悍刀行</button>
@@ -5466,6 +5467,191 @@
         return res;
     }
 
+    // =========================================================================
+    // 📚 爱下电子书 (ixdzs8) 海量小说直连引擎 (百万大长篇全本、天启预报/玄幻都市爆款)
+    // =========================================================================
+    async function searchIxdzs(keyword) {
+        try {
+            const cleanKw = (keyword || '').trim().replace(/[\s《》]/g, '');
+            if (!cleanKw) return [];
+            if (!location.hostname.includes('github.io') && location.protocol !== 'file:') {
+                try {
+                    const r = await window.__rawFetch('/api/search?title=' + encodeURIComponent(cleanKw) + '&tab=小说&source=爱下电子书');
+                    if (r.ok) {
+                        const j = await r.json();
+                        if (Array.isArray(j.data) && j.data.length > 0) return j.data;
+                    }
+                } catch(e) {}
+            }
+            const targetUrl = 'https://www.ixdzs8.com/bsearch?q=' + encodeURIComponent(cleanKw);
+            let html = '';
+            try {
+                const res = await (window.__rawFetch || fetch)(targetUrl, { signal: AbortSignal.timeout(5000) });
+                if (res.ok) html = await res.text();
+            } catch(e) {}
+            if (!html) {
+                try {
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
+                    const res = await (window.__rawFetch || fetch)(proxyUrl, { signal: AbortSignal.timeout(6000) });
+                    if (res.ok) html = await res.text();
+                } catch(e) {}
+            }
+            if (!html) return [];
+            const results = [];
+            const items = html.split('<li class="burl"').slice(1);
+            for (const item of items) {
+                const mId = item.match(/data-url=["']\/read\/(\d+)\/?["']/);
+                const mTitle = item.match(/class=["']bname["'][^>]*><a[^>]*title=["']([^"']+)["']/i) || item.match(/class=["']bname["'][^>]*><a[^>]*>([\s\S]*?)<\/a>/i);
+                const mAuthor = item.match(/class=["']bauthor["'][^>]*><a[^>]*>([\s\S]*?)<\/a>/i);
+                const mImg = item.match(/<img[^>]+src=["']([^"']+)["']/i);
+                const mDesc = item.match(/class=["']l-p2["']>([\s\S]*?)<\/p>/i);
+
+                if (mId && mTitle) {
+                    const bookId = 'ix_' + mId[1];
+                    const name = mTitle[1].replace(/<[^>]+>/g, '').trim();
+                    const author = mAuthor ? mAuthor[1].replace(/<[^>]+>/g, '').trim() : '未知';
+                    const cover = mImg ? mImg[1].trim() : '';
+                    const desc = mDesc ? mDesc[1].replace(/<[^>]+>/g, '').trim() : '';
+
+                    results.push({
+                        book_name: name,
+                        book_id: bookId,
+                        author: author,
+                        abstract: desc || (name + ' · ' + author + ' 著'),
+                        cover: cover,
+                        thumb_url: cover,
+                        tab: '小说',
+                        source: '爱下电子书'
+                    });
+                }
+            }
+            return results;
+        } catch(e) {
+            return [];
+        }
+    }
+
+    async function catalogIxdzs(bookId) {
+        try {
+            const cleanId = String(bookId).replace(/^ix_/, '').replace(/^\/read\//, '').replace(/\/$/, '').trim();
+            if (!location.hostname.includes('github.io') && location.protocol !== 'file:') {
+                try {
+                    const r = await window.__rawFetch('/api/catalog?book_id=ix_' + encodeURIComponent(cleanId) + '&source=爱下电子书&tab=小说');
+                    if (r.ok) {
+                        const j = await r.json();
+                        if (Array.isArray(j.data) && j.data.length > 0) return j.data;
+                    }
+                } catch(e) {}
+            }
+            const url = 'https://www.ixdzs8.com/read/' + cleanId + '/';
+            let html = '';
+            try {
+                const res = await (window.__rawFetch || fetch)(url, { signal: AbortSignal.timeout(6000) });
+                if (res.ok) html = await res.text();
+            } catch(e) {}
+            if (!html) {
+                try {
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+                    const res = await (window.__rawFetch || fetch)(proxyUrl, { signal: AbortSignal.timeout(7000) });
+                    if (res.ok) html = await res.text();
+                } catch(e) {}
+            }
+            if (!html) return [];
+            let ulBlock = '';
+            const ulMatches = html.match(/<ul[^>]+class=["'][^"']*u-chapter[^"']*["'][^>]*>[\s\S]*?<\/ul>/gi) || [];
+            for (const ul of ulMatches) {
+                if (!ul.includes('cfirst')) {
+                    ulBlock = ul;
+                    break;
+                }
+            }
+            if (!ulBlock && ulMatches.length > 0) ulBlock = ulMatches[ulMatches.length - 1];
+            if (!ulBlock) ulBlock = html;
+
+            const chapters = [];
+            const re = /<a[^>]+href=["'](\/read\/\d+\/p\d+\.html)["'][^>]*>([\s\S]*?)<\/a>/gi;
+            let m;
+            const seen = new Set();
+            while ((m = re.exec(ulBlock)) !== null) {
+                const chapPath = m[1];
+                const title = m[2].replace(/<[^>]+>/g, '').trim();
+                if (chapPath && !seen.has(chapPath)) {
+                    seen.add(chapPath);
+                    chapters.push({
+                        title: title || ('第 ' + (chapters.length + 1) + ' 章'),
+                        item_id: 'ix_' + chapPath,
+                        order_num: chapters.length
+                    });
+                }
+            }
+            return chapters;
+        } catch(e) {
+            return [];
+        }
+    }
+
+    async function contentIxdzs(itemId) {
+        try {
+            let cleanPath = String(itemId).replace(/^ix_/, '').trim();
+            if (!cleanPath.startsWith('/read/')) cleanPath = '/read/' + cleanPath;
+            if (!location.hostname.includes('github.io') && location.protocol !== 'file:') {
+                try {
+                    const r = await window.__rawFetch('/api/content?item_id=ix_' + encodeURIComponent(cleanPath) + '&source=爱下电子书&tab=小说');
+                    if (r.ok) {
+                        const j = await r.json();
+                        if (j && j.code === 0 && j.content) return j;
+                    }
+                } catch(e) {}
+            }
+            const url = 'https://www.ixdzs8.com' + cleanPath;
+            let html = '';
+            try {
+                const res = await (window.__rawFetch || fetch)(url, { signal: AbortSignal.timeout(7000) });
+                if (res.ok) html = await res.text();
+            } catch(e) {}
+            if (!html) {
+                try {
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+                    const res = await (window.__rawFetch || fetch)(proxyUrl, { signal: AbortSignal.timeout(8000) });
+                    if (res.ok) html = await res.text();
+                } catch(e) {}
+            }
+            if (!html) return { code: -1, msg: '获取章节正文失败' };
+
+            let title = '';
+            const mTitle = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || html.match(/<title>([\s\S]*?)<\/title>/i);
+            if (mTitle) {
+                title = mTitle[1].replace(/<[^>]+>/g, '').replace(/_.*$/, '').trim();
+            }
+
+            let content = '';
+            const mArticle = html.match(/<article[^>]+class=["']page-content[^"']*["'][^>]*>([\s\S]*?)<\/article>/i);
+            if (mArticle) {
+                content = mArticle[1]
+                    .replace(/<p[^>]*>/gi, '')
+                    .replace(/<\/p>/gi, '\n\n')
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<[^>]+>/g, '')
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/\n{3,}/g, '\n\n')
+                    .trim();
+            }
+
+            if (!content || content.length < 30) {
+                return { code: -1, msg: '章节正文内容解析为空' };
+            }
+            return {
+                code: 0,
+                msg: 'ok',
+                title: title,
+                content: cleanAdContent(content),
+                source: '爱下电子书'
+            };
+        } catch(e) {
+            return { code: -1, msg: e.message };
+        }
+    }
+
     // 搬山人直连源站检索与章节解析（无删减全本高品质小说源，杜绝断章与错乱）
     async function searchBanshanren(keyword) {
         try {
@@ -5653,6 +5839,13 @@
             const source = url.searchParams.get('source') || (tab === '漫画' ? '新新漫画' : '搬山人');
             const page = url.searchParams.get('page') || '1';
 
+            if (source === '爱下电子书' || source === 'Ixdzs') {
+                const ixRes = await searchIxdzs(title);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: ixRes }), {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             if (source === '搬山人') {
                 const bRes = await searchBanshanren(title);
                 return new Response(JSON.stringify({ code: 0, msg: 'ok', data: bRes }), {
@@ -5663,9 +5856,12 @@
             if (source === 'ALL') {
                 const candidates = (tab === '漫画') 
                     ? ['新新漫画', 'G社漫画', '全面漫画', '番茄']
-                    : ['搬山人', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
+                    : ['爱下电子书', '搬山人', '七猫', '番茄', '伪69', '半夏小说', '52书库', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
 
                 const tasks = candidates.map(async s => {
+                    if (s === '爱下电子书') {
+                        return await searchIxdzs(title);
+                    }
                     if (s === '搬山人') {
                         return await searchBanshanren(title);
                     }
@@ -5709,6 +5905,20 @@
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
 
+            if (source === '爱下电子书' || source === 'Ixdzs' || book_id.startsWith('ix_')) {
+                return new Response(JSON.stringify({
+                    code: 0,
+                    data: {
+                        book_id: book_id,
+                        book_name: url.searchParams.get('title') || '小说详情',
+                        source: '爱下电子书',
+                        tab: '小说'
+                    }
+                }), {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             if (source === '搬山人' || book_id.startsWith('/novel/')) {
                 return new Response(JSON.stringify({
                     code: 0,
@@ -5742,6 +5952,13 @@
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
 
+            if (source === '爱下电子书' || source === 'Ixdzs' || book_id.startsWith('ix_')) {
+                const chapters = await catalogIxdzs(book_id);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters }), {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             if (source === '搬山人' || book_id.startsWith('/novel/')) {
                 const chapters = await catalogBanshanren(book_id);
                 return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters }), {
@@ -5770,6 +5987,13 @@
             const bookTitle = url.searchParams.get('title') || '';
             const chapTitle = url.searchParams.get('chap_title') || '';
             const chapIdx = parseInt(url.searchParams.get('chap_idx') || '0', 10);
+
+            if (source === '爱下电子书' || source === 'Ixdzs' || item_id.startsWith('ix_')) {
+                const ixData = await contentIxdzs(item_id);
+                return new Response(JSON.stringify(ixData), {
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
 
             if (source === '搬山人' || item_id.startsWith('/novel/')) {
                 const bData = await contentBanshanren(item_id);
@@ -5968,7 +6192,7 @@
 
     async function standaloneAutoRescue(bookTitle, chapTitle, chapIdx) {
         // 优先使用真实无删减全本【搬山人】优质源救援，彻底解决长篇大作100章后断更/错乱问题
-        const rescueSources = ['搬山人', '七猫', '百度', '番茄', '半夏小说', '笔趣阁78'];
+        const rescueSources = ['爱下电子书', '搬山人', '七猫', '百度', '番茄', '半夏小说', '笔趣阁78'];
         const cleanChap = (chapTitle || '').replace(/[第章\s]/g, '');
         const normTitle = (bookTitle || '').replace(/[\s《》]/g, '');
 
@@ -7673,7 +7897,7 @@
         const title = (input && input.value.trim()) ? input.value.trim() : fallbackKw;
         if (window.checkSecretUnlockKeyword && window.checkSecretUnlockKeyword(title, input)) return;
         const sourceSelect = document.getElementById('novelSourceSelect');
-        const source = sourceSelect ? sourceSelect.value : '七猫';
+        const source = sourceSelect ? sourceSelect.value : '爱下电子书';
         const grid = document.getElementById('novelResultsGrid');
         const searchBlock = document.getElementById('novelSearchResultBlock');
         const plaza = document.getElementById('novelRecommendSectionsContainer');
