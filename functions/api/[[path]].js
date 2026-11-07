@@ -1084,7 +1084,8 @@ async function fetchKanjuSigned(pathname, search = '') {
             'x-ai-movie-timestamp': timestamp,
             'x-ai-movie-nonce': nonce,
             'x-ai-movie-signature': signature
-        }
+        },
+        signal: AbortSignal.timeout(3500)
     });
     if (!res.ok) throw new Error('Kanju HTTP ' + res.status);
     return await res.json();

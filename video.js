@@ -1196,7 +1196,8 @@
                         const currentActiveScore = currentActiveGroup ? getRoutePriorityScore(currentActiveGroup.name, currentActiveGroup.episodes[0]?.url) : 0;
                         const bestRouteIdx = window.selectBestVideoRoute(window.currentVideo.groups, targetEpIdx);
                         const bestScore = getRoutePriorityScore(window.currentVideo.groups[bestRouteIdx].name, window.currentVideo.groups[bestRouteIdx].episodes[0]?.url);
-                        if (currentActiveScore < 120 && bestScore >= 120) {
+                        const isAlreadyPlaying = window.dpInstance && window.dpInstance.video && !window.dpInstance.video.paused && window.dpInstance.video.currentTime > 1;
+                        if (!isAlreadyPlaying && currentActiveScore < 120 && bestScore >= 120) {
                             window.switchPlayGroup(bestRouteIdx, targetEpIdx);
                             if (window.dpInstance && window.dpInstance.notice) {
                                 window.dpInstance.notice('✨ 已自动升级切换至源站点 1080P 原画顶级首选线路', 3000);
@@ -1283,12 +1284,11 @@
         const valid = results.filter(r => r.ok);
 
         if (valid.length > 0) {
-            // 源站点线路 (score >= 120) 只要响应正常 (< 2800ms)，永远绝对优先于第三方源；同级内取延迟最低者
+            // 真实网络延迟与顺畅度为最高导向：优先锁定网络响应最快的高速 CDN
             valid.sort((a, b) => {
-                const aOrigin = a.score >= 120 && a.latency < 2800 ? 2 : (a.score >= 90 && a.latency < 2800 ? 1 : 0);
-                const bOrigin = b.score >= 120 && b.latency < 2800 ? 2 : (b.score >= 90 && b.latency < 2800 ? 1 : 0);
-                if (aOrigin !== bOrigin) return bOrigin - aOrigin;
-                return a.latency - b.latency;
+                const aBonus = a.score >= 120 ? 100 : (a.score >= 90 ? 50 : 0);
+                const bBonus = b.score >= 120 ? 100 : (b.score >= 90 ? 50 : 0);
+                return (a.latency - aBonus) - (b.latency - bBonus);
             });
             const best = valid[0];
             window._failedRouteSet = new Set();
@@ -1491,7 +1491,7 @@
         const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isMobile = isIOS || /Android|Mobile|Adr|MicroMessenger|UCBrowser|Quark|baiduboxapp/i.test(ua);
 
-        // 启动 7 秒首帧超时看门狗：若当前线路卡死或超过 7 秒未加载出首帧数据，自动切换至下一优选源
+        // 启动首帧看门狗：防止坏死源长期挂起，放宽至 15 秒并精准检测实际缓冲与播放进度
         const armPlaybackWatchdog = function(videoEl) {
             if (window._playbackWatchdogTimer) clearTimeout(window._playbackWatchdogTimer);
             const clearWatchdog = function() {
@@ -1504,11 +1504,20 @@
             videoEl.addEventListener('loadeddata', clearWatchdog, { once: true });
             videoEl.addEventListener('canplay', clearWatchdog, { once: true });
             videoEl.addEventListener('playing', clearWatchdog, { once: true });
-            window._playbackWatchdogTimer = setTimeout(function() {
-                if (!videoEl || videoEl.readyState < 2) {
-                    window.triggerAutoSwitchRoute(idx, '响应超时');
+            videoEl.addEventListener('timeupdate', function onTime() {
+                if (videoEl.currentTime > 0) {
+                    clearWatchdog();
+                    videoEl.removeEventListener('timeupdate', onTime);
                 }
-            }, 7000);
+            });
+            window._playbackWatchdogTimer = setTimeout(function() {
+                // 若视频正在缓冲有效数据或已播放，绝不暴力打断
+                if (!videoEl || videoEl.readyState >= 2 || videoEl.currentTime > 0 || (videoEl.buffered && videoEl.buffered.length > 0)) {
+                    clearWatchdog();
+                    return;
+                }
+                window.triggerAutoSwitchRoute(idx, '响应超时');
+            }, 15000);
         };
 
         window.dpInstance = new DPlayer({
@@ -1547,35 +1556,42 @@
                             return;
                         }
 
-                        // 2. Android 与 PC 走 Hls.js 引擎 (关闭导致手机断流的 lowLatencyMode)
+                        // 2. Android 与 PC 走 Hls.js 引擎 (大幅拓宽预载缓冲池 + 提前预抓取下个分片 + 开启 ABR 智能自适应)
                         if (window.Hls && window.Hls.isSupported()) {
                             const hls = new window.Hls({
-                                enableWorker: !isMobile,
+                                enableWorker: true,
                                 lowLatencyMode: false,
                                 startLevel: -1,
                                 capLevelToPlayerSize: isMobile,
-                                maxBufferLength: isMobile ? 20 : 30,
-                                maxMaxBufferLength: isMobile ? 40 : 60,
-                                backBufferLength: isMobile ? 15 : 30,
-                                manifestLoadingTimeOut: 5000,
-                                manifestLoadingMaxRetry: 1,
-                                levelLoadingTimeOut: 5500,
-                                fragLoadingTimeOut: 7000
+                                maxBufferLength: isMobile ? 60 : 120,
+                                maxMaxBufferLength: isMobile ? 180 : 300,
+                                maxBufferSize: (isMobile ? 64 : 128) * 1024 * 1024,
+                                maxBufferHole: 0.8,
+                                backBufferLength: isMobile ? 30 : 60,
+                                startFragPrefetch: true,
+                                fragLoadingTimeOut: 20000,
+                                fragLoadingMaxRetry: 4,
+                                fragLoadingRetryDelay: 1000,
+                                fragLoadingMaxRetryTimeout: 64000,
+                                manifestLoadingTimeOut: 12000,
+                                manifestLoadingMaxRetry: 3,
+                                levelLoadingTimeOut: 12000,
+                                levelLoadingMaxRetry: 3
                             });
 
-                            // 仅在桌面端启用 WebRTC P2P 加速引擎，避免手机 4G/5G NAT 阻塞分片加载
+                            // 仅在用户手动开启 P2P 加速时挂载 WebRTC 调度引擎，默认走原生零延迟直连
                             const P2pEngineClass = window.P2PEngineHls || window.P2pEngineHls;
-                            if (!isMobile && P2pEngineClass && typeof P2pEngineClass.isSupported === 'function' && P2pEngineClass.isSupported()) {
+                            if (window.isP2pEnabled === true && !isMobile && P2pEngineClass && typeof P2pEngineClass.isSupported === 'function' && P2pEngineClass.isSupported()) {
                                 try {
                                     let p2pEngine = null;
                                     if (P2pEngineClass.HlsjsEngine) {
                                         p2pEngine = new P2pEngineClass.HlsjsEngine(hls, {
-                                            p2pEnabled: window.isP2pEnabled !== false
+                                            p2pEnabled: true
                                         });
                                     } else {
                                         p2pEngine = new P2pEngineClass({
                                             hlsjsInstance: hls,
-                                            p2pEnabled: window.isP2pEnabled !== false
+                                            p2pEnabled: true
                                         });
                                     }
                                     window.currentP2pEngine = p2pEngine;
@@ -1590,7 +1606,7 @@
                                             const peersCount = window.currentPeersCount || 0;
                                             
                                             const liveText = document.getElementById('p2pLiveText');
-                                            if (liveText && window.isP2pEnabled !== false) {
+                                            if (liveText && window.isP2pEnabled) {
                                                 if (peersCount > 0) {
                                                     liveText.innerText = `P2P加速中 (${peersCount}节点 · ${p2pMB}MB · ${ratio}%)`;
                                                 } else {
@@ -1607,7 +1623,7 @@
                                             window.currentPeersCount = peers.length;
                                             const p2pMB = window.p2pStats ? (window.p2pStats.totalP2pDownloaded / 1024 / 1024).toFixed(1) : '0.0';
                                             const liveText = document.getElementById('p2pLiveText');
-                                            if (liveText && window.isP2pEnabled !== false) {
+                                            if (liveText && window.isP2pEnabled) {
                                                 if (peers.length > 0) {
                                                     liveText.innerText = `P2P加速中 (${peers.length}节点 · ${p2pMB}MB)`;
                                                 } else {
@@ -1625,28 +1641,33 @@
                                 } catch(e) {
                                     console.warn('[P2P Engine] 挂载跳过，走原生超清线路:', e);
                                 }
-                            } else if (isMobile) {
+                            } else {
                                 const liveText = document.getElementById('p2pLiveText');
-                                if (liveText) liveText.innerText = '移动直连超清';
+                                if (liveText) liveText.innerText = isMobile ? '移动直连超清' : '极速直连';
                             }
 
                             hls.loadSource(videoUrl);
                             hls.attachMedia(video);
                             hls.on(window.Hls.Events.MANIFEST_PARSED, function (event, data) {
-                                if (!isMobile && data && data.levels && data.levels.length > 0) {
-                                    const highestLevel = data.levels.length - 1;
-                                    hls.currentLevel = highestLevel;
-                                }
+                                // 开启智能 ABR 码率自适应：弱网不卡顿，强网保高清
+                                hls.currentLevel = -1;
                                 video.play().catch(function () {});
                             });
 
-                            // 错误自愈与移动端原生回退 / 自动换线容灾
+                            // 错误自愈与网络抖动恢复 / 移动端原生回退 / 自动换线容灾
                             let mediaErrorRecovered = false;
+                            let networkErrorRetries = 0;
                             hls.on(window.Hls.Events.ERROR, function (event, data) {
                                 if (!data || !data.fatal) return;
                                 if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR && !mediaErrorRecovered) {
                                     mediaErrorRecovered = true;
                                     hls.recoverMediaError();
+                                    return;
+                                }
+                                if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR && networkErrorRetries < 2) {
+                                    networkErrorRetries++;
+                                    console.warn('[Video] 网络瞬时抖动，尝试重新加载分片:', networkErrorRetries);
+                                    hls.startLoad();
                                     return;
                                 }
                                 // 如果移动端原生支持 m3u8，立即回退至手机浏览器原生解码
@@ -1657,7 +1678,7 @@
                                     video.play().catch(function () {});
                                     return;
                                 }
-                                // 若当前线路节点不通，调用智能容灾切源
+                                // 若当前线路节点多次失败，调用智能容灾切源
                                 window.triggerAutoSwitchRoute(idx, '节点繁忙');
                             });
 
@@ -1876,7 +1897,7 @@
                 e.stopPropagation();
                 window.toggleP2pFeature();
             };
-            p2pSpan.innerHTML = `<span class="p2p-dot"></span><span id="p2pLiveText">${window.isP2pEnabled === false ? 'P2P 已关' : 'P2P 就绪'}</span>`;
+            p2pSpan.innerHTML = `<span class="p2p-dot"></span><span id="p2pLiveText">${window.isP2pEnabled === true ? 'P2P 就绪' : '极速直连'}</span>`;
             frag.appendChild(p2pSpan);
 
             // (C) 快捷跳片头按钮
@@ -1973,8 +1994,8 @@
                 'p2pSwitch',
                 '<i class="fas fa-bolt" style="color:#f59e0b;"></i>',
                 'WebRTC P2P 边缘加速',
-                '<span id="p2pDetailsText" style="color:var(--accent);">正在连接 P2P 种子网络...</span>',
-                window.isP2pEnabled !== false,
+                '<span id="p2pDetailsText" style="color:var(--accent);">直连极速 CDN 模式 (可按需开启 P2P 分享)</span>',
+                window.isP2pEnabled === true,
                 () => window.toggleP2pFeature()
             ));
 
@@ -2125,8 +2146,8 @@
         }
     };
 
-    // WebRTC P2P 加速功能开关
-    window.isP2pEnabled = true;
+    // WebRTC P2P 加速功能开关 (默认关闭调度开销，采用极速 CDN 直连；需要时可在播放器设置中随时开启)
+    window.isP2pEnabled = false;
     window.toggleP2pFeature = function() {
         window.isP2pEnabled = !window.isP2pEnabled;
         const sw = document.getElementById('p2pSwitch');
@@ -2136,7 +2157,7 @@
         if (sw) sw.classList.toggle('active', window.isP2pEnabled);
         if (chk) chk.checked = window.isP2pEnabled;
         if (pill) pill.classList.toggle('off', !window.isP2pEnabled);
-        if (liveText) liveText.innerText = window.isP2pEnabled ? 'P2P 就绪' : 'P2P 已关';
+        if (liveText) liveText.innerText = window.isP2pEnabled ? 'P2P 就绪' : '极速直连';
         
         if (window.currentP2pEngine) {
             try {
