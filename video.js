@@ -1213,21 +1213,13 @@
         }
     };
 
-    // 智能选源算法：源站点(kanju)的源绝对优先（score >= 120），其次第三方主力源（score >= 90）
+    // 智能选源算法：优先选择高速稳定可达的蓝光/超清主力线路，若首选线路受阻自动下探
     window.selectBestVideoRoute = function(groups, targetEpIdx = 0) {
         if (!groups || groups.length === 0) return 0;
         const failedSet = window._failedRouteSet || new Set();
         const bannedNames = window._sessionSlowRouteNames || new Set();
 
-        // 1. 严格优先在源站点优先线路 (score >= 120, 包含原站1080P豆瓣/暴风/茅台及原站全部直连源) 中寻找未失败且含有该集数的线路
-        for (let i = 0; i < groups.length; i++) {
-            const g = groups[i];
-            const score = getRoutePriorityScore(g.name, g.episodes[0] && g.episodes[0].url);
-            if (score >= 120 && !failedSet.has(i) && !bannedNames.has(g.name) && g.episodes && g.episodes[targetEpIdx]) {
-                return i;
-            }
-        }
-        // 2. 次选第三方主力源 (score >= 90)
+        // 1. 优先在超清与蓝光主力线路 (score >= 90) 中寻找未失败且含有该集数的线路
         for (let i = 0; i < groups.length; i++) {
             const g = groups[i];
             const score = getRoutePriorityScore(g.name, g.episodes[0] && g.episodes[0].url);
@@ -1235,7 +1227,7 @@
                 return i;
             }
         }
-        // 3. 次选任何未失败且有该集数的线路（按优先级顺序）
+        // 2. 次选任何未失败且有该集数的线路
         for (let i = 0; i < groups.length; i++) {
             const g = groups[i];
             if (!failedSet.has(i) && g.episodes && g.episodes[targetEpIdx]) {
@@ -1291,8 +1283,9 @@
                 return (a.latency - aBonus) - (b.latency - bBonus);
             });
             const best = valid[0];
+            const curPlayTime = (window.dpInstance && window.dpInstance.video) ? (window.dpInstance.video.currentTime || 0) : 0;
             window._failedRouteSet = new Set();
-            window.switchPlayGroup(best.idx, epIdx);
+            window.switchPlayGroup(best.idx, epIdx, curPlayTime);
             const bestName = formatFriendlyLineName(groups[best.idx].name, best.idx, groups[best.idx].episodes[0]?.url);
             if (window.dpInstance && window.dpInstance.notice) {
                 window.dpInstance.notice(`⚡ 智能优选完成：已锁定最快节点 [${bestName}] (${best.latency}ms)`, 3500);
@@ -1345,11 +1338,12 @@
         }
 
         const nextName = formatFriendlyLineName(groups[nextGroup].name, nextGroup, groups[nextGroup].episodes[0]?.url);
+        const curPlayTime = (window.dpInstance && window.dpInstance.video) ? (window.dpInstance.video.currentTime || 0) : 0;
         if (window.dpInstance && window.dpInstance.notice) {
-            window.dpInstance.notice(`当前线路${reason}，已自动切换至: ${nextName}`, 3500);
+            window.dpInstance.notice(`当前线路${reason}，已自动无缝切换至: ${nextName}`, 3500);
         }
         setTimeout(function () {
-            window.switchPlayGroup(nextGroup, epIdx);
+            window.switchPlayGroup(nextGroup, epIdx, curPlayTime);
         }, 200);
     };
 
@@ -1396,9 +1390,13 @@
         }, 30);
     };
 
-    // 切换播放线路
-    window.switchPlayGroup = function(groupIdx, targetEpIdx = 0) {
+    // 切换播放线路（自由无缝切换：自动保留精确当前播放秒数，绝不重头开始）
+    window.switchPlayGroup = function(groupIdx, targetEpIdx = 0, customPreserveTime = null) {
         window.currentGroupIdx = groupIdx;
+        const liveCurrentTime = (customPreserveTime !== null && customPreserveTime > 0)
+            ? customPreserveTime
+            : (window.dpInstance && window.dpInstance.video ? (window.dpInstance.video.currentTime || 0) : 0);
+
         document.querySelectorAll('#videoPlaySourceTabs .source-route-btn').forEach(b => b.classList.remove('active'));
         const activeBtn = document.getElementById('sourceRouteBtn_' + groupIdx);
         const tabsBox = document.getElementById('videoPlaySourceTabs');
@@ -1410,7 +1408,7 @@
             }
         }
         window.renderVideoEpisodes(groupIdx);
-        window.playVideoEpisode(targetEpIdx);
+        window.playVideoEpisode(targetEpIdx, liveCurrentTime);
     };
 
     // 渲染剧集列表
@@ -1431,8 +1429,8 @@
         `).join('');
     };
 
-    // 播放指定集数 (全平台兼容：iOS原生硬解 + Android/PC自适应HLS + 6.5秒超时看门狗与断线自动切源容灾)
-    window.playVideoEpisode = function(idx) {
+    // 播放指定集数 (全平台兼容：无缝换线秒级续播 + iOS原生硬解 + Android/PC自适应HLS + 超时看门狗与断线自动切源容灾)
+    window.playVideoEpisode = function(idx, preserveTime = null) {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
         if (!group || !group.episodes || !group.episodes[idx]) return;
@@ -1445,15 +1443,19 @@
             window._playbackWatchdogTimer = null;
         }
 
-        // 检查是否有该集的历史播放秒数用于断点续播
+        // 检查是否有该集的播放秒数用于无缝换线续播与历史记录续播
         let resumePlaySeconds = 0;
-        try {
-            const vidKey = window.currentVideo.vod_id || window.currentVideo.id || window.currentVideo.vod_name;
-            const prevRec = (window.getVideoHistory() || []).find(h => (h.vod_id || h.id || h.vod_name) === vidKey);
-            if (prevRec && Number(prevRec.ep_idx) === Number(idx) && Number(prevRec.play_seconds) > 12) {
-                resumePlaySeconds = Number(prevRec.play_seconds);
-            }
-        } catch (e) {}
+        if (preserveTime !== null && Number(preserveTime) > 0.5) {
+            resumePlaySeconds = Number(preserveTime);
+        } else {
+            try {
+                const vidKey = window.currentVideo.vod_id || window.currentVideo.id || window.currentVideo.vod_name;
+                const prevRec = (window.getVideoHistory() || []).find(h => (h.vod_id || h.id || h.vod_name) === vidKey);
+                if (prevRec && Number(prevRec.ep_idx) === Number(idx) && Number(prevRec.play_seconds) > 5) {
+                    resumePlaySeconds = Number(prevRec.play_seconds);
+                }
+            } catch (e) {}
+        }
 
         // 实时保存观看历史
         window.saveVideoHistory(window.currentVideo, group.name, ep.title, idx, resumePlaySeconds);
@@ -1651,6 +1653,9 @@
                             hls.on(window.Hls.Events.MANIFEST_PARSED, function (event, data) {
                                 // 开启智能 ABR 码率自适应：弱网不卡顿，强网保高清
                                 hls.currentLevel = -1;
+                                if (resumePlaySeconds > 0.5) {
+                                    try { video.currentTime = resumePlaySeconds; } catch(e){}
+                                }
                                 video.play().catch(function () {});
                             });
 
@@ -1793,15 +1798,15 @@
                     const cur = window.dpInstance.video.currentTime || 0;
                     const dur = window.dpInstance.video.duration || 0;
 
-                    if (!hasResumedTime && resumePlaySeconds > 12 && cur > 0.2) {
+                    if (!hasResumedTime && resumePlaySeconds > 0.5 && cur > 0.1) {
                         hasResumedTime = true;
                         hasSkippedIntro = true;
-                        if (!dur || resumePlaySeconds < dur - 15) {
-                            window.dpInstance.seek(resumePlaySeconds);
+                        if (!dur || resumePlaySeconds < dur - 5) {
+                            try { window.dpInstance.seek(resumePlaySeconds); } catch(e){}
                             const mm = String(Math.floor(resumePlaySeconds / 60)).padStart(2, '0');
                             const ss = String(Math.floor(resumePlaySeconds % 60)).padStart(2, '0');
                             if (window.dpInstance.notice) {
-                                window.dpInstance.notice(`已为您恢复上次观看进度 (${mm}:${ss})`, 3200);
+                                window.dpInstance.notice(`⚡ 已无缝换线续播至 ${mm}:${ss}`, 2500);
                             }
                             return;
                         }

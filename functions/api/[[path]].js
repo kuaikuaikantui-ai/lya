@@ -2496,13 +2496,12 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
 
         // ☁️ 轻量多端云同步接口 (支持 Cloudflare KV + Edge Cache + 零配置多节点持久云存储自动容灾)
         if (url.pathname === '/api/sync') {
-            const IMM_APP_KEY = 'j0uai3hs';
             const memStore = (globalThis.__OPENHAPPY_SYNC_MEM = globalThis.__OPENHAPPY_SYNC_MEM || new Map());
             const kvBinding = (env && (env.USER_SYNC_KV || env.OPENHAPPY_KV || env.KV)) || null;
 
             const sanitizeUid = (raw) => {
                 const clean = String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
-                return clean.length >= 6 ? clean : '';
+                return clean.length >= 3 ? clean : '';
             };
 
             if (request.method === 'GET') {
@@ -2534,10 +2533,10 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     } catch (e) {}
                 }
 
-                // 3. Cloudflare Edge Cache
+                // 3. Cloudflare Edge Cache (使用正确的 zone origin，避免 .internal 报错)
                 try {
                     if (typeof caches !== 'undefined' && caches.default) {
-                        const cacheReq = new Request('https://sync-cache.openhappy.internal/v1/' + uid);
+                        const cacheReq = new Request(url.origin + '/api/sync?cache_uid=' + uid);
                         const cacheRes = await caches.default.match(cacheReq);
                         if (cacheRes && cacheRes.ok) {
                             pushCandidate(await cacheRes.json());
@@ -2545,27 +2544,11 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     }
                 } catch (e) {}
 
-                // 4. 零配置全球持久云存储 (Immanuel KeyVal + Bytebin & ntfy 双通道并发拉取)
-                const fetchImmanuelBytebin = async () => {
-                    try {
-                        const r = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/${IMM_APP_KEY}/oh_${uid}`, {
-                            signal: AbortSignal.timeout(4000)
-                        });
-                        if (!r.ok) return null;
-                        const rawVal = (await r.text()).replace(/^"|"$/g, '').trim();
-                        if (!rawVal || rawVal === 'null') return null;
-                        const bbRes = await fetch(`https://bytebin.lucko.me/${rawVal}`, {
-                            signal: AbortSignal.timeout(4500)
-                        });
-                        if (bbRes.ok) return await bbRes.json();
-                    } catch (e) {}
-                    return null;
-                };
-
-                const fetchNtfyBackup = async () => {
+                // 4. 并发拉取全球多源高可用云快照 (ntfy 实时信道 / 附件 + pastes.dev + dpaste.org)
+                const fetchNtfyCandidate = async () => {
                     try {
                         const r = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=720h`, {
-                            signal: AbortSignal.timeout(4000)
+                            signal: AbortSignal.timeout(4500)
                         });
                         if (!r.ok) return null;
                         const text = (await r.text()).trim();
@@ -2574,15 +2557,29 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                         for (let i = lines.length - 1; i >= 0; i--) {
                             try {
                                 const evt = JSON.parse(lines[i]);
-                                if (evt && evt.message) {
-                                    const msgObj = JSON.parse(evt.message);
-                                    if (msgObj.bytebinKey) {
-                                        const bbRes = await fetch(`https://bytebin.lucko.me/${msgObj.bytebinKey}`, {
-                                            signal: AbortSignal.timeout(4000)
-                                        });
-                                        if (bbRes.ok) return await bbRes.json();
-                                    }
-                                    if (msgObj.payload) return msgObj.payload;
+                                if (!evt) continue;
+                                // 检查是否有 direct payload
+                                if (evt.message) {
+                                    try {
+                                        const msgObj = JSON.parse(evt.message);
+                                        if (msgObj && (msgObj.shelf || msgObj.history)) return msgObj;
+                                        if (msgObj && msgObj.payload && (msgObj.payload.shelf || msgObj.payload.history)) return msgObj.payload;
+                                        // 检查是否有外部存储指针
+                                        if (msgObj.pastesKey) {
+                                            const pr = await fetch(`https://api.pastes.dev/${msgObj.pastesKey}`, { signal: AbortSignal.timeout(4000) });
+                                            if (pr.ok) return await pr.json();
+                                        }
+                                        if (msgObj.dpasteUrl) {
+                                            const rawUrl = msgObj.dpasteUrl.endsWith('/raw') ? msgObj.dpasteUrl : (msgObj.dpasteUrl + '/raw');
+                                            const dr = await fetch(rawUrl, { signal: AbortSignal.timeout(4000) });
+                                            if (dr.ok) return await dr.json();
+                                        }
+                                    } catch(notJsonMsg) {}
+                                }
+                                // 检查是否有附件 url
+                                if (evt.attachment && evt.attachment.url) {
+                                    const ar = await fetch(evt.attachment.url, { signal: AbortSignal.timeout(4000) });
+                                    if (ar.ok) return await ar.json();
                                 }
                             } catch (e) {}
                         }
@@ -2590,9 +2587,10 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     return null;
                 };
 
-                const [immData, ntfyData] = await Promise.all([fetchImmanuelBytebin(), fetchNtfyBackup()]);
-                pushCandidate(immData);
-                pushCandidate(ntfyData);
+                const [ntfySnap] = await Promise.allSettled([fetchNtfyCandidate()]);
+                if (ntfySnap.status === 'fulfilled' && ntfySnap.value) {
+                    pushCandidate(ntfySnap.value);
+                }
 
                 if (candidates.length === 0) {
                     return new Response(JSON.stringify({ code: 0, msg: 'empty', payload: null }), {
@@ -2601,7 +2599,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 }
 
                 // 选取时间戳最新的一份云端快照
-                candidates.sort((a, b) => (b.syncTime || 0) - (a.syncTime || 0));
+                candidates.sort((a, b) => (Number(b.syncTime) || 0) - (Number(a.syncTime) || 0));
                 const latest = candidates[0];
                 memStore.set(uid, latest);
 
@@ -2624,7 +2622,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
 
                     payload.syncTime = Number(payload.syncTime) || Date.now();
 
-                    // 服务端单调不回退合并保障：绝不允许较早章节覆盖更新更远的章节进度
+                    // 服务端单调不回退合并保障
                     const prevSnapshot = memStore.get(uid);
                     if (prevSnapshot && typeof prevSnapshot === 'object') {
                         const mergedHistory = Array.isArray(payload.history) ? [...payload.history] : [];
@@ -2682,10 +2680,10 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                         } catch (e) {}
                     }
 
-                    // 3. 写入 Cloudflare Edge Cache
+                    // 3. 写入 Cloudflare Edge Cache (合规的同源请求)
                     try {
                         if (typeof caches !== 'undefined' && caches.default) {
-                            const cacheReq = new Request('https://sync-cache.openhappy.internal/v1/' + uid);
+                            const cacheReq = new Request(url.origin + '/api/sync?cache_uid=' + uid);
                             const cacheRes = new Response(payloadStr, {
                                 headers: {
                                     'Content-Type': 'application/json; charset=utf-8',
@@ -2696,51 +2694,91 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                         }
                     } catch (e) {}
 
-                    // 4. 写入零配置全球持久云存储 (Bytebin + Immanuel KeyVal + ntfy 广播)
-                    let bytebinKey = '';
-                    try {
-                        const bbRes = await fetch('https://bytebin.lucko.me/post', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: payloadStr,
-                            signal: AbortSignal.timeout(5000)
-                        });
-                        if (bbRes.ok) {
-                            const bbJson = await bbRes.json();
-                            bytebinKey = bbJson.key || '';
-                        }
-                    } catch (e) {}
-
+                    // 4. 并发写入持久化分布式云节点 (pastes.dev + dpaste.org + ntfy 附件与广播)
                     const cloudTasks = [];
-                    if (bytebinKey) {
-                        cloudTasks.push(
-                            fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${IMM_APP_KEY}/oh_${uid}/${bytebinKey}`, {
+                    let pastesKey = '';
+                    let dpasteUrl = '';
+
+                    // (A) pastes.dev
+                    cloudTasks.push((async () => {
+                        try {
+                            const pr = await fetch('https://api.pastes.dev/post', {
                                 method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: payloadStr,
                                 signal: AbortSignal.timeout(4500)
-                            }).catch(() => {})
-                        );
-                    }
-                    cloudTasks.push(
+                            });
+                            if (pr.ok) {
+                                const pj = await pr.json();
+                                pastesKey = pj.key || '';
+                            }
+                        } catch(e) {}
+                    })());
+
+                    // (B) dpaste.org (保留365天)
+                    cloudTasks.push((async () => {
+                        try {
+                            const form = new URLSearchParams();
+                            form.append('content', payloadStr);
+                            form.append('expiry_days', '365');
+                            form.append('format', 'url');
+                            const dr = await fetch('https://dpaste.org/api/', {
+                                method: 'POST',
+                                body: form,
+                                signal: AbortSignal.timeout(4500)
+                            });
+                            if (dr.ok) {
+                                dpasteUrl = (await dr.text()).trim();
+                            }
+                        } catch(e) {}
+                    })());
+
+                    // 等待至少一个持久节点存入
+                    await Promise.allSettled(cloudTasks);
+
+                    // (C) ntfy.sh 实时广播与文件附件投递
+                    const ntfyTasks = [];
+                    // 发送轻量元数据广播 (包含 pointers)
+                    const ntfyMeta = {
+                        pastesKey,
+                        dpasteUrl,
+                        deviceId: payload.deviceId || '',
+                        syncTime: payload.syncTime,
+                        payload: payloadStr.length < 3800 ? payload : undefined
+                    };
+                    ntfyTasks.push(
                         fetch(`https://ntfy.sh/oh_sync_${uid}`, {
                             method: 'POST',
-                            headers: { 'Cache': 'yes' },
-                            body: JSON.stringify({
-                                bytebinKey,
-                                deviceId: payload.deviceId || '',
-                                syncTime: payload.syncTime,
-                                payload: payloadStr.length < 3200 ? payload : undefined
-                            }),
+                            headers: {
+                                'Cache': 'yes',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(ntfyMeta),
                             signal: AbortSignal.timeout(4500)
                         }).catch(() => {})
                     );
 
-                    await Promise.allSettled(cloudTasks);
+                    // 若数据包较大，通过 ntfy PUT 文件附件保存一份完整 snapshot
+                    ntfyTasks.push(
+                        fetch(`https://ntfy.sh/oh_sync_${uid}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Title': 'SyncSnapshot',
+                                'Filename': 'sync.json'
+                            },
+                            body: payloadStr,
+                            signal: AbortSignal.timeout(5000)
+                        }).catch(() => {})
+                    );
+
+                    await Promise.allSettled(ntfyTasks);
 
                     return new Response(JSON.stringify({
                         code: 0,
                         msg: 'ok',
                         syncTime: payload.syncTime,
-                        bytebinKey
+                        pastesKey,
+                        dpasteUrl
                     }), {
                         headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                     });
@@ -2751,10 +2789,15 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     });
                 }
             }
+
+            return new Response(JSON.stringify({ code: -1, msg: 'Method Not Allowed' }), {
+                status: 405,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+            });
         }
 
         // 🚀 全球边缘画卷流式加速与极速边缘缓存网关 (支持 HTTP/2 分块多路复用与 30 天持久缓存)
-        if (url.pathname === '/api/img_proxy' || url.pathname === '/api/proxy') {
+        if (url.pathname === '/api/img_proxy') {
             const targetUrl = url.searchParams.get('url') || '';
             if (!targetUrl || !/^https?:\/\//i.test(targetUrl)) {
                 return new Response(JSON.stringify({ code: -1, msg: 'Invalid url' }), {

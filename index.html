@@ -4245,7 +4245,7 @@
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
     <script src="recommend_data.js"></script>
-    <script src="video.js?v=20261107_smooth"></script>
+    <script src="video.js?v=20261110_seamless"></script>
 </head>
 <body class="nav-video">
 <header>
@@ -6378,7 +6378,59 @@
         }
     }
 
-    // 根据账号与安全口令生成不可逆的唯一同步标识 uid
+    // 全平台统一位级精确 SHA-256 算法（杜绝移动端/非HTTPS上下文哈希分叉导致的手机电脑账号不互通）
+    function _pureJsSha256(ascii) {
+        function rrot(v, a) { return (v >>> a) | (v << (32 - a)); }
+        const maxW = Math.pow(2, 32);
+        let res = '', w = [], bitLen = ascii.length * 8;
+        let h = [], k = [], pc = 0, isComp = {};
+        for (let c = 2; pc < 64; c++) {
+            if (!isComp[c]) {
+                for (let i = 0; i < 313; i += c) isComp[i] = c;
+                h[pc] = (Math.pow(c, 0.5) * maxW) | 0;
+                k[pc++] = (Math.pow(c, 1 / 3) * maxW) | 0;
+            }
+        }
+        h = h.slice(0, 8);
+        for (let i = 0; i < ascii.length; i++) {
+            w[i >> 2] |= (ascii.charCodeAt(i) & 0xff) << (24 - (i % 4) * 8);
+        }
+        w[ascii.length >> 2] |= 0x80 << (24 - (ascii.length % 4) * 8);
+        w[(((ascii.length + 8) >> 6) << 4) + 15] = bitLen;
+        const wt = [];
+        for (let j = 0; j < w.length; j += 16) {
+            const curH = h.slice(0);
+            for (let i = 0; i < 64; i++) {
+                if (i < 16) {
+                    wt[i] = w[j + i] | 0;
+                } else {
+                    const s0 = rrot(wt[i - 15], 7) ^ rrot(wt[i - 15], 18) ^ (wt[i - 15] >>> 3);
+                    const s1 = rrot(wt[i - 2], 17) ^ rrot(wt[i - 2], 19) ^ (wt[i - 2] >>> 10);
+                    wt[i] = (wt[i - 16] + s0 + wt[i - 7] + s1) | 0;
+                }
+                const s1 = rrot(curH[4], 6) ^ rrot(curH[4], 11) ^ rrot(curH[4], 25);
+                const ch = (curH[4] & curH[5]) ^ (~curH[4] & curH[6]);
+                const t1 = (curH[7] + s1 + ch + k[i] + wt[i]) | 0;
+                const s0 = rrot(curH[0], 2) ^ rrot(curH[0], 13) ^ rrot(curH[0], 22);
+                const maj = (curH[0] & curH[1]) ^ (curH[0] & curH[2]) ^ (curH[1] & curH[2]);
+                const t2 = (s0 + maj) | 0;
+                curH[7] = curH[6]; curH[6] = curH[5]; curH[5] = curH[4];
+                curH[4] = (curH[3] + t1) | 0;
+                curH[3] = curH[2]; curH[2] = curH[1]; curH[1] = curH[0];
+                curH[0] = (t1 + t2) | 0;
+            }
+            for (let i = 0; i < 8; i++) h[i] = (h[i] + curH[i]) | 0;
+        }
+        for (let i = 0; i < 8; i++) {
+            for (let j = 3; j >= 0; j--) {
+                const b = (h[i] >> (8 * j)) & 255;
+                res += (b < 16 ? '0' : '') + b.toString(16);
+            }
+        }
+        return res;
+    }
+
+    // 根据账号与安全口令生成不可逆的唯一同步标识 uid (多端 100% 相同)
     async function deriveCloudUid(account, pin = '') {
         const normalized = `${String(account || '').trim().toLowerCase()}::openhappy_v1::${String(pin || '').trim()}`;
         try {
@@ -6389,17 +6441,8 @@
                 return 'u_' + hex.slice(0, 26);
             }
         } catch (e) {}
-        // 兼容非安全上下文的确定性双哈希回退
-        let h1 = 0xdeadbeef ^ normalized.length;
-        let h2 = 0x41c6ce57 ^ normalized.length;
-        for (let i = 0; i < normalized.length; i++) {
-            const ch = normalized.charCodeAt(i);
-            h1 = Math.imul(h1 ^ ch, 2654435761);
-            h2 = Math.imul(h2 ^ ch, 1597334677);
-        }
-        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-        return 'u_' + (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+        // 全平台一致纯 JS SHA-256 回退
+        return 'u_' + _pureJsSha256(normalized).slice(0, 26);
     }
 
     function showCloudToast(msg, iconClass = 'fa-cloud-check', iconColor = '#10b981') {
@@ -6779,7 +6822,7 @@
         updateCloudSyncUI();
     }
 
-    // 从云端拉取快照（优先走 /api/sync，静态页面自动回退直连云端 KV）
+    // 从云端拉取快照（优先走 /api/sync 聚合网关，静态页面自动回退至 ntfy / pastes.dev / dpaste 灾备信道）
     async function fetchCloudSnapshot(uid) {
         try {
             const r = await fetch(`/api/sync?uid=${encodeURIComponent(uid)}&_t=${Date.now()}`, {
@@ -6787,29 +6830,50 @@
             });
             if (r.ok) {
                 const json = await r.json();
-                if (json && json.code === 0) return json.payload || null;
+                if (json && json.code === 0 && json.payload) return json.payload;
             }
         } catch (e) {}
 
-        // 静态托管容灾回退：前端直接读取 Immanuel + Bytebin 或 ntfy 缓存流
+        // 静态托管容灾回退：直接拉取 ntfy 缓存流与分布式快照
         try {
-            const immRes = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/${IMM_FALLBACK_APP_KEY}/oh_${uid}`, {
-                signal: AbortSignal.timeout(4500)
+            const ntfyRes = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=720h`, {
+                signal: AbortSignal.timeout(5000)
             });
-            if (immRes.ok) {
-                const key = (await immRes.text()).replace(/^"|"$/g, '').trim();
-                if (key && key !== 'null') {
-                    const bbRes = await fetch(`https://bytebin.lucko.me/${key}`, { signal: AbortSignal.timeout(4500) });
-                    if (bbRes.ok) return await bbRes.json();
+            if (ntfyRes.ok) {
+                const text = (await ntfyRes.text()).trim();
+                const lines = text.split('\n').filter(Boolean);
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    try {
+                        const evt = JSON.parse(lines[i]);
+                        if (evt && evt.message) {
+                            const msgObj = JSON.parse(evt.message);
+                            if (msgObj && (msgObj.shelf || msgObj.history)) return msgObj;
+                            if (msgObj && msgObj.payload && (msgObj.payload.shelf || msgObj.payload.history)) return msgObj.payload;
+                            if (msgObj && msgObj.pastesKey) {
+                                const pr = await fetch(`https://api.pastes.dev/${msgObj.pastesKey}`, { signal: AbortSignal.timeout(4000) });
+                                if (pr.ok) return await pr.json();
+                            }
+                            if (msgObj && msgObj.dpasteUrl) {
+                                const rawUrl = msgObj.dpasteUrl.endsWith('/raw') ? msgObj.dpasteUrl : (msgObj.dpasteUrl + '/raw');
+                                const dr = await fetch(rawUrl, { signal: AbortSignal.timeout(4000) });
+                                if (dr.ok) return await dr.json();
+                            }
+                        }
+                        if (evt && evt.attachment && evt.attachment.url) {
+                            const ar = await fetch(evt.attachment.url, { signal: AbortSignal.timeout(4000) });
+                            if (ar.ok) return await ar.json();
+                        }
+                    } catch (e) {}
                 }
             }
         } catch (e) {}
         return null;
     }
 
-    // 推送快照至云端（优先走 /api/sync，静态页面自动回退直连云端 KV）
+    // 推送快照至云端（优先走 /api/sync，静态页面自动回退直连 pastes.dev + dpaste + ntfy）
     async function pushCloudSnapshot(uid, payload) {
         payload.syncTime = Date.now();
+        const payloadStr = JSON.stringify(payload);
         try {
             const r = await fetch('/api/sync', {
                 method: 'POST',
@@ -6824,24 +6888,65 @@
             }
         } catch (e) {}
 
-        // 静态托管容灾回退
+        // 静态托管容灾回退：并发存入分布式多节点
         try {
-            const bbRes = await fetch('https://bytebin.lucko.me/post', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                signal: AbortSignal.timeout(5000)
-            });
-            if (bbRes.ok) {
-                const { key } = await bbRes.json();
-                if (key) {
-                    await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${IMM_FALLBACK_APP_KEY}/oh_${uid}/${key}`, {
+            let pastesKey = '';
+            let dpasteUrl = '';
+            const tasks = [];
+            tasks.push((async () => {
+                try {
+                    const pr = await fetch('https://api.pastes.dev/post', {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: payloadStr,
                         signal: AbortSignal.timeout(4500)
                     });
-                    return true;
-                }
-            }
+                    if (pr.ok) {
+                        const pj = await pr.json();
+                        pastesKey = pj.key || '';
+                    }
+                } catch(e) {}
+            })());
+            tasks.push((async () => {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('content', payloadStr);
+                    form.append('expiry_days', '365');
+                    form.append('format', 'url');
+                    const dr = await fetch('https://dpaste.org/api/', {
+                        method: 'POST',
+                        body: form,
+                        signal: AbortSignal.timeout(4500)
+                    });
+                    if (dr.ok) {
+                        dpasteUrl = (await dr.text()).trim();
+                    }
+                } catch(e) {}
+            })());
+            await Promise.allSettled(tasks);
+
+            const ntfyMeta = {
+                pastesKey,
+                dpasteUrl,
+                deviceId: payload.deviceId || '',
+                syncTime: payload.syncTime,
+                payload: payloadStr.length < 3800 ? payload : undefined
+            };
+            await Promise.allSettled([
+                fetch(`https://ntfy.sh/oh_sync_${uid}`, {
+                    method: 'POST',
+                    headers: { 'Cache': 'yes', 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ntfyMeta),
+                    signal: AbortSignal.timeout(4500)
+                }).catch(() => {}),
+                fetch(`https://ntfy.sh/oh_sync_${uid}`, {
+                    method: 'PUT',
+                    headers: { 'Title': 'SyncSnapshot', 'Filename': 'sync.json' },
+                    body: payloadStr,
+                    signal: AbortSignal.timeout(5000)
+                }).catch(() => {})
+            ]);
+            return true;
         } catch (e) {}
         return false;
     }
@@ -10614,22 +10719,23 @@
     // 高速并发多通道网页抓取器（通过 Edge 服务端 /api/proxy 与 CORS 代理穿透，绝不直接跨域请求触发浏览器红字报错）
     async function fetchTextWithCorsFallback(targetUrl) {
         if (!targetUrl || isInvalidChiguaUrl(targetUrl)) return '';
+        const freshTimestamp = Date.now();
         const tryEdgeProxy = async () => {
-            const r = await fetch('/api/proxy?url=' + encodeURIComponent(targetUrl), { signal: AbortSignal.timeout(6000) });
+            const r = await fetch('/api/proxy?url=' + encodeURIComponent(targetUrl) + '&_t=' + freshTimestamp, { signal: AbortSignal.timeout(6000) });
             if (!r.ok) throw new Error('edge proxy ' + r.status);
             const txt = await r.text();
             if (!txt || txt.length < 120 || txt.includes('"code":-1')) throw new Error('empty');
             return txt;
         };
         const tryAllOriginsJson = async () => {
-            const r = await window.__rawFetch('https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl), { signal: AbortSignal.timeout(7000) });
+            const r = await window.__rawFetch('https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl) + '&disableCache=true&_ts=' + freshTimestamp, { signal: AbortSignal.timeout(7000) });
             if (!r.ok) throw new Error('allorigins ' + r.status);
             const d = await r.json();
             if (!d || !d.contents || d.contents.length < 120) throw new Error('empty');
             return d.contents;
         };
         const tryCodetabs = async () => {
-            const r = await window.__rawFetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl), { signal: AbortSignal.timeout(7000) });
+            const r = await window.__rawFetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl) + '&_t=' + freshTimestamp, { signal: AbortSignal.timeout(7000) });
             if (!r.ok) throw new Error('codetabs ' + r.status);
             const txt = await r.text();
             if (!txt || txt.length < 120) throw new Error('empty');
@@ -10716,7 +10822,16 @@
 
             // 提取发布日期与分类标签
             const dateNode = scopeEl.querySelector('[itemprop="datePublished"], time, .date, .post-time');
-            const dateStr = dateNode ? (dateNode.textContent || '').replace(/\s+/g, ' ').trim() : '24h热瓜';
+            let dateStr = '今日看料';
+            if (dateNode) {
+                const rawDate = (dateNode.getAttribute('content') || dateNode.textContent || '').trim();
+                const mDate = rawDate.match(/202\d[-/]\d{1,2}[-/]\d{1,2}/);
+                if (mDate) {
+                    dateStr = mDate[0].replace(/\//g, '-');
+                } else {
+                    dateStr = rawDate.replace(/\s+/g, ' ').replace('•', '').trim() || dateStr;
+                }
+            }
             let catStr = '热点吃瓜';
             const infoSpans = scopeEl.querySelectorAll('.post-card-info span, .post-meta span');
             infoSpans.forEach(sp => {
