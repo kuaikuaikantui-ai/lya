@@ -3283,6 +3283,48 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
             });
         }
 
+        // 🚀 通用高可用边缘跨域穿透代理 (支持自动跟随 301/302/307 重定向、突破 CORS 限制并注入规范头)
+        if (url.pathname === '/api/proxy') {
+            const targetUrl = url.searchParams.get('url') || '';
+            if (!targetUrl || !/^https?:\/\//i.test(targetUrl)) {
+                return new Response(JSON.stringify({ code: -1, msg: 'Invalid url' }), {
+                    status: 400,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+            try {
+                const targetOrigin = new URL(targetUrl).origin;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8500);
+                const r = await fetch(targetUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,application/json,image/*,*/*;q=0.8',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                        'Referer': targetOrigin + '/'
+                    },
+                    redirect: 'follow',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                const contentType = r.headers.get('content-type') || 'text/html; charset=utf-8';
+                const body = await r.arrayBuffer();
+                return new Response(body, {
+                    status: r.status,
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': contentType,
+                        'Cache-Control': 'public, max-age=300'
+                    }
+                });
+            } catch (e) {
+                return new Response(JSON.stringify({ code: -1, msg: e.message }), {
+                    status: 502,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+        }
+
         // 🚀 全球边缘画卷流式加速与极速边缘缓存网关 (支持 HTTP/2 分块多路复用与 30 天持久缓存)
         if (url.pathname === '/api/img_proxy') {
             const targetUrl = url.searchParams.get('url') || '';

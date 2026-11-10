@@ -830,6 +830,15 @@
             transform: translateY(-5px) scale(1.02);
             box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.6), 0 20px 50px -10px rgba(0, 0, 0, 0.75), 0 0 22px rgba(56, 189, 248, 0.25);
         }
+        .kanju-poster-card.cg-card-viewed {
+            border-color: #fb7185 !important;
+            box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(251, 113, 133, 0.55), 0 14px 36px rgba(244, 63, 94, 0.4) !important;
+            animation: cgCardGlow 2.4s ease-in-out infinite alternate;
+        }
+        @keyframes cgCardGlow {
+            from { box-shadow: 0 0 0 2px rgba(251, 113, 133, 0.4), 0 8px 24px rgba(244, 63, 94, 0.25); }
+            to { box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.85), 0 16px 40px rgba(244, 63, 94, 0.55); }
+        }
 
         /* 拟真苹果流体骨架光 (Apple Liquid Skeleton Shimmer) */
         .skeleton-grid {
@@ -10735,11 +10744,13 @@ window.clearNovelSearch = function() {
     const CHIGUA_CATEGORY_KEYWORDS = {};
     CHIGUA_CATEGORIES.forEach(c => { CHIGUA_CATEGORY_KEYWORDS[c.name] = [c.name]; });
 
-    // 吃瓜分页状态
+    // 吃瓜分页与滚动定位状态
     let _chiguaCurrentPage = 1;
     let _chiguaCurrentSlug = '';
     let _chiguaCurrentCatName = '首页最新';
     let _chiguaLoading = false;
+    let _chiguaSavedScrollTop = 0;
+    let _chiguaLastClickedCardId = null;
 
     // AES-128-CBC 解密密钥/IV（来自原站 zzz.js 逆向）
     const _CG_AES_KEY_STR = 'f5d965df75336270';
@@ -10754,13 +10765,35 @@ window.clearNovelSearch = function() {
         return _cgAesKey;
     }
 
-    // 通用吃瓜加密图片解密器（自动识别明文图片与 AES-128-CBC 密文图片并缓存 Blob URL）
+    // 通用吃瓜加密图片解密器（自动识别明文图片与 AES-128-CBC 密文图片并缓存 Blob URL，优先通过 /api/proxy 穿透防 CORS 阻断）
     async function _decryptChiguaImageUrl(url) {
         if (!url) return '';
         if (_cgDecryptedUrlCache.has(url)) return _cgDecryptedUrlCache.get(url);
-        const resp = await window.__rawFetch(url);
-        if (!resp.ok) throw new Error('img fetch ' + resp.status);
-        const encBuf = await resp.arrayBuffer();
+
+        let encBuf = null;
+        // 1. 优先通过边缘高可用 /api/proxy 获取（穿透三方图床反爬与浏览器跨域阻断）
+        try {
+            const pUrl = '/api/proxy?url=' + encodeURIComponent(url);
+            const r = await fetch(pUrl, { signal: AbortSignal.timeout(8000) });
+            if (r.ok) {
+                encBuf = await r.arrayBuffer();
+            }
+        } catch(e) {}
+
+        // 2. 若代理不可用或网络直连，回退尝试 rawFetch
+        if (!encBuf) {
+            try {
+                const resp = await window.__rawFetch(url, { signal: AbortSignal.timeout(8000) });
+                if (resp && resp.ok) {
+                    encBuf = await resp.arrayBuffer();
+                }
+            } catch(e) {}
+        }
+
+        if (!encBuf || encBuf.byteLength < 16) {
+            throw new Error('img fetch failed: ' + url);
+        }
+
         const head = new Uint8Array(encBuf, 0, Math.min(4, encBuf.byteLength));
         const isPlainJpeg = head[0] === 0xFF && head[1] === 0xD8;
         const isPlainPng  = head[0] === 0x89 && head[1] === 0x50;
@@ -10813,8 +10846,12 @@ window.clearNovelSearch = function() {
         }
     };
 
-    // 关闭吃瓜详情，返回列表
-    window.closeChiguaDetail = function() {
+    // 关闭吃瓜详情，返回列表并精准恢复滚动定位与卡片高亮
+    window.closeChiguaDetail = function(fromBack = true) {
+        if (fromBack && history.state && history.state.chiguaDetail) {
+            history.back();
+            return;
+        }
         if (_chiguaHlsInstance) { try { _chiguaHlsInstance.destroy(); } catch(e){} _chiguaHlsInstance = null; }
         if (_chiguaDpInstance) { try { _chiguaDpInstance.destroy(); } catch(e){} _chiguaDpInstance = null; }
         window._chiguaDpInstance = null;
@@ -10823,8 +10860,24 @@ window.clearNovelSearch = function() {
         document.getElementById('chiguaDetailView').style.display = 'none';
         document.getElementById('chiguaVideoBlock').style.display = 'none';
         document.getElementById('chiguaGalleryBlock').style.display = 'none';
-        document.getElementById('chiguaListView').style.display = 'block';
-        document.getElementById('chiguaSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const listView = document.getElementById('chiguaListView');
+        if (listView) listView.style.display = 'block';
+
+        // 核心定位：返回时精准对齐到上次浏览的卡片位置与光晕提示，彻底告别从头翻
+        requestAnimationFrame(() => {
+            if (_chiguaLastClickedCardId) {
+                const targetCard = document.getElementById('cgCard_' + _chiguaLastClickedCardId);
+                if (targetCard) {
+                    document.querySelectorAll('.kanju-poster-card.cg-card-viewed').forEach(c => c.classList.remove('cg-card-viewed'));
+                    targetCard.classList.add('cg-card-viewed');
+                    targetCard.scrollIntoView({ behavior: 'auto', block: 'center' });
+                    return;
+                }
+            }
+            if (typeof _chiguaSavedScrollTop === 'number' && _chiguaSavedScrollTop > 0) {
+                window.scrollTo({ top: _chiguaSavedScrollTop, behavior: 'instant' });
+            }
+        });
     };
 
     // 加载下一页吃瓜
@@ -10920,8 +10973,10 @@ window.clearNovelSearch = function() {
                         const clickHandler = `window.openChiguaHtmlArticle('${safeItem}')`;
                         const fallbackImg = item.poster_fallback || FALLBACK_BOOK_COVER;
                         const encAttr = item.enc_pic ? `data-cg-enc="${item.enc_pic}"` : '';
+                        const isLastViewed = item.vod_id === _chiguaLastClickedCardId;
+                        const viewedCls = isLastViewed ? ' kanju-poster-card cg-card-viewed' : ' kanju-poster-card';
                         return `
-                            <div class="kanju-poster-card" onclick="${clickHandler}">
+                            <div class="${viewedCls}" id="cgCard_${item.vod_id}" onclick="${clickHandler}">
                                 <div class="kanju-poster-wrap">
                                     <img src="${item.vod_pic || fallbackImg}" ${encAttr} alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallbackImg}';" />
                                     <span class="kanju-score-badge">🔥 ${item.vod_score || '9.7'}</span>
@@ -11123,8 +11178,10 @@ window.clearNovelSearch = function() {
             }
 
             seen.add(href);
+            const mId = href.match(/archives\/(\d+)/i) || href.match(/\/(\d+)\.html/i);
+            const stableId = mId ? ('cg_' + mId[1]) : ('cg_' + items.length + '_' + (idx || 0));
             items.push({
-                vod_id: 'cg_' + items.length + '_' + Date.now().toString(36),
+                vod_id: stableId,
                 vod_name: title,
                 vod_pic: pic,
                 enc_pic: encPic,
@@ -11147,6 +11204,12 @@ window.clearNovelSearch = function() {
             return;
         }
 
+        // 保存进入前的列表滚动位置与卡片 ID，返回时精准还原
+        _chiguaSavedScrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+        _chiguaLastClickedCardId = item.vod_id || null;
+
+        try { history.pushState({ chiguaDetail: true }, ''); } catch(e){}
+
         // 切换到详情视图并显示加载状态
         document.getElementById('chiguaListView').style.display = 'none';
         const detailView = document.getElementById('chiguaDetailView');
@@ -11159,12 +11222,12 @@ window.clearNovelSearch = function() {
         document.getElementById('chiguaGalleryBlock').style.display = 'none';
         document.getElementById('chiguaDplayer').innerHTML = '';
         document.getElementById('chiguaImageStream').innerHTML = '';
-        detailView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.scrollTo({ top: 0, behavior: 'instant' });
 
         try {
             const rawHtml = await fetchTextWithCorsFallback(item.article_url);
             if (!rawHtml) {
-                document.getElementById('chiguaDetailLoading').innerHTML = '<div style="color:#f43f5e;">⚠️ 无法加载文章内容，请返回重试或切换线路</div>';
+                document.getElementById('chiguaDetailLoading').innerHTML = '<div style="color:#f43f5e; padding:20px;"><i class="fas fa-triangle-exclamation"></i> 无法连接原站拉取文章，请尝试切换顶部线路或稍后重试</div>';
                 return;
             }
 
@@ -11177,35 +11240,83 @@ window.clearNovelSearch = function() {
                 if (artTitle) document.getElementById('chiguaDetailTitle').textContent = artTitle;
             }
 
-            // ========== 提取视频流（精准提取正片，过滤 pre_ads / post_ads 广告视频） ==========
+            // ========== 提取视频流（双通道：DOM 节点解析 + rawHtml 正则兜底） ==========
             const videoConfigs = [];
-            doc.querySelectorAll('.dplayer[data-config], .dplayer.defplay[data-config]').forEach((div, idx) => {
+            const seenVideoUrls = new Set();
+
+            // 1. DOM 属性提取
+            doc.querySelectorAll('.dplayer[data-config], .dplayer.defplay[data-config], [data-config*="m3u8"]').forEach((div, idx) => {
                 try {
-                    const cfgStr = div.getAttribute('data-config') || '';
+                    let cfgStr = div.getAttribute('data-config') || '';
+                    if (cfgStr.includes('&quot;') || cfgStr.includes('&amp;')) {
+                        cfgStr = cfgStr.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+                    }
                     const cfg = JSON.parse(cfgStr);
-                    if (cfg && cfg.video && cfg.video.url) {
+                    if (cfg && cfg.video && cfg.video.url && !seenVideoUrls.has(cfg.video.url)) {
+                        seenVideoUrls.add(cfg.video.url);
                         videoConfigs.push({
                             url: cfg.video.url,
                             pic: cfg.video.pic || '',
-                            title: div.getAttribute('data-video_title') || `第${idx + 1}段视频`,
-                            id: div.getAttribute('data-video_id') || ('vid_' + idx)
+                            title: div.getAttribute('data-video_title') || `第${videoConfigs.length + 1}段视频`,
+                            id: div.getAttribute('data-video_id') || ('vid_' + videoConfigs.length)
                         });
                     }
                 } catch(e) {}
             });
 
+            // 2. rawHtml 正则提取兜底
+            if (videoConfigs.length === 0) {
+                const dplayerMatches = [...rawHtml.matchAll(/data-config=(['"])([\s\S]*?)\1/gi)];
+                dplayerMatches.forEach(m => {
+                    try {
+                        let rawCfg = m[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+                        const cfg = JSON.parse(rawCfg);
+                        if (cfg && cfg.video && cfg.video.url && !seenVideoUrls.has(cfg.video.url)) {
+                            seenVideoUrls.add(cfg.video.url);
+                            videoConfigs.push({
+                                url: cfg.video.url,
+                                pic: cfg.video.pic || '',
+                                title: `第${videoConfigs.length + 1}段视频`,
+                                id: 'vid_' + videoConfigs.length
+                            });
+                        }
+                    } catch(e) {}
+                });
+            }
+
+            // 3. 直接正则嗅探正文 m3u8 (过滤广告)
+            if (videoConfigs.length === 0) {
+                const m3u8Matches = [...rawHtml.matchAll(/https?:\/\/[^"'\s<>]+\.m3u8[^"'\s<>]*/gi)];
+                m3u8Matches.forEach(m => {
+                    const u = m[0].replace(/\\/g, '');
+                    if (!u.includes('pre_ads') && !u.includes('post_ads') && !seenVideoUrls.has(u)) {
+                        seenVideoUrls.add(u);
+                        videoConfigs.push({
+                            url: u,
+                            pic: '',
+                            title: `第${videoConfigs.length + 1}段视频`,
+                            id: 'vid_' + videoConfigs.length
+                        });
+                    }
+                });
+            }
+
             // ========== 提取正文实拍图片（严格剔除横幅广告、底部推广图标与网址引导图） ==========
             const encryptedImages = [];
             const seenImgUrls = new Set();
-            const articleBody = doc.querySelector('.post-content[itemprop="articleBody"], article .post-content, .entry-content') || doc;
-            articleBody.querySelectorAll('img[z-image-loader-url], img[data-xkrkllgl]').forEach((img, i) => {
-                if (img.closest('a.tjtagmanager, .horizontal-banner, .article-bottom-apps, .article-ads-btn, .top_picks, .top_picks_wrapper')) return;
+            const articleBody = doc.querySelector('.post-content[itemprop="articleBody"], article .post-content, .entry-content, article') || doc;
+            articleBody.querySelectorAll('img[z-image-loader-url], img[data-xkrkllgl], img[data-src], img[src]').forEach((img, i) => {
+                if (img.closest('a.tjtagmanager, .horizontal-banner, .article-bottom-apps, .article-ads-btn, .top_picks, .top_picks_wrapper, .widget, footer, header, nav')) return;
                 const imgId = img.getAttribute('id') || '';
-                if (imgId.startsWith('article-') || imgId.startsWith('hot-article-')) return;
+                if (imgId.startsWith('article-top-banner') || imgId.startsWith('hot-article-')) return;
                 const altText = (img.getAttribute('alt') || '') + ' ' + (img.getAttribute('title') || '');
-                if (altText.includes('最新地址') || altText.includes('APP')) return;
-                const encUrl = (img.getAttribute('z-image-loader-url') || img.getAttribute('data-xkrkllgl') || '').trim();
-                if (!encUrl || encUrl.includes('/uploads/default/other/') || seenImgUrls.has(encUrl)) return;
+                if (altText.includes('最新地址') || altText.includes('APP') || altText.includes('防走失') || altText.includes('导航')) return;
+                let encUrl = (img.getAttribute('z-image-loader-url') || img.getAttribute('data-xkrkllgl') || img.getAttribute('data-src') || img.getAttribute('src') || '').trim();
+                if (!encUrl || encUrl.startsWith('data:') || encUrl.includes('/plugins/ai/') || encUrl.includes('/themes/Mirages/') || encUrl.includes('/uploads/default/other/') || seenImgUrls.has(encUrl)) return;
+                if (!/upload_|upload-images|\.(?:jpe?g|png|webp|gif)/i.test(encUrl)) return;
+                if (!encUrl.startsWith('http')) {
+                    try { encUrl = new URL(encUrl, item.article_url).href; } catch(e){}
+                }
                 seenImgUrls.add(encUrl);
                 const xuid = parseInt(img.getAttribute('data-xuid') || String(i + 1), 10);
                 encryptedImages.push({ url: encUrl, order: isNaN(xuid) ? (i + 1) : xuid });
@@ -11236,7 +11347,7 @@ window.clearNovelSearch = function() {
                 window._playChiguaVideo(0);
             }
 
-            // ========== 渲染解密图片流（仅保留实拍图，无任何多余文字） ==========
+            // ========== 渲染解密图片流 ==========
             if (encryptedImages.length > 0) {
                 const galleryBlock = document.getElementById('chiguaGalleryBlock');
                 galleryBlock.style.display = 'block';
@@ -11246,7 +11357,7 @@ window.clearNovelSearch = function() {
 
                 encryptedImages.forEach((imgInfo, idx) => {
                     const placeholder = document.createElement('div');
-                    placeholder.style.cssText = 'width:100%; max-width:860px; min-height:200px; background:rgba(244,63,94,0.06); border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:12px; border:1px solid rgba(244,63,94,0.15);';
+                    placeholder.style.cssText = 'width:100%; max-width:860px; min-height:220px; background:rgba(244,63,94,0.06); border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:12px; border:1px solid rgba(244,63,94,0.15); margin: 0 auto 16px auto;';
                     placeholder.innerHTML = `<i class="fas fa-spinner fa-spin" style="color:#fb7185; margin-right:6px;"></i> 正在解密实拍图 (${idx + 1}/${encryptedImages.length})...`;
                     stream.appendChild(placeholder);
 
@@ -11254,7 +11365,7 @@ window.clearNovelSearch = function() {
                         const img = document.createElement('img');
                         img.src = objUrl;
                         img.alt = `实拍图 ${idx + 1}`;
-                        img.style.cssText = 'width:100%; max-width:860px; border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,0.5); border:1px solid rgba(244,63,94,0.2); cursor:zoom-in; display:block;';
+                        img.style.cssText = 'width:100%; max-width:860px; border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,0.5); border:1px solid rgba(244,63,94,0.2); cursor:zoom-in; display:block; margin: 0 auto 16px auto;';
                         img.loading = 'lazy';
                         img.onclick = function() {
                             if (document.fullscreenElement) { document.exitFullscreen(); }
@@ -11274,7 +11385,7 @@ window.clearNovelSearch = function() {
 
         } catch (e) {
             document.getElementById('chiguaDetailLoading').style.display = 'block';
-            document.getElementById('chiguaDetailLoading').innerHTML = `<div style="color:#f43f5e;">⚠️ 加载失败: ${e.message || '未知错误'}</div>`;
+            document.getElementById('chiguaDetailLoading').innerHTML = `<div style="color:#f43f5e; padding:20px;">⚠️ 加载失败: ${e.message || '未知错误'}</div>`;
         }
     };
 
@@ -11377,6 +11488,13 @@ window.clearNovelSearch = function() {
         window._chiguaDpInstance = _chiguaDpInstance;
     };
 
+    window.addEventListener('popstate', function(e) {
+        const detailView = document.getElementById('chiguaDetailView');
+        if (detailView && detailView.style.display !== 'none') {
+            window.closeChiguaDetail(false);
+        }
+    });
+
     window.loadChiguaFeedByKeywords = async function(keywords, sectionTitle) {
         sanitizeChiguaStorage();
         const grid = document.getElementById('chiguaGrid');
@@ -11463,8 +11581,10 @@ window.clearNovelSearch = function() {
                 : `window.openVideoPlayer('${safeItem}')`;
             const fallbackImg = item.poster_fallback || FALLBACK_BOOK_COVER;
             const encAttr = item.enc_pic ? `data-cg-enc="${item.enc_pic}"` : '';
+            const isLastViewed = item.vod_id === _chiguaLastClickedCardId;
+            const viewedCls = isLastViewed ? ' kanju-poster-card cg-card-viewed' : ' kanju-poster-card';
             return `
-                <div class="kanju-poster-card" onclick="${clickHandler}">
+                <div class="${viewedCls}" id="cgCard_${item.vod_id}" onclick="${clickHandler}">
                     <div class="kanju-poster-wrap">
                         <img src="${item.vod_pic || fallbackImg}" ${encAttr} alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallbackImg}';" />
                         <span class="kanju-score-badge">🔥 ${item.vod_score || '9.7'}</span>
