@@ -1996,27 +1996,6 @@ window.injectBottomRightPlayerControls = function(dpContainer) {
             rotateBtn.innerHTML = '<span class="dplayer-icon-content" style="display:flex;align-items:center;justify-content:center;"><i class="fas fa-rotate" style="font-size:14px;color:#38bdf8;"></i></span>';
             frag.appendChild(rotateBtn);
 
-            // (G) iOS 专属系统原生播放器全屏按钮 (直接调用苹果系统级 AVPlayer，自带系统原生横屏与画中画)
-            const ua = navigator.userAgent || '';
-            const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            if (isIOS) {
-                const nativeIosBtn = document.createElement('button');
-                nativeIosBtn.type = 'button';
-                nativeIosBtn.className = 'dplayer-icon dp-custom-icon-btn dp-ios-native-btn';
-                nativeIosBtn.title = '调用苹果系统原生播放器 (支持原生横屏与系统控制)';
-                nativeIosBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    const video = window.dpInstance ? window.dpInstance.video : null;
-                    if (video && typeof video.webkitEnterFullscreen === 'function') {
-                        video.webkitEnterFullscreen();
-                    } else {
-                        window.toggleForceLandscape();
-                    }
-                };
-                nativeIosBtn.innerHTML = '<span class="dplayer-icon-content" style="font-size:11px;font-weight:700;color:var(--accent);">iOS</span>';
-                frag.appendChild(nativeIosBtn);
-            }
-
             rightIcons.insertBefore(frag, settingWrap);
 
             let exitBtn = dpContainer.querySelector('.dp-exit-landscape-btn');
