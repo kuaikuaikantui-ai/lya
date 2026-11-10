@@ -196,97 +196,87 @@
 
     // 判断是否为源站优先与原站主力源（豆瓣1080P原画、暴风1080P超清、茅台1080P蓝光、原站全部直连源绝对置顶优先）
     function getRoutePriorityScore(rawName, sampleUrl) {
-        // 0. 顶级王炸：原站4K超清专享线路 (最高画质·秒播·极速，绝对置顶首选)
-        if (rawName && (String(rawName).includes('4K') || String(rawName).toLowerCase().includes('4k'))) {
-            if (String(rawName).includes('原站') || String(rawName).includes('源站') || String(rawName).includes('专享') || String(rawName).includes('官方')) return 200;
-            return 180;
-        }
-
         const name = String(rawName || '').trim();
         const lower = name.toLowerCase();
         const urlStr = String(sampleUrl || '').toLowerCase();
 
-        // 1. 最高优先级：源站/原站 1080P 三大顶级原画源（豆瓣原画、暴风超清、茅台蓝光）
-        if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf')) return 160;
-        if (name.includes('暴风') && (name.includes('1080') || name.includes('原站') || name.includes('源站') || lower.includes('fengbao') || urlStr.includes('fengbao'))) return 155;
-        if (name.includes('茅台') || lower.includes('maotai') || urlStr.includes('uvjtih') || urlStr.includes('myqqdd')) return 150;
+        // 1. 最高优先级：源站三大极速顶级原画直连（秒开秒播，抗卡顿最稳）
+        if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf') || urlStr.includes('ddbbffcdn')) return 190;
+        if (name.includes('暴风') && (name.includes('1080') || name.includes('原站') || name.includes('源站') || lower.includes('fengbao') || urlStr.includes('fengbao'))) return 185;
+        if (name.includes('茅台') || lower.includes('maotai') || urlStr.includes('uvjtih') || urlStr.includes('myqqdd')) return 180;
 
-        // 2. 次高优先级：源站点(kanju)所有直连/原站线路（全网原站直连，优先播放与排在首选）
-        if (name.includes('原站') || name.includes('源站') || name.includes('原站直连')) {
-            if (name.includes('1080P') || name.includes('4K') || name.includes('原画') || name.includes('蓝光') || name.includes('超清')) return 140;
-            return 130;
-        }
+        // 2. 原站 4K 专享超清线路（极致原画画质，并列顶级供随时手动点选升级）
+        if (name.includes('4K') || lower.includes('4k')) return 175;
 
-        // 3. 通用 1080P/4K/蓝光 高清标志
-        if (name.includes('1080P') || name.includes('4K') || name.includes('蓝光') || name.includes('原画')) return 110;
+        // 3. 全网超清主力直连（高带宽 CDN 节点，极速秒播）
+        if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz') || urlStr.includes('lzcdn') || urlStr.includes('lzi')) return 160;
+        if (name.includes('非凡') || lower.includes('feifan') || lower.includes('ffm3u8') || lower.includes('ff') || urlStr.includes('ffzy')) return 155;
+        if (name.includes('极速') || lower.includes('jszy') || urlStr.includes('jisuzy')) return 150;
+        if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf') || urlStr.includes('bvvvv')) return 145;
 
-        // 4. 第三方全网主力源
-        if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz') || urlStr.includes('lzi')) return 100;
-        if (name.includes('非凡') || lower.includes('feifan') || lower.includes('ff') || urlStr.includes('ffzy')) return 95;
-        if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf') || urlStr.includes('bvvvv')) return 90;
-        if (name.includes('极速') || lower.includes('jszy') || urlStr.includes('jisuzy')) return 88;
+        // 4. 源站其他直连与 1080P/蓝光 线路
+        if (name.includes('原站') || name.includes('源站') || name.includes('1080P') || name.includes('蓝光') || name.includes('原画')) return 130;
 
         // 5. 第三方备用专线
-        if (name.includes('红牛') || lower.includes('hn') || lower.includes('hongniu')) return 60;
-        if (name.includes('金鹰') || lower.includes('jy') || lower.includes('jinying')) return 55;
-        if (name.includes('百度') || lower.includes('bd') || lower.includes('baidu')) return 50;
-        if (name.includes('360') || lower.includes('360zy')) return 48;
-        if (name.includes('如意') || lower.includes('ry') || lower.includes('ruyi')) return 45;
-        if (name.includes('速播') || lower.includes('subo') || lower.includes('sb')) return 42;
-        if (name.includes('ikun')) return 40;
-        if (name.includes('魔都') || lower.includes('modu') || lower.includes('md')) return 38;
+        if (name.includes('红牛') || lower.includes('hn') || lower.includes('hongniu')) return 70;
+        if (name.includes('金鹰') || lower.includes('jy') || lower.includes('jinying')) return 65;
+        if (name.includes('百度') || lower.includes('bd') || lower.includes('baidu')) return 60;
+        if (name.includes('360') || lower.includes('360zy')) return 58;
+        if (name.includes('如意') || lower.includes('ry') || lower.includes('ruyi')) return 55;
+        if (name.includes('速播') || lower.includes('subo') || lower.includes('sb')) return 50;
+        if (name.includes('ikun')) return 45;
+        if (name.includes('魔都') || lower.includes('modu') || lower.includes('md')) return 40;
         if (name.includes('无尽') || lower.includes('wj') || lower.includes('wujin')) return 35;
         if (name.includes('光速') || lower.includes('gs') || lower.includes('guangsu')) return 30;
         return 20;
     }
 
-    // 人性化线路标签格式化 (源站点的源设置为绝对优先，高画质原站置顶并标注★原站首选)
     function formatFriendlyLineName(rawName, index, sampleUrl) {
-        if (rawName && (String(rawName).includes('4K') || String(rawName).toLowerCase().includes('4k'))) {
-            let cleanSub = String(rawName).replace(/^(原站|源站)[·・\s\-_]*/g, '').trim();
-            return '👑 原站首选 · 4K超清原画 (' + (cleanSub || '专享4K') + ')';
-        }
-
         if (!rawName) return '线路' + (index + 1) + ' · 极速专线';
         const name = String(rawName).trim();
         const lower = name.toLowerCase();
         const urlStr = String(sampleUrl || '').toLowerCase();
 
-        // 1. 原站三大 1080P 顶级源
-        if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf')) {
-            return '★ 原站首选 · 豆瓣1080P原画 (源站顶级·真1080P)';
+        // 1. 原站 4K 专享线路（金冠标识）
+        if (name.includes('4K') || lower.includes('4k')) {
+            let cleanSub = name.replace(/^(原站|源站)[·・\s\-_]*/g, '').replace(/^4K[·・\s\-_]*/g, '').trim();
+            return '👑 4K专享超清 (' + (cleanSub || '极致原画') + ')';
+        }
+
+        // 2. 原站三大 1080P 顶级极速源（闪电标识）
+        if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf') || urlStr.includes('ddbbffcdn')) {
+            return '⚡ 原站首选 · 豆瓣1080P原画 (极速秒播)';
         }
         if (name.includes('暴风') && (name.includes('1080') || name.includes('原站') || name.includes('源站') || lower.includes('fengbao') || urlStr.includes('fengbao'))) {
-            return '★ 原站首选 · 暴风1080P超清 (源站直连·高码率)';
+            return '⚡ 原站首选 · 暴风1080P超清 (高码秒开)';
         }
         if (name.includes('茅台') || lower.includes('maotai') || urlStr.includes('uvjtih') || urlStr.includes('myqqdd')) {
-            return '★ 原站首选 · 茅台1080P蓝光 (源站臻彩·无损)';
+            return '⚡ 原站首选 · 茅台1080P蓝光 (臻彩无损)';
         }
 
-        // 2. 原站其他直连线路
+        // 3. 原站其他直连线路
         if (name.includes('原站') || name.includes('源站')) {
             let cleanSub = name.replace(/^(原站|源站)[·・\s\-_]*/g, '').replace(/^(1080P|超清|蓝光)[·・\s\-_]*/g, '').trim();
-            if (!cleanSub) cleanSub = '官方直连';
-            return '★ 原站直连 · ' + cleanSub + ' (源站优先)';
+            return '★ 原站直连 · ' + (cleanSub || '官方直连');
         }
 
-        // 3. 第三方主力源
-        if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz')) {
+        // 4. 第三方全网主力源
+        if (name.includes('量子') || lower.includes('lz') || lower.includes('liangzi') || urlStr.includes('cdnlz') || urlStr.includes('lzcdn')) {
             return '主力' + (index + 1) + ' · 量子蓝光 (全网秒播)';
         }
         if (name.includes('非凡') || lower.includes('feifan') || lower.includes('ffm3u8') || lower.includes('ff') || urlStr.includes('ffzy')) {
             return '主力' + (index + 1) + ' · 非凡超清 (全网1080P)';
         }
+        if (name.includes('极速') || lower.includes('jszy') || urlStr.includes('jisuzy')) {
+            return '主力' + (index + 1) + ' · 极速蓝光 (高速CDN)';
+        }
         if (name.includes('暴风') || lower.includes('baofeng') || lower.includes('bf') || urlStr.includes('bvvvv')) {
             return '主力' + (index + 1) + ' · 暴风专线 (全网备选)';
         }
 
-        // 4. 第三方备用源
+        // 5. 第三方备用专线
         if (name.includes('红牛') || lower.includes('hongniu') || lower.includes('hn') || lower.includes('hnm3u8')) {
             return '备用' + (index + 1) + ' · 红牛高速专线';
-        }
-        if (name.includes('极速') || lower.includes('jszy') || urlStr.includes('jisuzy')) {
-            return '备用' + (index + 1) + ' · 极速蓝光专线';
         }
         if (name.includes('金鹰') || lower.includes('jinying') || lower.includes('jy') || lower.includes('jinyingm3u8')) {
             return '备用' + (index + 1) + ' · 金鹰蓝光专线';
@@ -1110,6 +1100,7 @@
 
         window.currentVideo = item;
         window._failedRouteSet = new Set();
+        window._sessionSlowRouteNames = new Set();
         window._autoSwitchCount = 0;
 
         const playFroms = (item.vod_play_from || '默认线路').split('$$$');
@@ -1222,25 +1213,42 @@
         const failedSet = window._failedRouteSet || new Set();
         const bannedNames = window._sessionSlowRouteNames || new Set();
 
-        // 1. 优先在超清与蓝光主力线路 (score >= 90) 中寻找未失败且含有该集数的线路
+        // 1. 核心算法首选：优先匹配极速秒播、最稳定的 1080P/原画主力直连（秒开无等待，避开超大4K起播卡顿）
+        let best1080Idx = -1;
+        let max1080Score = -1;
         for (let i = 0; i < groups.length; i++) {
             const g = groups[i];
+            if (failedSet.has(i) || bannedNames.has(g.name)) continue;
+            if (!g.episodes || !g.episodes[targetEpIdx]) continue;
+            const name = g.name || '';
+            if (!name.includes('4K') && !name.toLowerCase().includes('4k')) {
+                const score = getRoutePriorityScore(g.name, g.episodes[0] && g.episodes[0].url);
+                if (score >= 90 && score > max1080Score) {
+                    max1080Score = score;
+                    best1080Idx = i;
+                }
+            }
+        }
+        if (best1080Idx !== -1) return best1080Idx;
+
+        // 2. 次选：4K 专线或其它未失败线路中得分最高者
+        let fallbackIdx = -1;
+        let fallbackScore = -1;
+        for (let i = 0; i < groups.length; i++) {
+            const g = groups[i];
+            if (failedSet.has(i) || bannedNames.has(g.name)) continue;
+            if (!g.episodes || !g.episodes[targetEpIdx]) continue;
             const score = getRoutePriorityScore(g.name, g.episodes[0] && g.episodes[0].url);
-            if (score >= 90 && !failedSet.has(i) && !bannedNames.has(g.name) && g.episodes && g.episodes[targetEpIdx]) {
-                return i;
+            if (score > fallbackScore) {
+                fallbackScore = score;
+                fallbackIdx = i;
             }
         }
-        // 2. 次选任何未失败且有该集数的线路
-        for (let i = 0; i < groups.length; i++) {
-            const g = groups[i];
-            if (!failedSet.has(i) && g.episodes && g.episodes[targetEpIdx]) {
-                return i;
-            }
-        }
+        if (fallbackIdx !== -1) return fallbackIdx;
+
         return 0;
     };
 
-    // 主动并发测速选源：点击“⚡ 智能选源”按钮时，优先探测原站三大主源延迟并秒切最快源
     window.smartProbeAndSwitchRoute = async function() {
         if (!window.currentVideo || !window.currentVideo.groups || window.currentVideo.groups.length === 0) return;
         const groups = window.currentVideo.groups;
@@ -1304,40 +1312,54 @@
     };
 
     // 超时或断流自动切换至下一可用线路（平滑防抖，优先原站主源，其次备用源）
-    window.triggerAutoSwitchRoute = function(epIdx, reason = '加载超时') {
+    window.triggerAutoSwitchRoute = function(epIdx, reason = '加载缓慢') {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const groups = window.currentVideo.groups;
         const totalGroups = groups.length;
         if (totalGroups <= 1) return;
 
-        // 8 秒防抖冷却，彻底消除频繁弹窗和死循环切源
+        // 3 秒平滑防抖冷却，迅速反应但防止毫秒级高频抖动
         const now = Date.now();
-        if (window._lastAutoSwitchTime && (now - window._lastAutoSwitchTime < 8000)) {
+        if (window._lastAutoSwitchTime && (now - window._lastAutoSwitchTime < 3000)) {
             console.warn('[Video] 换源冷却中，跳过短时间内频繁切换');
             return;
         }
         window._lastAutoSwitchTime = now;
 
         if (!window._failedRouteSet) window._failedRouteSet = new Set();
-        window._failedRouteSet.add(window.currentGroupIdx);
+        if (!window._sessionSlowRouteNames) window._sessionSlowRouteNames = new Set();
 
+        const curGroup = groups[window.currentGroupIdx];
+        if (curGroup) {
+            window._failedRouteSet.add(window.currentGroupIdx);
+            window._sessionSlowRouteNames.add(curGroup.name);
+        }
+
+        // 全部线路均已轮换过则重置集合，重新从首选极速线路续播
         if ((window._autoSwitchCount || 0) >= totalGroups) {
             window._autoSwitchCount = 0;
             window._failedRouteSet.clear();
+            window._sessionSlowRouteNames.clear();
             if (window.dpInstance && window.dpInstance.notice) {
-                window.dpInstance.notice('网络缓冲较慢，您可点击上方线路切换或稍候播放', 4500);
+                window.dpInstance.notice('正在从首选极速节点重新连接...', 3000);
             }
+            const curPlayTime = (window.dpInstance && window.dpInstance.video) ? (window.dpInstance.video.currentTime || 0) : 0;
+            window.switchPlayGroup(0, epIdx, curPlayTime);
             return;
         }
 
         window._autoSwitchCount = (window._autoSwitchCount || 0) + 1;
 
-        // 寻找下一个未失败且有当前集数的线路
+        // 智能优选：在未失败线路中按得分最高选取下一条极速线路
         let nextGroup = -1;
+        let bestScore = -1;
         for (let i = 0; i < totalGroups; i++) {
             if (!window._failedRouteSet.has(i) && groups[i].episodes && groups[i].episodes[epIdx]) {
-                nextGroup = i;
-                break;
+                const s = getRoutePriorityScore(groups[i].name, groups[i].episodes[0]?.url);
+                if (s > bestScore) {
+                    bestScore = s;
+                    nextGroup = i;
+                }
             }
         }
         if (nextGroup === -1) {
@@ -1348,14 +1370,13 @@
         const nextName = formatFriendlyLineName(groups[nextGroup].name, nextGroup, groups[nextGroup].episodes[0]?.url);
         const curPlayTime = (window.dpInstance && window.dpInstance.video) ? (window.dpInstance.video.currentTime || 0) : 0;
         if (window.dpInstance && window.dpInstance.notice) {
-            window.dpInstance.notice(`当前线路${reason}，已为您切换至: ${nextName}`, 3000);
+            window.dpInstance.notice(`⚡ 检测到当前线路${reason}，已自动无缝切换至: ${nextName}`, 3200);
         }
         setTimeout(function () {
             window.switchPlayGroup(nextGroup, epIdx, curPlayTime);
-        }, 500);
+        }, 250);
     };
 
-    // 渲染播放线路标签 (纯透明 Liquid Glass + 智能选源按钮 + 鼠标折射光斑与透镜框随动)
     window.renderVideoSourceTabs = function(groups) {
         const tabsBox = document.getElementById('videoPlaySourceTabs');
         if (!tabsBox) return;
@@ -1400,6 +1421,11 @@
 
     // 切换播放线路（自由无缝切换：自动保留精确当前播放秒数，绝不重头开始）
     window.switchPlayGroup = function(groupIdx, targetEpIdx = 0, customPreserveTime = null) {
+        if (window.currentVideo && window.currentVideo.groups && window.currentVideo.groups[groupIdx]) {
+            const gName = window.currentVideo.groups[groupIdx].name;
+            if (window._sessionSlowRouteNames) window._sessionSlowRouteNames.delete(gName);
+            if (window._failedRouteSet) window._failedRouteSet.delete(groupIdx);
+        }
         window.currentGroupIdx = groupIdx;
         const liveCurrentTime = (customPreserveTime !== null && customPreserveTime > 0)
             ? customPreserveTime
@@ -1518,33 +1544,65 @@
         const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isMobile = isIOS || /Android|Mobile|Adr|MicroMessenger|UCBrowser|Quark|baiduboxapp/i.test(ua);
 
-        // 启动首帧看门狗：防止坏死源挂起，放宽至 20 秒并精准检测实际缓冲与播放进度
+        // 启动高灵敏度起播与卡顿看门狗：5秒起播超时或4.5秒缓冲卡顿自动无缝换线
+        let startupWatchTimer = null;
+        let stallWatchTimer = null;
+
+        const clearAllWatchdogs = function() {
+            if (startupWatchTimer) { clearTimeout(startupWatchTimer); startupWatchTimer = null; }
+            if (stallWatchTimer) { clearTimeout(stallWatchTimer); stallWatchTimer = null; }
+            if (window._playbackWatchdogTimer) {
+                clearTimeout(window._playbackWatchdogTimer);
+                window._playbackWatchdogTimer = null;
+            }
+        };
+
         const armPlaybackWatchdog = function(videoEl) {
-            if (window._playbackWatchdogTimer) clearTimeout(window._playbackWatchdogTimer);
-            const clearWatchdog = function() {
-                if (window._playbackWatchdogTimer) {
-                    clearTimeout(window._playbackWatchdogTimer);
-                    window._playbackWatchdogTimer = null;
-                }
-                window._autoSwitchCount = 0;
-            };
-            videoEl.addEventListener('loadeddata', clearWatchdog, { once: true });
-            videoEl.addEventListener('canplay', clearWatchdog, { once: true });
-            videoEl.addEventListener('playing', clearWatchdog, { once: true });
-            videoEl.addEventListener('timeupdate', function onTime() {
-                if (videoEl.currentTime > 0) {
-                    clearWatchdog();
-                    videoEl.removeEventListener('timeupdate', onTime);
-                }
-            });
-            window._playbackWatchdogTimer = setTimeout(function() {
-                // 若视频正在缓冲有效数据或已播放或用户已暂停，绝不暴力打断
-                if (!videoEl || videoEl.readyState >= 2 || videoEl.currentTime > 0 || (videoEl.buffered && videoEl.buffered.length > 0) || videoEl.paused) {
-                    clearWatchdog();
+            clearAllWatchdogs();
+
+            // 1. 首帧快速起播看门狗：5 秒未出画面且未在正常播放，自动无缝切到更快的源
+            startupWatchTimer = setTimeout(function() {
+                if (!videoEl) return;
+                if (videoEl.currentTime > 0 && !videoEl.paused) {
+                    clearAllWatchdogs();
                     return;
                 }
-                window.triggerAutoSwitchRoute(idx, '响应超时');
-            }, 20000);
+                if (videoEl.paused && videoEl.currentTime > 0) return;
+                console.warn('[Video Watchdog] 起播 5 秒未出流，触发自动无缝换线...');
+                window.triggerAutoSwitchRoute(idx, '加载缓慢');
+            }, 5000);
+
+            window._playbackWatchdogTimer = startupWatchTimer;
+
+            // 首帧起播成功解除起播定时器并重置故障计数
+            const onStreamPlaying = function() {
+                if (startupWatchTimer) { clearTimeout(startupWatchTimer); startupWatchTimer = null; }
+                window._autoSwitchCount = 0;
+            };
+            videoEl.addEventListener('playing', onStreamPlaying);
+            videoEl.addEventListener('timeupdate', function onTime() {
+                if (videoEl.currentTime > 0) onStreamPlaying();
+            });
+
+            // 2. 播放中卡顿 / 缓冲停滞看门狗 (Waiting / Stalled 超过 4.5 秒自动无缝切源)
+            const onStalledWaiting = function() {
+                if (videoEl.paused) return;
+                if (stallWatchTimer) clearTimeout(stallWatchTimer);
+                stallWatchTimer = setTimeout(function() {
+                    if (!videoEl.paused && videoEl.readyState < 3) {
+                        console.warn('[Video Watchdog] 播放卡顿超过 4.5 秒，自动切换至极速线路...');
+                        window.triggerAutoSwitchRoute(idx, '缓冲卡顿');
+                    }
+                }, 4500);
+            };
+            videoEl.addEventListener('waiting', onStalledWaiting);
+            videoEl.addEventListener('stalled', onStalledWaiting);
+            videoEl.addEventListener('canplay', function() {
+                if (stallWatchTimer) { clearTimeout(stallWatchTimer); stallWatchTimer = null; }
+            });
+            videoEl.addEventListener('playing', function() {
+                if (stallWatchTimer) { clearTimeout(stallWatchTimer); stallWatchTimer = null; }
+            });
         };
 
         window.dpInstance = new DPlayer({
@@ -1575,6 +1633,9 @@
                         if (isIOS && video.canPlayType('application/vnd.apple.mpegurl')) {
                             video.src = videoUrl;
                             video.addEventListener('loadedmetadata', function () {
+                                if (resumePlaySeconds > 3) {
+                                    try { video.currentTime = resumePlaySeconds; } catch(e){}
+                                }
                                 video.play().catch(function () {});
                             }, { once: true });
                             video.addEventListener('error', function () {
