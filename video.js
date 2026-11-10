@@ -196,6 +196,12 @@
 
     // 判断是否为源站优先与原站主力源（豆瓣1080P原画、暴风1080P超清、茅台1080P蓝光、原站全部直连源绝对置顶优先）
     function getRoutePriorityScore(rawName, sampleUrl) {
+        // 0. 顶级王炸：原站4K超清专享线路 (最高画质·秒播·极速，绝对置顶首选)
+        if (rawName && (String(rawName).includes('4K') || String(rawName).toLowerCase().includes('4k'))) {
+            if (String(rawName).includes('原站') || String(rawName).includes('源站') || String(rawName).includes('专享') || String(rawName).includes('官方')) return 200;
+            return 180;
+        }
+
         const name = String(rawName || '').trim();
         const lower = name.toLowerCase();
         const urlStr = String(sampleUrl || '').toLowerCase();
@@ -236,6 +242,11 @@
 
     // 人性化线路标签格式化 (源站点的源设置为绝对优先，高画质原站置顶并标注★原站首选)
     function formatFriendlyLineName(rawName, index, sampleUrl) {
+        if (rawName && (String(rawName).includes('4K') || String(rawName).toLowerCase().includes('4k'))) {
+            let cleanSub = String(rawName).replace(/^(原站|源站)[·・\s\-_]*/g, '').trim();
+            return '👑 原站首选 · 4K超清原画 (' + (cleanSub || '专享4K') + ')';
+        }
+
         if (!rawName) return '线路' + (index + 1) + ' · 极速专线';
         const name = String(rawName).trim();
         const lower = name.toLowerCase();
@@ -882,7 +893,7 @@
 
         // 2. 异步从后端实时同步 kanju3 最新板块数据
         try {
-            const res = await fetch('/api/video/feed');
+            const res = await fetch('/api/video/feed?t=' + Date.now(), { cache: 'no-store' });
             if (res.ok) {
                 const data = await res.json();
                 if (data && Array.isArray(data.sections) && data.sections.length > 0) {
@@ -1427,13 +1438,30 @@
     };
 
     // 播放指定集数 (全平台兼容：无缝换线秒级续播 + iOS原生硬解 + Android/PC自适应HLS + 超时看门狗与断线自动切源容灾)
-    window.playVideoEpisode = function(idx, preserveTime = null) {
+    window.playVideoEpisode = async function(idx, preserveTime = null) {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
         if (!group || !group.episodes || !group.episodes[idx]) return;
 
         window.currentEpisodeIdx = idx;
         const ep = group.episodes[idx];
+
+        // 若线路为 resolve:// 动态票据，透明调用后端秒级直连解析出真实 .m3u8 播放地址
+        let videoUrl = ep.url;
+        if (videoUrl && videoUrl.startsWith('resolve://')) {
+            const ticket = videoUrl.replace(/^resolve:\/\//, '');
+            try {
+                const res = await fetch('/api/video/resolve-line?ticket=' + encodeURIComponent(ticket));
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.url) {
+                        videoUrl = data.url;
+                        ep.url = data.url; // 缓存已解析出的直连地址
+                    }
+                }
+            } catch(e) {}
+        }
+
 
         if (window._playbackWatchdogTimer) {
             clearTimeout(window._playbackWatchdogTimer);
@@ -1480,7 +1508,7 @@
             window.dpInstance = null;
         }
 
-        const videoUrl = ep.url;
+        if (!videoUrl) videoUrl = ep.url;
         const isHls = videoUrl.includes('.m3u8');
         // 优先使用原站标准片名 kanju_title 检索弹幕，确保所有线路弹幕 100% 同步挂载
         const videoTitle = window.currentVideo.kanju_title || window.currentVideo.vod_name || '';
