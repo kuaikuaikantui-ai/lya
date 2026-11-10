@@ -2547,8 +2547,9 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 // 4. 并发拉取全球多源高可用云快照 (ntfy 实时信道 / 附件 + pastes.dev + dpaste.org)
                 const fetchNtfyCandidate = async () => {
                     try {
-                        const r = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=720h`, {
-                            signal: AbortSignal.timeout(4500)
+                        const r = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=all`, {
+                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                            signal: AbortSignal.timeout(5000)
                         });
                         if (!r.ok) return null;
                         const text = (await r.text()).trim();
@@ -2562,23 +2563,32 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                                 if (evt.message) {
                                     try {
                                         const msgObj = JSON.parse(evt.message);
-                                        if (msgObj && (msgObj.shelf || msgObj.history)) return msgObj;
-                                        if (msgObj && msgObj.payload && (msgObj.payload.shelf || msgObj.payload.history)) return msgObj.payload;
+                                        if (msgObj && (msgObj.shelf || msgObj.history || msgObj.videoHistory)) return msgObj;
+                                        if (msgObj && msgObj.payload && (msgObj.payload.shelf || msgObj.payload.history || msgObj.payload.videoHistory)) return msgObj.payload;
                                         // 检查是否有外部存储指针
                                         if (msgObj.pastesKey) {
-                                            const pr = await fetch(`https://api.pastes.dev/${msgObj.pastesKey}`, { signal: AbortSignal.timeout(4000) });
+                                            const pr = await fetch(`https://api.pastes.dev/${msgObj.pastesKey}`, {
+                                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                                                signal: AbortSignal.timeout(4000)
+                                            });
                                             if (pr.ok) return await pr.json();
                                         }
                                         if (msgObj.dpasteUrl) {
                                             const rawUrl = msgObj.dpasteUrl.endsWith('/raw') ? msgObj.dpasteUrl : (msgObj.dpasteUrl + '/raw');
-                                            const dr = await fetch(rawUrl, { signal: AbortSignal.timeout(4000) });
+                                            const dr = await fetch(rawUrl, {
+                                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                                                signal: AbortSignal.timeout(4000)
+                                            });
                                             if (dr.ok) return await dr.json();
                                         }
                                     } catch(notJsonMsg) {}
                                 }
                                 // 检查是否有附件 url
                                 if (evt.attachment && evt.attachment.url) {
-                                    const ar = await fetch(evt.attachment.url, { signal: AbortSignal.timeout(4000) });
+                                    const ar = await fetch(evt.attachment.url, {
+                                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                                        signal: AbortSignal.timeout(4500)
+                                    });
                                     if (ar.ok) return await ar.json();
                                 }
                             } catch (e) {}
@@ -2622,9 +2632,22 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
 
                     payload.syncTime = Number(payload.syncTime) || Date.now();
 
-                    // 服务端单调不回退合并保障
-                    const prevSnapshot = memStore.get(uid);
+                    // 服务端单调不回退合并保障 (跨 edge 实例先获取已有云快照，彻底杜绝新设备空覆盖)
+                    let prevSnapshot = memStore.get(uid) || null;
+                    if (!prevSnapshot && kvBinding) {
+                        try {
+                            const kvRaw = await kvBinding.get('oh_sync_' + uid);
+                            if (kvRaw) prevSnapshot = JSON.parse(kvRaw);
+                        } catch(e) {}
+                    }
+                    if (!prevSnapshot) {
+                        try {
+                            prevSnapshot = await fetchNtfyCandidate();
+                        } catch(e) {}
+                    }
+
                     if (prevSnapshot && typeof prevSnapshot === 'object') {
+                        // 1. 合并小说与漫画阅读历史
                         const mergedHistory = Array.isArray(payload.history) ? [...payload.history] : [];
                         const prevHist = Array.isArray(prevSnapshot.history) ? prevSnapshot.history : [];
                         prevHist.forEach(prevItem => {
@@ -2646,6 +2669,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                         });
                         payload.history = mergedHistory;
 
+                        // 2. 合并我的书架
                         const mergedShelf = Array.isArray(payload.shelf) ? [...payload.shelf] : [];
                         const prevShelf = Array.isArray(prevSnapshot.shelf) ? prevSnapshot.shelf : [];
                         prevShelf.forEach(prevItem => {
@@ -2666,6 +2690,27 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                             }
                         });
                         payload.shelf = mergedShelf;
+
+                        // 3. 合并影视观看记录
+                        const mergedVid = Array.isArray(payload.videoHistory) ? [...payload.videoHistory] : [];
+                        const prevVid = Array.isArray(prevSnapshot.videoHistory) ? prevSnapshot.videoHistory : [];
+                        prevVid.forEach(prevItem => {
+                            if (!prevItem || (!prevItem.vod_id && !prevItem.vod_name)) return;
+                            const key = String(prevItem.vod_id || prevItem.vod_name).trim();
+                            const target = mergedVid.find(v => String(v.vod_id || v.vod_name).trim() === key);
+                            if (!target) {
+                                mergedVid.push(prevItem);
+                            } else {
+                                const pEp = Number(prevItem.ep_idx || 0);
+                                const tEp = Number(target.ep_idx || 0);
+                                if (pEp > tEp || (pEp === tEp && Number(prevItem.play_seconds || 0) > Number(target.play_seconds || 0))) {
+                                    target.ep_idx = pEp;
+                                    target.ep_title = prevItem.ep_title || target.ep_title;
+                                    target.play_seconds = prevItem.play_seconds || 0;
+                                }
+                            }
+                        });
+                        payload.videoHistory = mergedVid;
                     }
 
                     const payloadStr = JSON.stringify(payload);

@@ -6817,6 +6817,10 @@
             localStorage.setItem('openreader_video_history', JSON.stringify(merged.videoHistory || []));
         } catch (e) {}
 
+        if (typeof renderShelfHistory === 'function') renderShelfHistory();
+        if (typeof renderNovelHistory === 'function') renderNovelHistory();
+        if (typeof renderMangaHistory === 'function') renderMangaHistory();
+        if (typeof renderVideoHistory === 'function') renderVideoHistory();
         if (typeof renderHistoryModule === 'function') renderHistoryModule();
         if (typeof window.renderRecentWatchBar === 'function') window.renderRecentWatchBar();
         updateCloudSyncUI();
@@ -6836,7 +6840,8 @@
 
         // 静态托管容灾回退：直接拉取 ntfy 缓存流与分布式快照
         try {
-            const ntfyRes = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=720h`, {
+            const ntfyRes = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=all`, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
                 signal: AbortSignal.timeout(5000)
             });
             if (ntfyRes.ok) {
@@ -6847,8 +6852,8 @@
                         const evt = JSON.parse(lines[i]);
                         if (evt && evt.message) {
                             const msgObj = JSON.parse(evt.message);
-                            if (msgObj && (msgObj.shelf || msgObj.history)) return msgObj;
-                            if (msgObj && msgObj.payload && (msgObj.payload.shelf || msgObj.payload.history)) return msgObj.payload;
+                            if (msgObj && (msgObj.shelf || msgObj.history || msgObj.videoHistory)) return msgObj;
+                            if (msgObj && msgObj.payload && (msgObj.payload.shelf || msgObj.payload.history || msgObj.payload.videoHistory)) return msgObj.payload;
                             if (msgObj && msgObj.pastesKey) {
                                 const pr = await fetch(`https://api.pastes.dev/${msgObj.pastesKey}`, { signal: AbortSignal.timeout(4000) });
                                 if (pr.ok) return await pr.json();
@@ -7024,18 +7029,32 @@
             es.onmessage = async (ev) => {
                 try {
                     const data = JSON.parse(ev.data || '{}');
-                    if (!data || data.event !== 'message' || !data.message) return;
+                    if (!data) return;
+                    if (data.attachment && data.attachment.url) {
+                        const ar = await fetch(data.attachment.url, { signal: AbortSignal.timeout(4500) });
+                        if (ar.ok) {
+                            const remotePayload = await ar.json();
+                            await pullAndMergeCloudSilently(remotePayload);
+                            return;
+                        }
+                    }
+                    if (data.event !== 'message' || !data.message) return;
                     const msgObj = JSON.parse(data.message);
                     if (msgObj.deviceId && msgObj.deviceId === _cloudDeviceId) return;
 
                     if (msgObj.payload) {
                         await pullAndMergeCloudSilently(msgObj.payload);
-                    } else if (msgObj.bytebinKey) {
-                        const bbRes = await fetch(`https://bytebin.lucko.me/${msgObj.bytebinKey}`, {
-                            signal: AbortSignal.timeout(4500)
-                        });
-                        if (bbRes.ok) {
-                            const remotePayload = await bbRes.json();
+                    } else if (msgObj.pastesKey) {
+                        const pr = await fetch(`https://api.pastes.dev/${msgObj.pastesKey}`, { signal: AbortSignal.timeout(4500) });
+                        if (pr.ok) {
+                            const remotePayload = await pr.json();
+                            await pullAndMergeCloudSilently(remotePayload);
+                        }
+                    } else if (msgObj.dpasteUrl) {
+                        const rawUrl = msgObj.dpasteUrl.endsWith('/raw') ? msgObj.dpasteUrl : (msgObj.dpasteUrl + '/raw');
+                        const dr = await fetch(rawUrl, { signal: AbortSignal.timeout(4500) });
+                        if (dr.ok) {
+                            const remotePayload = await dr.json();
                             await pullAndMergeCloudSilently(remotePayload);
                         }
                     } else {
@@ -7092,7 +7111,10 @@
                 user.lastSyncAt = _lastCloudSyncTime;
                 saveCloudUser(user);
                 if (isManual) {
-                    showCloudToast('多端进度已自动双向合并同步');
+                    const shelfLen = (finalPayload.shelf || []).length;
+                    const histLen = (finalPayload.history || []).length;
+                    const vidLen = (finalPayload.videoHistory || []).length;
+                    showCloudToast(`多端已同步！书架 ${shelfLen} 本 · 历史 ${histLen} 条 · 影视 ${vidLen} 部`, 'fa-cloud-check', '#10b981');
                 }
             } else if (isManual) {
                 showCloudToast('云端节点繁忙，已保存在本地', 'fa-triangle-exclamation', '#f59e0b');
@@ -7321,8 +7343,7 @@
                 lastSyncAt: Date.now()
             });
             ensureCloudLiveStream();
-            await window.syncCloudNow(false);
-            showCloudToast(`已开启全自动同步！本机与其它设备进度将自动双向实时更新`);
+            await window.syncCloudNow(true);
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -7416,12 +7437,32 @@
 
     window.addEventListener('pagehide', () => {
         const user = getCloudUser();
-        if (user && user.uid && _cloudPushTimer) {
-            clearTimeout(_cloudPushTimer);
-            _cloudPushTimer = null;
+        if (user && user.uid) {
+            if (typeof flushReadingPositionSync === 'function') flushReadingPositionSync();
+            if (_cloudPushTimer) {
+                clearTimeout(_cloudPushTimer);
+                _cloudPushTimer = null;
+            }
             const payload = buildLocalSyncPayload();
             payload.deviceId = _cloudDeviceId;
             pushCloudSnapshot(user.uid, payload);
+        }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        const user = getCloudUser();
+        if (!user || !user.uid) return;
+        if (document.visibilityState === 'hidden') {
+            if (typeof flushReadingPositionSync === 'function') flushReadingPositionSync();
+            if (_cloudPushTimer) {
+                clearTimeout(_cloudPushTimer);
+                _cloudPushTimer = null;
+            }
+            const payload = buildLocalSyncPayload();
+            payload.deviceId = _cloudDeviceId;
+            pushCloudSnapshot(user.uid, payload);
+        } else if (document.visibilityState === 'visible') {
+            pullAndMergeCloudSilently(null);
         }
     });
 
