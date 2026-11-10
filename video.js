@@ -1213,39 +1213,35 @@
         const failedSet = window._failedRouteSet || new Set();
         const bannedNames = window._sessionSlowRouteNames || new Set();
 
-        // 1. 核心算法首选：优先匹配极速秒播、最稳定的 1080P/原画主力直连（秒开无等待，避开超大4K起播卡顿）
-        let best1080Idx = -1;
-        let max1080Score = -1;
+        // 1. 核心智能优选：在未失败线路中按综合优先级得分最高选取（优先豆瓣1080P/暴风1080P等极速原画）
+        let bestIdx = -1;
+        let maxScore = -1;
         for (let i = 0; i < groups.length; i++) {
             const g = groups[i];
             if (failedSet.has(i) || bannedNames.has(g.name)) continue;
             if (!g.episodes || !g.episodes[targetEpIdx]) continue;
+            const ep = g.episodes[targetEpIdx];
+            if (!ep.url || (!ep.url.includes('.m3u8') && !ep.url.includes('.mp4') && !ep.url.startsWith('resolve://'))) continue;
+
+            // 默认自动选线优先最快秒开的 1080P 直连（4K 作为顶级专线随时可点选）
             const name = g.name || '';
             if (!name.includes('4K') && !name.toLowerCase().includes('4k')) {
                 const score = getRoutePriorityScore(g.name, g.episodes[0] && g.episodes[0].url);
-                if (score >= 90 && score > max1080Score) {
-                    max1080Score = score;
-                    best1080Idx = i;
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestIdx = i;
                 }
             }
         }
-        if (best1080Idx !== -1) return best1080Idx;
+        if (bestIdx !== -1) return bestIdx;
 
         // 2. 次选：4K 专线或其它未失败线路中得分最高者
-        let fallbackIdx = -1;
-        let fallbackScore = -1;
         for (let i = 0; i < groups.length; i++) {
             const g = groups[i];
             if (failedSet.has(i) || bannedNames.has(g.name)) continue;
             if (!g.episodes || !g.episodes[targetEpIdx]) continue;
-            const score = getRoutePriorityScore(g.name, g.episodes[0] && g.episodes[0].url);
-            if (score > fallbackScore) {
-                fallbackScore = score;
-                fallbackIdx = i;
-            }
+            return i;
         }
-        if (fallbackIdx !== -1) return fallbackIdx;
-
         return 0;
     };
 
@@ -1464,35 +1460,13 @@
     };
 
     // 播放指定集数 (全平台兼容：无缝换线秒级续播 + iOS原生硬解 + Android/PC自适应HLS + 超时看门狗与断线自动切源容灾)
-    window.playVideoEpisode = async function(idx, preserveTime = null) {
+    window.playVideoEpisode = function(idx, preserveTime = null) {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
         if (!group || !group.episodes || !group.episodes[idx]) return;
 
         window.currentEpisodeIdx = idx;
         const ep = group.episodes[idx];
-
-        // 若线路为 resolve:// 动态票据，透明调用后端秒级直连解析出真实 .m3u8 播放地址
-        let videoUrl = ep.url;
-        if (videoUrl && videoUrl.startsWith('resolve://')) {
-            const ticket = videoUrl.replace(/^resolve:\/\//, '');
-            try {
-                const res = await fetch('/api/video/resolve-line?ticket=' + encodeURIComponent(ticket));
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.url) {
-                        videoUrl = data.url;
-                        ep.url = data.url; // 缓存已解析出的直连地址
-                    }
-                }
-            } catch(e) {}
-        }
-
-
-        if (window._playbackWatchdogTimer) {
-            clearTimeout(window._playbackWatchdogTimer);
-            window._playbackWatchdogTimer = null;
-        }
 
         // 检查是否有该集的播放秒数用于无缝换线续播与历史记录续播
         let resumePlaySeconds = 0;
@@ -1534,9 +1508,8 @@
             window.dpInstance = null;
         }
 
-        if (!videoUrl) videoUrl = ep.url;
+        let videoUrl = ep.url;
         const isHls = videoUrl.includes('.m3u8');
-        // 优先使用原站标准片名 kanju_title 检索弹幕，确保所有线路弹幕 100% 同步挂载
         const videoTitle = window.currentVideo.kanju_title || window.currentVideo.vod_name || '';
         const kanjuCardId = window.currentVideo.kanju_id || (String(window.currentVideo.vod_id).startsWith('av_') ? window.currentVideo.vod_id : '');
 
@@ -1544,7 +1517,7 @@
         const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isMobile = isIOS || /Android|Mobile|Adr|MicroMessenger|UCBrowser|Quark|baiduboxapp/i.test(ua);
 
-        // 启动高灵敏度起播与卡顿看门狗：5秒起播超时或4.5秒缓冲卡顿自动无缝换线
+        // 启动高灵敏度起播与卡顿看门狗：4.5秒起播超时或4秒缓冲卡顿自动无缝换线
         let startupWatchTimer = null;
         let stallWatchTimer = null;
 
@@ -1560,7 +1533,7 @@
         const armPlaybackWatchdog = function(videoEl) {
             clearAllWatchdogs();
 
-            // 1. 首帧快速起播看门狗：5 秒未出画面且未在正常播放，自动无缝切到更快的源
+            // 1. 首帧快速起播看门狗：4.5 秒未出画面且未在正常播放，自动无缝切到更快的源
             startupWatchTimer = setTimeout(function() {
                 if (!videoEl) return;
                 if (videoEl.currentTime > 0 && !videoEl.paused) {
@@ -1568,9 +1541,9 @@
                     return;
                 }
                 if (videoEl.paused && videoEl.currentTime > 0) return;
-                console.warn('[Video Watchdog] 起播 5 秒未出流，触发自动无缝换线...');
+                console.warn('[Video Watchdog] 起播 4.5 秒未出流，触发自动无缝换线...');
                 window.triggerAutoSwitchRoute(idx, '加载缓慢');
-            }, 5000);
+            }, 4500);
 
             window._playbackWatchdogTimer = startupWatchTimer;
 
@@ -1584,16 +1557,16 @@
                 if (videoEl.currentTime > 0) onStreamPlaying();
             });
 
-            // 2. 播放中卡顿 / 缓冲停滞看门狗 (Waiting / Stalled 超过 4.5 秒自动无缝切源)
+            // 2. 播放中卡顿 / 缓冲停滞看门狗 (Waiting / Stalled 超过 4 秒自动无缝切源)
             const onStalledWaiting = function() {
                 if (videoEl.paused) return;
                 if (stallWatchTimer) clearTimeout(stallWatchTimer);
                 stallWatchTimer = setTimeout(function() {
                     if (!videoEl.paused && videoEl.readyState < 3) {
-                        console.warn('[Video Watchdog] 播放卡顿超过 4.5 秒，自动切换至极速线路...');
+                        console.warn('[Video Watchdog] 播放卡顿超过 4 秒，自动无缝切换至极速线路...');
                         window.triggerAutoSwitchRoute(idx, '缓冲卡顿');
                     }
-                }, 4500);
+                }, 4000);
             };
             videoEl.addEventListener('waiting', onStalledWaiting);
             videoEl.addEventListener('stalled', onStalledWaiting);

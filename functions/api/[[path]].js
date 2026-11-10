@@ -943,7 +943,7 @@ async function fetchDirectFromOrigin(decodedItem) {
 
 const KANJU_SECRET = '557d0e4ae929f438da6bd84412374e6086b8af09b3fed54bf22601d5bf8c54a0';
 
-// 影视原站 kanju.ai 深度解析直连 4K/1080P/蓝光 顶级原画播放源（4K专享绝对置顶 + 秒级急速直连）
+// 影视原站 kanju.ai 深度解析直连 4K/1080P/蓝光 顶级原画播放源（智能严选真实可播流，杜绝失效票据）
 async function searchOriginKanju(keyword, originId = '') {
     try {
         const cleanKw = (keyword || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
@@ -958,10 +958,7 @@ async function searchOriginKanju(keyword, originId = '') {
                     .forEach(s => {
                         const tid = s.target.variant_id || s.target.id;
                         if (!targets.some(t => t.id === tid)) {
-                            targets.push({
-                                id: tid,
-                                title: s.target.title || s.label || ''
-                            });
+                            targets.push({ id: tid, title: s.target.title || s.label || '' });
                         }
                     });
             }
@@ -969,7 +966,6 @@ async function searchOriginKanju(keyword, originId = '') {
         if (targets.length === 0) return [];
 
         const results = [];
-        // 核心加速：专注解析置顶首选目标 (Target 0)，速度从 8 秒锐减至 1 秒左右
         const target = targets[0];
         try {
             const cat = await fetchKanjuSigned('/v1/catalog/' + encodeURIComponent(target.id));
@@ -980,7 +976,7 @@ async function searchOriginKanju(keyword, originId = '') {
                 eps.map(ep => ep.token ? fetchKanjuSigned('/v1/playback/resolve/' + encodeURIComponent(ep.token)).catch(() => null) : null)
             );
 
-            // 针对首集并发快速解析 4K 专享与海外 4K 官方 Ticket 真实流地址
+            // 并发解析首集 4K 专享 Ticket（仅保留换取到的真实有效 .m3u8 视频流）
             const ep0Resolved = resolvedList[0];
             const fourKResolvedMap = new Map();
             if (ep0Resolved && Array.isArray(ep0Resolved.line_options)) {
@@ -999,14 +995,13 @@ async function searchOriginKanju(keyword, originId = '') {
                 }));
             }
 
-            // 规范化源站线路名称，确保 4K / 1080P / 直连各线路分类统一且杜绝重名
             const normalizeOriginName = (raw) => {
                 let name = String(raw || '').trim();
                 if (name.includes('4K') || name.toLowerCase().includes('4k')) {
                     const sub = name.replace(/^(原站|源站)[·・\s\-_]*/g, '').replace(/^4K[·・\s\-_]*/g, '').trim();
                     return '原站4K超清·' + (sub || '专享4K');
                 }
-                if (name.includes('豆瓣') || name.includes('暴风') || name.includes('茅台') || name.includes('1080P') || name.includes('专享')) {
+                if (name.includes('豆瓣') || name.includes('暴风') || name.includes('茅台')) {
                     const sub = name.replace(/^(原站|源站)[·・\s\-_]*/g, '').replace(/^1080P[·・\s\-_]*/g, '').trim();
                     return '原站1080P·' + (sub || '官方超清');
                 }
@@ -1017,16 +1012,19 @@ async function searchOriginKanju(keyword, originId = '') {
             };
 
             const providerMap = new Map();
-            const priorityKeys = ['4K', '豆瓣', '暴风', '茅台'];
+            const priorityKeys = ['豆瓣', '暴风', '茅台', '4K'];
             const ep0Title = cat.episodes[0].title || (eps.length === 1 ? '正片' : '第1集');
 
-            // 置顶挂载第 1 集已解析出的 4K 专享直连线路
+            // 1. 挂载已证实有效的 4K 真实流
             for (const [label, streamUrl] of fourKResolvedMap.entries()) {
-                const pName = normalizeOriginName(label);
-                if (!providerMap.has(pName)) providerMap.set(pName, []);
-                providerMap.get(pName).push(ep0Title + '$' + streamUrl);
+                if (streamUrl && streamUrl.startsWith('http') && (streamUrl.includes('.m3u8') || streamUrl.includes('.mp4'))) {
+                    const pName = normalizeOriginName(label);
+                    if (!providerMap.has(pName)) providerMap.set(pName, []);
+                    providerMap.get(pName).push(ep0Title + '$' + streamUrl);
+                }
             }
 
+            // 2. 挂载源站原生 100% 直连可用 .m3u8 流（豆瓣/暴风/茅台/量子/极速/非凡等，严禁注入 resolve:// 票据）
             resolvedList.forEach((res, epIdx) => {
                 if (!res || !Array.isArray(res.line_options)) return;
                 const epTitle = cat.episodes[epIdx].title || (eps.length === 1 ? '正片' : ('第' + (epIdx + 1) + '集'));
@@ -1041,16 +1039,9 @@ async function searchOriginKanju(keyword, originId = '') {
 
                 sortedOptions.forEach(line => {
                     if (!line || !line.url) return;
+                    // 核心保障：必须是真正的 http 视频直连流，过滤掉 resolve:// 动态加密票据与非视频内容
                     if (line.url.startsWith('http') && (line.url.includes('.m3u8') || line.url.includes('.mp4'))) {
                         const pName = normalizeOriginName(line.display_label || line.provider_name || '原站直连');
-                        if (!providerMap.has(pName)) providerMap.set(pName, []);
-                        const epEntry = epTitle + '$' + line.url;
-                        if (!providerMap.get(pName).some(e => e.split('$')[0] === epTitle)) {
-                            providerMap.get(pName).push(epEntry);
-                        }
-                    } else if (line.url.startsWith('resolve://')) {
-                        // 官方/4K 动态 Ticket 线路，保留供播放器按需毫秒级实时解析
-                        const pName = normalizeOriginName(line.display_label || line.provider_name || '原站官方');
                         if (!providerMap.has(pName)) providerMap.set(pName, []);
                         const epEntry = epTitle + '$' + line.url;
                         if (!providerMap.get(pName).some(e => e.split('$')[0] === epTitle)) {
@@ -1061,14 +1052,18 @@ async function searchOriginKanju(keyword, originId = '') {
             });
 
             const originRank = (name) => {
-                if (name.includes('4K')) return 200;
-                if (name.includes('豆瓣')) return 100;
-                if (name.includes('暴风')) return 90;
-                if (name.includes('茅台')) return 80;
-                if (name.includes('1080P') || name.includes('原画') || name.includes('蓝光') || name.includes('超清')) return 70;
-                if (name.includes('极速')) return 60;
-                if (name.includes('红牛')) return 50;
-                return 40;
+                if (name.includes('豆瓣')) return 200;
+                if (name.includes('暴风') && (name.includes('1080') || name.includes('原站'))) return 195;
+                if (name.includes('茅台')) return 190;
+                if (name.includes('4K')) return 185;
+                if (name.includes('量子')) return 175;
+                if (name.includes('非凡')) return 170;
+                if (name.includes('极速')) return 165;
+                if (name.includes('西瓜')) return 160;
+                if (name.includes('无水印')) return 155;
+                if (name.includes('1080P') || name.includes('原画') || name.includes('蓝光') || name.includes('超清')) return 150;
+                if (name.includes('红牛')) return 140;
+                return 100;
             };
 
             const sortedEntries = Array.from(providerMap.entries()).sort((a, b) => originRank(b[0]) - originRank(a[0]));
