@@ -11094,6 +11094,9 @@ window.clearNovelSearch = function() {
         candidates.forEach((el, idx) => {
             const linkEl = (el.tagName === 'A') ? el : (el.closest('a[href]') || el.querySelector('a[href]'));
             if (!linkEl) return;
+            // 严格过滤列表广告外链与列表内嵌广告位
+            if (linkEl.classList.contains('tjtagmanager') || linkEl.closest('.ad-item, .horizontal-banner, .post-card-ads')) return;
+
             let href = (linkEl.getAttribute('href') || '').trim();
             if (!href || href === '#' || href.startsWith('javascript:') || href.includes('#comments')) return;
             try {
@@ -11103,17 +11106,37 @@ window.clearNovelSearch = function() {
 
             const scopeEl = linkEl.querySelector('.post-card, article') || el;
 
-            // 提取标题（先剔除 script/style 防止把 loadBannerDirect 脚本代码混入标题）
-            const titleNode = scopeEl.querySelector('.post-card-title, [itemprop="headline"], h1, h2, h3, h4, .title, .post-title, .entry-title');
+            // 识别原站热度标识 (如 "热搜 HOT", "HOT", "置顶")
+            const hotBadgeEl = scopeEl.querySelector('.post-card-title, .wraps, .wrap');
+            const isHot = !!(hotBadgeEl && /HOT|热搜|置顶/i.test(hotBadgeEl.textContent || ''));
+
+            // 核心修复：精准提取真实文章标题，绝不让 ".post-card-title" 中的 "热搜 HOT" 角标把正文标题吃掉
             let title = '';
-            if (titleNode) {
-                title = (titleNode.textContent || '').replace(/\s+/g, ' ').trim();
-            } else {
+            const headlineNode = scopeEl.querySelector('[itemprop="headline"], .post-card-bottom-title, .post-card-bottom-text, .entry-title, .post-title, h1, h2, h3, h4, .title');
+            if (headlineNode) {
+                const cloneHl = headlineNode.cloneNode(true);
+                cloneHl.querySelectorAll('.post-card-title, .wrap, .wraps, script, style').forEach(s => s.remove());
+                title = (cloneHl.textContent || '').replace(/\s+/g, ' ').trim();
+            }
+
+            // 若提取出的标题是 "热搜 HOT" 或徽章文字，继续从正文描述与标题属性深度挖掘
+            if (!title || /^(?:热搜\s*HOT|HOT|热搜|置顶|推荐)$/i.test(title)) {
+                const subNode = scopeEl.querySelector('.post-card-bottom-text, [itemprop="headline"]');
+                if (subNode) {
+                    title = (subNode.textContent || '').replace(/\s+/g, ' ').trim();
+                }
+            }
+
+            if (!title || /^(?:热搜\s*HOT|HOT|热搜|置顶|推荐)$/i.test(title)) {
                 const clone = linkEl.cloneNode(true);
-                clone.querySelectorAll('script, style, .post-card-info').forEach(s => s.remove());
+                clone.querySelectorAll('script, style, .post-card-info, .post-card-title, .wrap, .wraps').forEach(s => s.remove());
                 title = (linkEl.getAttribute('title') || clone.textContent || '').replace(/\s+/g, ' ').trim();
             }
-            if (!title || title.length < 4 || ['首页', '登录', '注册', '搜索', '下一页', '上一页', '开通VIP'].includes(title)) return;
+
+            // 剔除标题开头残留的 "热搜 HOT " 等前缀修饰
+            title = title.replace(/^(?:热搜\s*HOT|HOT)\s+/i, '').trim();
+
+            if (!title || title.length < 4 || ['首页', '登录', '注册', '搜索', '下一页', '上一页', '开通VIP', '热搜 HOT', 'HOT'].includes(title)) return;
 
             // 提取发布日期与分类标签
             const dateNode = scopeEl.querySelector('[itemprop="datePublished"], time, .date, .post-time');
@@ -11186,8 +11209,8 @@ window.clearNovelSearch = function() {
                 vod_pic: pic,
                 enc_pic: encPic,
                 poster_fallback: posterFallback,
-                vod_remarks: dateStr,
-                vod_score: '9.7',
+                vod_remarks: isHot ? '🔥 热搜 HOT' : dateStr,
+                vod_score: isHot ? '9.9' : '9.7',
                 vod_class: catStr,
                 vod_year: dateStr,
                 article_url: href
