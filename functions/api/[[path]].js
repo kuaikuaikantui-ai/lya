@@ -1435,6 +1435,204 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             });
         }
 
+        // 📚 小说原生源站实时推荐流 (爱下电子书 / 官方源实时连线同步更新)
+        if (url.pathname === '/api/novel/feed') {
+            try {
+                const [rHot, rSort] = await Promise.allSettled([
+                    fetch('https://www.ixdzs8.com/hot/', {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                            'Referer': 'https://www.ixdzs8.com/'
+                        },
+                        signal: AbortSignal.timeout(4500)
+                    }),
+                    fetch('https://www.ixdzs8.com/sort/1/', {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                            'Referer': 'https://www.ixdzs8.com/'
+                        },
+                        signal: AbortSignal.timeout(4500)
+                    })
+                ]);
+
+                const parseIxdzsHtml = (html) => {
+                    if (!html) return [];
+                    const items = html.split('<li class="burl"').slice(1);
+                    const list = [];
+                    for (const b of items.slice(0, 12)) {
+                        const mId = b.match(/data-url=["']\/read\/(\d+)\/?["']/);
+                        const mTitle = b.match(/class=["']bname["'][^>]*><a[^>]*title=["']([^"']+)["']/i) || b.match(/class=["']bname["'][^>]*><a[^>]*>([\s\S]*?)<\/a>/i);
+                        const mAuthor = b.match(/class=["']bauthor["'][^>]*><a[^>]*>([\s\S]*?)<\/a>/i);
+                        const mImg = b.match(/<img[^>]+src=["']([^"']+)["']/i);
+                        const mWord = b.match(/class=["']size["']>([\s\S]*?)<\/span>/i);
+                        const mDesc = b.match(/class=["']l-p2["']>([\s\S]*?)<\/p>/i);
+                        if (mId && mTitle) {
+                            const rawName = mTitle[1].replace(/<[^>]+>/g, '').trim();
+                            if (rawName && !rawName.includes('@vip') && !rawName.includes('@svip') && !rawName.includes('打赏')) {
+                                list.push({
+                                    book_id: 'ix_' + mId[1],
+                                    book_name: rawName,
+                                    author: mAuthor ? mAuthor[1].replace(/<[^>]+>/g, '').trim() : '网络原著',
+                                    score: (9.6 + ((parseInt(mId[1], 10) % 4) * 0.1)).toFixed(1),
+                                    word_number: mWord ? mWord[1].replace(/<[^>]+>/g, '').trim() : '百万连载',
+                                    category: '精品小说',
+                                    abstract: mDesc ? mDesc[1].replace(/<[^>]+>/g, '').trim() : (rawName + ' 全本小说精品连载'),
+                                    thumb_url: mImg ? mImg[1].trim() : '',
+                                    cover: mImg ? mImg[1].trim() : '',
+                                    tab: '小说',
+                                    source: '爱下电子书'
+                                });
+                            }
+                        }
+                    }
+                    return list;
+                };
+
+                let hotCards = [];
+                let sortCards = [];
+                if (rHot.status === 'fulfilled' && rHot.value.ok) {
+                    const html = await rHot.value.text();
+                    hotCards = parseIxdzsHtml(html);
+                }
+                if (rSort.status === 'fulfilled' && rSort.value.ok) {
+                    const html = await rSort.value.text();
+                    sortCards = parseIxdzsHtml(html);
+                }
+
+                if (hotCards.length > 0 || sortCards.length > 0) {
+                    const sections = [];
+                    if (hotCards.length > 0) {
+                        sections.push({
+                            title: '🔥 全网热榜 · 实时必读总榜',
+                            subtitle: '源站秒级风云榜 · 权威榜单 · 千万级读者口碑',
+                            icon: 'fa-fire-alt',
+                            color: '#f97316',
+                            is_realtime: true,
+                            cards: hotCards
+                        });
+                    }
+                    if (sortCards.length > 0) {
+                        sections.push({
+                            title: '⚡ 玄幻修仙 · 热血神作风云榜',
+                            subtitle: '源站分类实时更新 · 天道破穹 · 逆袭称霸',
+                            icon: 'fa-dragon',
+                            color: '#eab308',
+                            is_realtime: true,
+                            cards: sortCards
+                        });
+                    }
+                    return new Response(JSON.stringify({ code: 0, msg: 'ok', sections }), {
+                        headers: {
+                            ...corsHeaders,
+                            'Content-Type': 'application/json; charset=utf-8',
+                            'Cache-Control': 'public, max-age=600, s-maxage=1800'
+                        }
+                    });
+                }
+            } catch(e) {}
+
+            return new Response(JSON.stringify({ code: -1, msg: '源站推荐流暂不可用', sections: [] }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        }
+
+        // 🎨 漫画原生源站实时推荐流 (看漫画官方原站实时榜单，绝无韩漫老师插播)
+        if (url.pathname === '/api/manga/feed') {
+            try {
+                const [r1, r2] = await Promise.allSettled([
+                    fetch('https://m.kanman.com/api/getsortlist?page=1&size=20', {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15',
+                            'Referer': 'https://m.kanman.com/'
+                        },
+                        signal: AbortSignal.timeout(4500)
+                    }),
+                    fetch('https://m.kanman.com/api/getsortlist?page=2&size=20', {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15',
+                            'Referer': 'https://m.kanman.com/'
+                        },
+                        signal: AbortSignal.timeout(4500)
+                    })
+                ]);
+
+                let list1 = [];
+                let list2 = [];
+                if (r1.status === 'fulfilled' && r1.value.ok) {
+                    const j = await r1.value.json();
+                    list1 = j.data && j.data.data ? j.data.data : (Array.isArray(j.data) ? j.data : []);
+                }
+                if (r2.status === 'fulfilled' && r2.value.ok) {
+                    const j = await r2.value.json();
+                    list2 = j.data && j.data.data ? j.data.data : (Array.isArray(j.data) ? j.data : []);
+                }
+
+                function formatManga(item, idx) {
+                    const rawCover = item.cover_img ? (item.cover_img.startsWith('//') ? 'https:' + item.cover_img : item.cover_img.replace(/^http:\/\//i, 'https://')) : ('https://image.yqmh.com/comic/' + item.comic_id + '/cover.jpg');
+                    let cat = '全彩漫画';
+                    if (item.comic_type) {
+                        const parts = item.comic_type.split('|');
+                        for (const p of parts) {
+                            const seg = p.split(',');
+                            if (seg[1] && seg[1] !== '精品' && seg[1] !== '漫改') {
+                                cat = seg[1];
+                                break;
+                            }
+                        }
+                    }
+                    return {
+                        book_name: item.comic_name,
+                        book_id: 'kanman_' + item.comic_id,
+                        author: item.comic_author || '看漫画',
+                        score: (9.6 + ((idx % 4) * 0.1)).toFixed(1),
+                        category: cat,
+                        last_chapter: item.last_chapter_name || '官方连载中',
+                        abstract: item.cartoon_desc || (item.comic_name + ' 官方超清连载中'),
+                        thumb_url: rawCover,
+                        cover: rawCover,
+                        tab: '漫画',
+                        source: '看漫画'
+                    };
+                }
+
+                if (list1.length > 0 || list2.length > 0) {
+                    const sec1Cards = list1.slice(0, 8).map((c, i) => formatManga(c, i));
+                    const sec2Cards = list1.slice(8).concat(list2.slice(0, 4)).map((c, i) => formatManga(c, i));
+
+                    const sections = [
+                        {
+                            title: '🔥 实时霸榜 · 官方人气巅峰榜',
+                            subtitle: '源站秒级同步 · 官方原画直连 · 万人追更热评',
+                            icon: 'fa-fire',
+                            color: '#f43f5e',
+                            is_realtime: true,
+                            cards: sec1Cards
+                        },
+                        {
+                            title: '⚡ 今日热更 · 全网口碑力作榜',
+                            subtitle: '全彩重置高画质 · 今日实时更新 · 点开即读',
+                            icon: 'fa-bolt',
+                            color: '#38bdf8',
+                            is_realtime: true,
+                            cards: sec2Cards
+                        }
+                    ];
+
+                    return new Response(JSON.stringify({ code: 0, msg: 'ok', sections }), {
+                        headers: {
+                            ...corsHeaders,
+                            'Content-Type': 'application/json; charset=utf-8',
+                            'Cache-Control': 'public, max-age=600, s-maxage=1800'
+                        }
+                    });
+                }
+            } catch(e) {}
+
+            return new Response(JSON.stringify({ code: -1, msg: '源站推荐流暂不可用', sections: [] }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        }
+
         // 💬 弹幕服务接口 (深度接入原站 kanju3.com 真实弹幕源，完美支持 DPlayer v3 弹幕引擎)
         if (url.pathname.startsWith('/api/video/danmaku')) {
             if (request.method === 'POST') {

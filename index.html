@@ -4586,7 +4586,7 @@
     <section id="mangaSection" style="display: none;">
         <div class="search-box">
             <div class="tx-capsule-search" style="margin-bottom: 12px;">
-                <input type="search" id="mangaSearchInput" name="manga_q_search" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" class="tx-capsule-input" placeholder="输入漫画作品名 (如: 秘密教学, 一人之下, 咒术回战)..." value="" onkeydown="if(event.key==='Enter')doMangaSearch()" />
+                <input type="search" id="mangaSearchInput" name="manga_q_search" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" class="tx-capsule-input" placeholder="输入漫画作品名 (如: 妖神记, 一人之下, 咒术回战, 鬼灭之刃)..." value="" onkeydown="if(event.key==='Enter')doMangaSearch()" />
                 <button type="button" class="tx-capsule-search-btn" onclick="doMangaSearch()" title="搜索漫画">
                     <i class="fas fa-magnifying-glass"></i>
                 </button>
@@ -4595,11 +4595,11 @@
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质漫画源：</label>
                 <select id="mangaSourceSelect" class="select-filter">
                     <option value="看漫画" selected>★ 看漫画 (官方超清·极速秒开·万人热榜)</option>
-                    <option value="极速韩漫">极速韩漫 (未删减原画·《秘密教学》专线·超325话连载)</option>
-                    <option value="新新漫画">新新漫画 (韩漫备用线路)</option>
-                    <option value="G社漫画">G社漫画 (韩漫精选·热门条漫番外)</option>
                     <option value="全面漫画">全面漫画 (国漫全彩·官方正版连载)</option>
                     <option value="番茄">番茄漫画 (官方正版·精选高清画质)</option>
+                    <option value="新新漫画">新新漫画 (全彩条漫备用线路)</option>
+                    <option value="极速韩漫">极速韩漫 (未删减全彩·热门条漫连载)</option>
+                    <option value="G社漫画">G社漫画 (韩漫精选·热门条漫番外)</option>
                     <option value="ALL">⚡ 聚合全网搜 (同时并发检索全部漫画源)</option>
                 </select>
             </div>
@@ -7963,67 +7963,113 @@
         `;
     }
 
-    // 渲染小说专区原生带图推荐广场
-    window.renderNovelRecommendPlaza = function() {
+        let _novelFeedFetching = false;
+    let _novelFeedLoaded = false;
+    let _mangaFeedFetching = false;
+    let _mangaFeedLoaded = false;
+
+    function renderBookPlazaSections(sections, defaultTab, defaultSource) {
+        return sections.map(sec => {
+            const cards = sec.cards || [];
+            if (cards.length === 0) return '';
+            const cardsHtml = cards.map(c => renderBookPosterCard(c, defaultTab, c.source || defaultSource)).join('');
+            const realtimeBadge = sec.is_realtime
+                ? '<span style="font-size:11px; color:#22c55e; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.25); padding:2px 8px; border-radius:10px; display:inline-flex; align-items:center; gap:4px;"><i class="fas fa-circle" style="font-size:6px;"></i> 源站实时更新</span>'
+                : '';
+            return `
+                <div class="kanju-section-block" style="margin-bottom: 30px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
+                        <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
+                            <h4 style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:7px; color:var(--text-main);">
+                                <i class="fas ${sec.icon || (defaultTab === '漫画' ? 'fa-images' : 'fa-book-open')}" style="color:${sec.color || (defaultTab === '漫画' ? '#ec4899' : '#38bdf8')};"></i>
+                                <span>${sec.title}</span>
+                            </h4>
+                            <span style="font-size:12px; color:var(--text-muted);">${sec.subtitle || ''}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            ${realtimeBadge}
+                            <span style="font-size:11px; color:var(--text-muted); background:rgba(255,255,255,0.04); padding:3px 10px; border-radius:14px; border:1px solid rgba(255,255,255,0.1);">共 ${cards.length} ${defaultTab === '漫画' ? '部' : '本'}</span>
+                        </div>
+                    </div>
+                    <div class="video-grid">${cardsHtml}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // 渲染小说专区原生带图推荐广场 (秒级静态首屏 + 源站异步实时拉取更新)
+    window.renderNovelRecommendPlaza = function(forceRefresh = false) {
         const container = document.getElementById('novelRecommendSectionsContainer');
         if (!container) return;
-        if (container.children.length > 0) return;
-        const sections = window.NOVEL_RECOMMEND_SECTIONS || [];
-        if (sections.length === 0) return;
+        
+        // 1. 如果已有内容且不是强制刷新，且已加载过实时流，则保持现状
+        if (container.children.length > 0 && !forceRefresh && _novelFeedLoaded) return;
 
-        container.innerHTML = sections.map(sec => {
-            const cards = sec.cards || [];
-            if (cards.length === 0) return '';
-            const cardsHtml = cards.map(c => renderBookPosterCard(c, '小说', c.source || '七猫')).join('');
-            return `
-                <div class="kanju-section-block" style="margin-bottom: 30px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
-                        <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
-                            <h4 style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:7px; color:var(--text-main);">
-                                <i class="fas ${sec.icon || 'fa-book-open'}" style="color:${sec.color || '#38bdf8'};"></i>
-                                <span>${sec.title}</span>
-                            </h4>
-                            <span style="font-size:12px; color:var(--text-muted);">${sec.subtitle || ''}</span>
-                        </div>
-                        <span style="font-size:11px; color:var(--text-muted); background:rgba(255,255,255,0.04); padding:3px 10px; border-radius:14px; border:1px solid rgba(255,255,255,0.1);">共 ${cards.length} 本</span>
-                    </div>
-                    <div class="video-grid">${cardsHtml}</div>
-                </div>
-            `;
-        }).join('');
+        // 2. 初始秒级静态首屏渲染 (无轻小说，全网热榜置顶)
+        if (container.children.length === 0 || forceRefresh) {
+            const sections = (window.NOVEL_RECOMMEND_SECTIONS || []).filter(s => !s.title.includes('轻小说'));
+            if (sections.length > 0) {
+                container.innerHTML = renderBookPlazaSections(sections, '小说', '爱下电子书');
+            }
+        }
+
+        // 3. 异步拉取源站实时推荐流
+        if (!_novelFeedFetching || forceRefresh) {
+            _novelFeedFetching = true;
+            fetch('/api/novel/feed')
+                .then(r => r.json())
+                .then(res => {
+                    _novelFeedFetching = false;
+                    if (res && res.code === 0 && Array.isArray(res.sections) && res.sections.length > 0) {
+                        _novelFeedLoaded = true;
+                        const staticSecs = (window.NOVEL_RECOMMEND_SECTIONS || []).filter(s => !s.title.includes('轻小说'));
+                        const mergedSections = [...res.sections, ...staticSecs];
+                        container.innerHTML = renderBookPlazaSections(mergedSections, '小说', '爱下电子书');
+                    }
+                })
+                .catch(() => {
+                    _novelFeedFetching = false;
+                });
+        }
     };
 
-    // 渲染漫画专区原生带图推荐广场
-    window.renderMangaRecommendPlaza = function() {
+    // 渲染漫画专区原生带图推荐广场 (秒级静态首屏 + 看漫画官方源异步实时拉取更新)
+    window.renderMangaRecommendPlaza = function(forceRefresh = false) {
         const container = document.getElementById('mangaRecommendSectionsContainer');
         if (!container) return;
-        if (container.children.length > 0) return;
-        const sections = window.MANGA_RECOMMEND_SECTIONS || [];
-        if (sections.length === 0) return;
 
-        container.innerHTML = sections.map(sec => {
-            const cards = sec.cards || [];
-            if (cards.length === 0) return '';
-            const cardsHtml = cards.map(c => renderBookPosterCard(c, '漫画', c.source || '新新漫画')).join('');
-            return `
-                <div class="kanju-section-block" style="margin-bottom: 30px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
-                        <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
-                            <h4 style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:7px; color:var(--text-main);">
-                                <i class="fas ${sec.icon || 'fa-images'}" style="color:${sec.color || '#ec4899'};"></i>
-                                <span>${sec.title}</span>
-                            </h4>
-                            <span style="font-size:12px; color:var(--text-muted);">${sec.subtitle || ''}</span>
-                        </div>
-                        <span style="font-size:11px; color:var(--text-muted); background:rgba(255,255,255,0.04); padding:3px 10px; border-radius:14px; border:1px solid rgba(255,255,255,0.1);">共 ${cards.length} 部</span>
-                    </div>
-                    <div class="video-grid">${cardsHtml}</div>
-                </div>
-            `;
-        }).join('');
+        // 1. 如果已有内容且不是强制刷新，且已加载过实时流，则保持现状
+        if (container.children.length > 0 && !forceRefresh && _mangaFeedLoaded) return;
+
+        // 2. 初始秒级静态首屏渲染 (无韩漫，热血仙侠置顶)
+        if (container.children.length === 0 || forceRefresh) {
+            const sections = (window.MANGA_RECOMMEND_SECTIONS || []).filter(s => !s.title.includes('韩漫'));
+            if (sections.length > 0) {
+                container.innerHTML = renderBookPlazaSections(sections, '漫画', '看漫画');
+            }
+        }
+
+        // 3. 异步拉取看漫画官方原站实时榜单
+        if (!_mangaFeedFetching || forceRefresh) {
+            _mangaFeedFetching = true;
+            fetch('/api/manga/feed')
+                .then(r => r.json())
+                .then(res => {
+                    _mangaFeedFetching = false;
+                    if (res && res.code === 0 && Array.isArray(res.sections) && res.sections.length > 0) {
+                        _mangaFeedLoaded = true;
+                        const staticSecs = (window.MANGA_RECOMMEND_SECTIONS || []).filter(s => !s.title.includes('韩漫'));
+                        const mergedSections = [...res.sections, ...staticSecs];
+                        container.innerHTML = renderBookPlazaSections(mergedSections, '漫画', '看漫画');
+                    }
+                })
+                .catch(() => {
+                    _mangaFeedFetching = false;
+                });
+        }
     };
 
-    window.clearNovelSearch = function() {
+window.clearNovelSearch = function() {
         const searchBlock = document.getElementById('novelSearchResultBlock');
         const plaza = document.getElementById('novelRecommendSectionsContainer');
         const input = document.getElementById('novelSearchInput');
