@@ -4892,6 +4892,14 @@
         </div>
         <p id="detailIntro" style="font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 16px;"></p>
         
+        <!-- 详情页显眼续读/起读引导栏 (多端阅读进度实时感知) -->
+        <div id="detailActionRow" style="display:flex; gap:12px; align-items:center; margin-bottom:18px; flex-wrap:wrap; background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+            <button class="btn primary" id="detailHeroReadBtn" onclick="continueReadingFromDetail()" style="padding:9px 22px; font-size:13.5px; font-weight:600; border-radius:8px; display:inline-flex; align-items:center; gap:8px;">
+                <i class="fas fa-play"></i> <span id="detailHeroReadLabel">开始阅读</span>
+            </button>
+            <span id="detailLastReadNotice" style="font-size:12px; color:var(--text-muted); display:inline-flex; align-items:center; gap:6px;"></span>
+        </div>
+
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; flex-wrap:wrap;">
             <h4 style="font-size: 14px; margin: 0;">📑 完整章节目录 <span id="detailCatalogCountBadge" style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;"></span></h4>
             <div style="display:flex; gap:6px; align-items:center;">
@@ -4906,6 +4914,13 @@
     <!-- 小说/漫画阅读视窗 -->
     <section id="readerView" style="display:none;">
         <div class="reader-top-progress" id="readerTopProgressBar"></div>
+        <!-- 跨端进度感知悬浮胶囊 -->
+        <div id="readerSyncBanner" style="display:none; position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:9999; background:rgba(15,23,42,0.94); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1px solid rgba(0,209,193,0.5); border-radius:30px; padding:7px 16px; box-shadow:0 8px 28px rgba(0,0,0,0.45); align-items:center; gap:10px; color:#fff; font-size:13px;">
+            <i class="fas fa-cloud-arrow-down" style="color:var(--accent); font-size:14px;"></i>
+            <span id="readerSyncBannerText" style="max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">另一端有更新进度</span>
+            <button class="btn primary" onclick="window.jumpToSyncedChapter()" style="padding:3px 12px; font-size:12px; border-radius:16px; font-weight:600;">立即对齐</button>
+            <button onclick="window.dismissReaderSyncBanner()" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; padding:2px 6px; font-size:14px; line-height:1;"><i class="fas fa-times"></i></button>
+        </div>
         <div class="reader-floating-header" id="readerFloatingHeader">
             <div class="view-header reader-header-top" style="margin-bottom: 8px; padding-bottom: 8px;">
                 <div style="display:flex; align-items:center; gap:10px; min-width:0;">
@@ -6546,7 +6561,47 @@
         return `${mm}:${ss}`;
     }
 
-    function updateRecentHistory(book, chapTitle, chapIdx, extraProgress = {}) {
+    // 智能阅读进度对比器 (单调向前保证，绝不允许晚开设备的时间戳覆盖导致用户章节大倒退)
+    function compareReadingProgress(newItem, existingItem) {
+        if (!existingItem) return true;
+        if (!newItem) return false;
+
+        const newNum = parseChapterOrderNum(newItem.lastReadTitle || newItem.title);
+        const exNum = parseChapterOrderNum(existingItem.lastReadTitle || existingItem.title);
+
+        // 1. 若两端均能解析出章节序号，序号大者绝对优先（单调向前，彻底杜绝回退）
+        if (newNum !== null && exNum !== null && newNum !== exNum) {
+            return newNum > exNum;
+        }
+
+        const newIdx = Number(newItem.lastReadIndex !== undefined ? newItem.lastReadIndex : -1);
+        const exIdx = Number(existingItem.lastReadIndex !== undefined ? existingItem.lastReadIndex : -1);
+
+        // 2. 若无法提取标题序号但两端章节索引明确不同且合法，索引大者优先
+        if (newIdx >= 0 && exIdx >= 0 && newIdx !== exIdx) {
+            return newIdx > exIdx;
+        }
+
+        // 3. 相同章节下，对比章内阅读进度（页码、漫画图片序号、滚动比例）
+        const newPage = Math.max(Number(newItem.lastReadPage || 0), Number(newItem.lastMangaImgIndex || 0));
+        const exPage = Math.max(Number(existingItem.lastReadPage || 0), Number(existingItem.lastMangaImgIndex || 0));
+        if (newPage !== exPage) {
+            return newPage > exPage;
+        }
+
+        const newScroll = Number(newItem.lastScrollRatio || 0);
+        const exScroll = Number(existingItem.lastScrollRatio || 0);
+        if (Math.abs(newScroll - exScroll) > 0.03) {
+            return newScroll > exScroll;
+        }
+
+        // 4. 章节及章内进度均相同时，时间戳更新者优先
+        const newTs = Number(newItem.readTime || newItem.updatedAt || 0);
+        const exTs = Number(existingItem.readTime || existingItem.updatedAt || 0);
+        return newTs >= exTs;
+    }
+
+    function updateRecentHistory(book, chapTitle, chapIdx, extraProgress = {}, skipCloudPush = false) {
         if (!book || !book.book_name) return;
         const now = Date.now();
         const curTab = getBookTab(book);
@@ -6588,18 +6643,18 @@
             readTime: now
         });
         if (history.length > 80) history.pop();
-        saveRecentHistory(history);
+        saveRecentHistory(history, skipCloudPush);
     }
 
     let _saveProgressDebounceTimer = null;
 
-    // 实时精准记录阅读位置（节流防抖写入）
+    // 实时精准记录阅读位置（内存与本地存储立即同步写入，云端推送智能防抖）
     function saveCurrentReadingPosition(extra = {}) {
         if (!currentBookInfo || !currentBookInfo.book_name) return;
         const chap = currentCatalog[currentChapterIndex];
         const chapTitle = chap ? chap.title : (currentBookInfo.lastReadTitle || '正文');
 
-        // 同步更新内存中的 currentBookInfo，避免多次异步操作丢失
+        // 1. 同步更新内存中的 currentBookInfo，避免多次异步操作丢失
         if (extra.page !== undefined) currentBookInfo.lastReadPage = extra.page;
         if (extra.totalPages !== undefined) currentBookInfo.lastReadTotalPages = extra.totalPages;
         if (extra.scrollTop !== undefined) currentBookInfo.lastScrollTop = extra.scrollTop;
@@ -6608,11 +6663,18 @@
         if (extra.progressLabel) currentBookInfo.lastProgressLabel = extra.progressLabel;
         currentBookInfo.lastReadIndex = currentChapterIndex;
         currentBookInfo.lastReadTitle = chapTitle;
+        currentBookInfo.readTime = Date.now();
 
+        // 2. 立即同步刷写到本地 localStorage（耗时 < 0.2ms，手机切后台/锁屏绝不丢页码）
+        updateRecentHistory(currentBookInfo, chapTitle, currentChapterIndex, extra, true);
+
+        // 3. 对跨端云推送进行防抖合并，避免每点一次翻页都发送高频网络请求
         clearTimeout(_saveProgressDebounceTimer);
         _saveProgressDebounceTimer = setTimeout(() => {
-            updateRecentHistory(currentBookInfo, chapTitle, currentChapterIndex, extra);
-        }, 220);
+            if (window.scheduleCloudSyncPush) {
+                window.scheduleCloudSyncPush('read_progress');
+            }
+        }, 500);
     }
 
     // 页面离开/切换时的即时同步刷写
@@ -6628,7 +6690,7 @@
             scrollRatio: currentBookInfo.lastScrollRatio,
             imgIdx: currentBookInfo.lastMangaImgIndex,
             progressLabel: currentBookInfo.lastProgressLabel
-        });
+        }, false);
     }
 
     // 打包本机完整进度快照
@@ -6677,21 +6739,7 @@
             } else {
                 const existing = shelfMap.get(key);
                 const exTs = Number(existing.updatedAt || existing.readTime || 0);
-                const exNum = parseChapterOrderNum(existing.lastReadTitle);
-                const newNum = parseChapterOrderNum(item.lastReadTitle);
-
-                let takeNew = false;
-                if (Math.abs(itemTs - exTs) > 10000) {
-                    takeNew = (itemTs > exTs);
-                } else if (newNum !== null && exNum !== null && newNum !== exNum) {
-                    takeNew = (newNum > exNum);
-                } else {
-                    const exPage = Number(existing.lastReadPage || 0);
-                    const newPage = Number(item.lastReadPage || 0);
-                    const exScroll = Number(existing.lastScrollRatio || 0);
-                    const newScroll = Number(item.lastScrollRatio || 0);
-                    takeNew = newPage > exPage || (newPage === exPage && (newScroll > exScroll || itemTs >= exTs));
-                }
+                const takeNew = compareReadingProgress(item, existing);
 
                 const winner = takeNew ? item : existing;
                 const loser = takeNew ? existing : item;
@@ -6733,21 +6781,7 @@
             } else {
                 const existing = histMap.get(key);
                 const exTs = Number(existing.readTime || existing.updatedAt || 0);
-                const exNum = parseChapterOrderNum(existing.lastReadTitle);
-                const newNum = parseChapterOrderNum(item.lastReadTitle);
-
-                let takeNew = false;
-                if (Math.abs(itemTs - exTs) > 10000) {
-                    takeNew = (itemTs > exTs);
-                } else if (newNum !== null && exNum !== null && newNum !== exNum) {
-                    takeNew = (newNum > exNum);
-                } else {
-                    const exPage = Number(existing.lastReadPage || 0);
-                    const newPage = Number(item.lastReadPage || 0);
-                    const exScroll = Number(existing.lastScrollRatio || 0);
-                    const newScroll = Number(item.lastScrollRatio || 0);
-                    takeNew = newPage > exPage || (newPage === exPage && (newScroll > exScroll || itemTs >= exTs));
-                }
+                const takeNew = compareReadingProgress(item, existing);
 
                 const winner = takeNew ? item : existing;
                 const loser = takeNew ? existing : item;
@@ -6757,7 +6791,7 @@
                     ...loser,
                     ...winner,
                     tab: hTab,
-                    lastReadTitle: winner.lastReadTitle || loser.lastReadTitle || '第1话',
+                    lastReadTitle: winner.lastReadTitle || loser.lastReadTitle || (hTab === '漫画' ? '第1话' : '第一章'),
                     lastReadItemId: winner.lastReadItemId || loser.lastReadItemId || '',
                     lastReadIndex: winner.lastReadIndex !== undefined ? winner.lastReadIndex : (loser.lastReadIndex || 0),
                     lastReadPage: winner.lastReadPage !== undefined ? winner.lastReadPage : (loser.lastReadPage || 0),
@@ -6807,26 +6841,13 @@
             .sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0))
             .slice(0, 30);
 
-        // 5. 双向校准：书架与阅读历史互相对齐最新章节进度 (原子化全字段对齐，绝不拆分)
+        // 5. 双向校准：书架与阅读历史互相对齐最新章节进度 (单调向前，原子化全字段对齐)
         mergedShelf.forEach(sItem => {
             const sTab = getBookTab(sItem);
             const key = (sTab === '漫画' ? 'manga:' : 'novel:') + sItem.book_name.trim();
             const matchedHist = histMap.get(key);
             if (matchedHist) {
-                const hTs = Number(matchedHist.readTime || matchedHist.updatedAt || 0);
-                const sTs = Number(sItem.updatedAt || sItem.readTime || 0);
-                const hNum = parseChapterOrderNum(matchedHist.lastReadTitle);
-                const sNum = parseChapterOrderNum(sItem.lastReadTitle);
-
-                let takeHist = false;
-                if (Math.abs(hTs - sTs) > 10000) {
-                    takeHist = (hTs > sTs);
-                } else if (hNum !== null && sNum !== null && hNum !== sNum) {
-                    takeHist = (hNum > sNum);
-                } else {
-                    takeHist = (hTs >= sTs);
-                }
-
+                const takeHist = compareReadingProgress(matchedHist, sItem);
                 const src = takeHist ? matchedHist : sItem;
                 const dst = takeHist ? sItem : matchedHist;
 
@@ -7031,16 +7052,25 @@
                 user.lastSyncAt = _lastCloudSyncTime;
                 saveCloudUser(user);
 
-                // 若当前正处于小说/漫画阅读视图中，检测同类型作品是否有更新的阅读进度 (静默更新顶部标记，绝不乱弹窗)
+                // 若当前正处于小说/漫画阅读视图中，检测同类型作品是否有更新的阅读进度
                 if (currentBookInfo && currentBookInfo.book_name) {
                     const rView = document.getElementById('readerView');
                     if (rView && rView.style.display !== 'none') {
                         const bName = currentBookInfo.book_name.trim();
                         const curTab = getBookTab(currentBookInfo);
                         const matched = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
-                        if (matched && Number(matched.lastReadIndex || 0) > currentChapterIndex) {
-                            const btn = document.getElementById('readerCloudSyncBtn');
-                            if (btn) btn.classList.add('has-update');
+                        if (matched) {
+                            const isAhead = compareReadingProgress(matched, {
+                                lastReadTitle: currentCatalog[currentChapterIndex]?.title || currentBookInfo.lastReadTitle,
+                                lastReadIndex: currentChapterIndex,
+                                lastReadPage: (currentReaderMode === 'paginated' ? _paginatedCurrentPage : currentBookInfo.lastReadPage),
+                                lastScrollRatio: currentBookInfo.lastScrollRatio,
+                                readTime: currentBookInfo.readTime
+                            });
+                            if (isAhead) {
+                                const targetIdx = findBestMatchingChapterIndex(currentCatalog, matched);
+                                showReaderSyncNotice(matched, targetIdx);
+                            }
                         }
                     }
                 }
@@ -7178,6 +7208,76 @@
         }
     };
 
+    let _readerSyncNoticeTarget = null;
+    function showReaderSyncNotice(matchedRecord, targetIdx) {
+        if (!matchedRecord || targetIdx === currentChapterIndex) return;
+        _readerSyncNoticeTarget = { record: matchedRecord, idx: targetIdx };
+        const banner = document.getElementById('readerSyncBanner');
+        const text = document.getElementById('readerSyncBannerText');
+        if (banner && text) {
+            const chap = (currentCatalog && currentCatalog[targetIdx]) ? currentCatalog[targetIdx].title : (matchedRecord.lastReadTitle || '新章节');
+            text.textContent = `另一端已读至【${chap}】`;
+            banner.style.display = 'flex';
+        }
+        const btn = document.getElementById('readerCloudSyncBtn');
+        if (btn) btn.classList.add('has-update');
+    }
+
+    window.dismissReaderSyncBanner = function() {
+        const banner = document.getElementById('readerSyncBanner');
+        if (banner) banner.style.display = 'none';
+        _readerSyncNoticeTarget = null;
+    };
+
+    window.jumpToSyncedChapter = async function() {
+        if (!_readerSyncNoticeTarget || _readerSyncNoticeTarget.idx === undefined) return;
+        const target = _readerSyncNoticeTarget;
+        window.dismissReaderSyncBanner();
+        const targetPos = target.record ? {
+            page: target.record.lastReadPage,
+            scrollTop: target.record.lastScrollTop,
+            scrollRatio: target.record.lastScrollRatio,
+            imgIdx: target.record.lastMangaImgIndex,
+            progressLabel: target.record.lastProgressLabel
+        } : 'first';
+        showCloudToast(`已对齐至另一端【${target.record.lastReadTitle || '最新章节'}】`, 'fa-cloud-arrow-down', '#00d1c1');
+        await readChapter(target.idx, false, targetPos);
+    };
+
+    function updateDetailHeroReadBtn() {
+        const heroBtn = document.getElementById('detailHeroReadBtn');
+        const heroLabel = document.getElementById('detailHeroReadLabel');
+        const notice = document.getElementById('detailLastReadNotice');
+        if (!heroBtn || !heroLabel) return;
+
+        const chap = currentCatalog && currentCatalog[currentChapterIndex];
+        const chapTitle = chap ? chap.title : (currentBookInfo ? currentBookInfo.lastReadTitle : '');
+
+        if (currentChapterIndex > 0 || (currentBookInfo && (currentBookInfo.lastReadPage > 0 || currentBookInfo.lastReadTitle))) {
+            heroBtn.innerHTML = `<i class="fas fa-book-open"></i> <span id="detailHeroReadLabel">继续阅读：${escapeNovelHtml(chapTitle || '上次章节')}</span>`;
+            if (notice) {
+                const pageStr = currentBookInfo && currentBookInfo.lastProgressLabel ? ` (${currentBookInfo.lastProgressLabel})` : '';
+                notice.innerHTML = `<i class="fas fa-cloud-check" style="color:var(--accent);"></i> 已同步最新阅读进度${pageStr}`;
+            }
+        } else {
+            heroBtn.innerHTML = `<i class="fas fa-play"></i> <span id="detailHeroReadLabel">开始阅读 (第 1 章)</span>`;
+            if (notice) notice.innerHTML = '';
+        }
+    }
+
+    window.continueReadingFromDetail = function() {
+        if (!currentCatalog || currentCatalog.length === 0) return;
+        const targetIdx = (currentChapterIndex >= 0 && currentChapterIndex < currentCatalog.length) ? currentChapterIndex : 0;
+        const targetPos = (currentBookInfo && (currentBookInfo.lastReadPage > 0 || currentBookInfo.lastMangaImgIndex > 0 || currentBookInfo.lastScrollTop > 50)) ? {
+            page: currentBookInfo.lastReadPage,
+            scrollTop: currentBookInfo.lastScrollTop,
+            scrollRatio: currentBookInfo.lastScrollRatio,
+            imgIdx: currentBookInfo.lastMangaImgIndex,
+            progressLabel: currentBookInfo.lastProgressLabel
+        } : 'first';
+        readChapter(targetIdx, false, targetPos);
+    };
+
     // 专属小说/漫画阅读双端实时无缝对齐同步（解决章节回退，自动跨端跳至更新进度）
     window.syncNovelReadingProgressNow = async function(isManual = true) {
         const user = getCloudUser();
@@ -7233,7 +7333,7 @@
                 const matchedHist = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
                 const matchedShelf = (merged.shelf || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
 
-                const targetRecord = (matchedHist && Number(matchedHist.readTime || 0) >= Number(matchedShelf?.updatedAt || 0)) ? matchedHist : (matchedShelf || matchedHist);
+                const targetRecord = (matchedHist && compareReadingProgress(matchedHist, matchedShelf)) ? matchedHist : (matchedShelf || matchedHist);
                 const matchedTargetIdx = findBestMatchingChapterIndex(currentCatalog, targetRecord);
                 const targetTitle = (targetRecord && targetRecord.lastReadTitle) || (currentCatalog[matchedTargetIdx]?.title) || '';
 
@@ -7260,6 +7360,7 @@
                     }
                 } else if (isDetailView) {
                     currentChapterIndex = matchedTargetIdx;
+                    updateDetailHeroReadBtn();
                     renderDetailCatalogList();
                     if (isManual) {
                         showCloudToast(`最新进度已同步：${targetTitle}`, 'fa-check', '#00d1c1');
@@ -7494,7 +7595,13 @@
             }
             const payload = buildLocalSyncPayload();
             payload.deviceId = _cloudDeviceId;
-            pushCloudSnapshot(user.uid, payload);
+            payload.syncTime = Date.now();
+            if (navigator.sendBeacon) {
+                const blob = new Blob([JSON.stringify({ uid: user.uid, payload })], { type: 'application/json' });
+                navigator.sendBeacon('/api/sync', blob);
+            } else {
+                pushCloudSnapshot(user.uid, payload);
+            }
         }
     });
 
@@ -7796,15 +7903,12 @@
         const shelf = getLocalShelf().find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
         const hist = getRecentHistory().find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
 
-        // 选取最新记录（基于真实更新时间戳，绝不使用危险的 Math.max(lastReadIndex) 导致错位和回退失效）
+        // 选取最先进度（单调向前保证，绝不回退）
         const candidates = [book, shelf, hist].filter(Boolean);
         let mostRecent = candidates[0];
-        let maxTs = Number(mostRecent.readTime || mostRecent.updatedAt || 0);
-        for (const c of candidates) {
-            const ts = Number(c.readTime || c.updatedAt || 0);
-            if (ts > maxTs) {
-                maxTs = ts;
-                mostRecent = c;
+        for (let i = 1; i < candidates.length; i++) {
+            if (compareReadingProgress(candidates[i], mostRecent)) {
+                mostRecent = candidates[i];
             }
         }
 
@@ -8694,9 +8798,11 @@ window.clearNovelSearch = function() {
                 lastVol = chap.volume;
                 catHtml += `<div class="catalog-volume-divider"><i class="fas fa-bookmark"></i> ${escapeNovelHtml(lastVol)}</div>`;
             }
+            const isCurrent = (currentChapterIndex === idx);
+            const activeTag = isCurrent ? '<span style="background:var(--accent); color:#fff; font-size:10px; padding:1px 5px; border-radius:4px; margin-left:6px; font-weight:600;">上次读到</span>' : '';
             catHtml += `
-                <div class="chap-btn ${currentChapterIndex === idx ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="onCatalogChapterClick(${idx})">
-                    ${escapeNovelHtml(chap.title)}
+                <div class="chap-btn ${isCurrent ? 'read-active' : ''}" data-chap-idx="${idx}" title="${escapeNovelHtml(chap.title)}" onclick="onCatalogChapterClick(${idx})">
+                    ${escapeNovelHtml(chap.title)}${activeTag}
                 </div>
             `;
         }
@@ -8812,19 +8918,16 @@ window.clearNovelSearch = function() {
                 return;
             }
 
-            // 获取真实最新阅读进度
+            // 获取真实最前阅读进度 (单调向前比较，绝不被旧记录时间戳覆盖回退)
             const bName = book.book_name ? book.book_name.trim() : '';
             const matchedHist = getRecentHistory().find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === activeTab);
             const matchedShelf = getLocalShelf().find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === activeTab);
 
             const candidates = [book, matchedHist, matchedShelf].filter(Boolean);
             let latestTarget = candidates[0];
-            let maxTs = Number(latestTarget.readTime || latestTarget.updatedAt || 0);
-            for (const c of candidates) {
-                const ts = Number(c.readTime || c.updatedAt || 0);
-                if (ts > maxTs) {
-                    maxTs = ts;
-                    latestTarget = c;
+            for (let i = 1; i < candidates.length; i++) {
+                if (compareReadingProgress(candidates[i], latestTarget)) {
+                    latestTarget = candidates[i];
                 }
             }
 
@@ -8838,6 +8941,7 @@ window.clearNovelSearch = function() {
                 currentBookInfo.lastReadItemId = currentCatalog[bestTargetIdx].item_id;
             }
 
+            updateDetailHeroReadBtn();
             renderDetailCatalogList();
 
             if (autoReadIndex !== null && currentCatalog[bestTargetIdx]) {

@@ -2826,6 +2826,132 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 return clean.length >= 3 ? clean : '';
             };
 
+            const chineseNumToArabic = (cnStr) => {
+                if (!cnStr) return null;
+                if (/^\d+(\.\d+)?$/.test(cnStr)) return parseFloat(cnStr);
+                const map = { '零': 0, '〇': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+                const unitMap = { '十': 10, '百': 100, '千': 1000, '万': 10000 };
+                let total = 0, tempNum = 0, hasValidChar = false;
+                for (let i = 0; i < cnStr.length; i++) {
+                    const ch = cnStr[i];
+                    if (map[ch] !== undefined) {
+                        tempNum = map[ch];
+                        hasValidChar = true;
+                    } else if (unitMap[ch] !== undefined) {
+                        hasValidChar = true;
+                        const unit = unitMap[ch];
+                        if (unit === 10000) {
+                            total = (total + tempNum) * unit;
+                            tempNum = 0;
+                        } else {
+                            if (tempNum === 0 && i === 0 && unit === 10) tempNum = 1;
+                            total += tempNum * unit;
+                            tempNum = 0;
+                        }
+                    }
+                }
+                total += tempNum;
+                return hasValidChar ? total : null;
+            };
+
+            const parseOrderNum = (title) => {
+                const s = String(title || '').trim();
+                if (!s) return null;
+                const clean = s.replace(/^[^第\d]{1,25}[：:·\-\s]+(?=第|\d)/, '').replace(/^[\s\.:：\-_·]+/, '');
+                if (/^(序[章言曲幕]?|楔子|引子|前言|预告|导读|Prologue)(\s|$|[：:·\-])/i.test(clean)) return 0;
+                const mVol = clean.match(/^第\s*([0-9]+|[零〇一二两三四五六七八九十百千万]+)\s*卷(.*)$/);
+                if (mVol) return null;
+                const m1 = clean.match(/^(?:第\s*)?([0-9]+(?:\.[0-9]+)?|[零〇一二两三四五六七八九十百千万]+)\s*([话話章回集节節幕])(.*)$/);
+                if (m1) return chineseNumToArabic(m1[1]);
+                const mTotal = clean.match(/^总\s*(\d+(?:\.\d+)?)(.*)$/);
+                if (mTotal) return parseFloat(mTotal[1]);
+                const mEn = clean.match(/^(?:chapter|ep|ch)[\.\s]*(\d+(?:\.\d+)?)(.*)$/i);
+                if (mEn) return parseFloat(mEn[1]);
+                const mBare = clean.match(/^(\d{1,5}(?:\.\d+)?)(?:\s*[\.、:：\-_·\s]\s*(.*))?$/);
+                if (mBare) {
+                    const n = parseFloat(mBare[1]);
+                    if (n < 1900 || n > 2100 || clean.length <= 6) return n;
+                }
+                return null;
+            };
+
+            const compareServerItem = (newItem, prevItem) => {
+                if (!prevItem) return true;
+                if (!newItem) return false;
+                const newNum = parseOrderNum(newItem.lastReadTitle || newItem.title);
+                const prevNum = parseOrderNum(prevItem.lastReadTitle || prevItem.title);
+                if (newNum !== null && prevNum !== null && newNum !== prevNum) {
+                    return newNum > prevNum;
+                }
+                const newIdx = Number(newItem.lastReadIndex !== undefined ? newItem.lastReadIndex : -1);
+                const prevIdx = Number(prevItem.lastReadIndex !== undefined ? prevItem.lastReadIndex : -1);
+                if (newIdx >= 0 && prevIdx >= 0 && newIdx !== prevIdx) {
+                    return newIdx > prevIdx;
+                }
+                const newPage = Math.max(Number(newItem.lastReadPage || 0), Number(newItem.lastMangaImgIndex || 0));
+                const prevPage = Math.max(Number(prevItem.lastReadPage || 0), Number(prevItem.lastMangaImgIndex || 0));
+                if (newPage !== prevPage) {
+                    return newPage > prevPage;
+                }
+                const newScroll = Number(newItem.lastScrollRatio || 0);
+                const prevScroll = Number(prevItem.lastScrollRatio || 0);
+                if (Math.abs(newScroll - prevScroll) > 0.03) {
+                    return newScroll > prevScroll;
+                }
+                const newTs = Number(newItem.readTime || newItem.updatedAt || 0);
+                const prevTs = Number(prevItem.readTime || prevItem.updatedAt || 0);
+                return newTs >= prevTs;
+            };
+
+            const fetchNtfyCandidate = async (uid) => {
+                try {
+                    const r = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=all`, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    if (!r.ok) return null;
+                    const text = (await r.text()).trim();
+                    if (!text) return null;
+                    const lines = text.split('\n').filter(Boolean);
+                    for (let i = lines.length - 1; i >= 0; i--) {
+                        try {
+                            const evt = JSON.parse(lines[i]);
+                            if (!evt) continue;
+                            if (evt.message) {
+                                try {
+                                    const msgObj = JSON.parse(evt.message);
+                                    if (msgObj && (msgObj.shelf || msgObj.history || msgObj.videoHistory)) return msgObj;
+                                    if (msgObj && msgObj.payload && (msgObj.payload.shelf || msgObj.payload.history || msgObj.payload.videoHistory)) return msgObj.payload;
+                                    if (msgObj.pastesKey) {
+                                        const pr = await fetch(`https://api.pastes.dev/${msgObj.pastesKey}`, {
+                                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                                            signal: AbortSignal.timeout(4000)
+                                        });
+                                        if (pr.ok) return await pr.json();
+                                    }
+                                    if (msgObj.dpasteUrl) {
+                                        const rawUrl = msgObj.dpasteUrl.endsWith('/raw') ? msgObj.dpasteUrl : (msgObj.dpasteUrl + '/raw');
+                                        const dr = await fetch(rawUrl, {
+                                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                                            signal: AbortSignal.timeout(4000)
+                                        });
+                                        if (dr.ok) return await dr.json();
+                                    }
+                                } catch(notJsonMsg) {}
+                            }
+                            if (evt.attachment && evt.attachment.url) {
+                                const ar = await fetch(evt.attachment.url, {
+                                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                                    signal: AbortSignal.timeout(4500)
+                                });
+                                if (ar.ok) return await ar.json();
+                            }
+                        } catch (e) {}
+                    }
+                } catch (e) {}
+                return null;
+            };
+
             if (request.method === 'GET') {
                 const uid = sanitizeUid(url.searchParams.get('uid'));
                 if (!uid) {
@@ -2855,7 +2981,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     } catch (e) {}
                 }
 
-                // 3. Cloudflare Edge Cache (使用正确的 zone origin，避免 .internal 报错)
+                // 3. Cloudflare Edge Cache
                 try {
                     if (typeof caches !== 'undefined' && caches.default) {
                         const cacheReq = new Request(url.origin + '/api/sync?cache_uid=' + uid);
@@ -2866,60 +2992,8 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     }
                 } catch (e) {}
 
-                // 4. 并发拉取全球多源高可用云快照 (ntfy 实时信道 / 附件 + pastes.dev + dpaste.org)
-                const fetchNtfyCandidate = async () => {
-                    try {
-                        const r = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=all`, {
-                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                            signal: AbortSignal.timeout(5000)
-                        });
-                        if (!r.ok) return null;
-                        const text = (await r.text()).trim();
-                        if (!text) return null;
-                        const lines = text.split('\n').filter(Boolean);
-                        for (let i = lines.length - 1; i >= 0; i--) {
-                            try {
-                                const evt = JSON.parse(lines[i]);
-                                if (!evt) continue;
-                                // 检查是否有 direct payload
-                                if (evt.message) {
-                                    try {
-                                        const msgObj = JSON.parse(evt.message);
-                                        if (msgObj && (msgObj.shelf || msgObj.history || msgObj.videoHistory)) return msgObj;
-                                        if (msgObj && msgObj.payload && (msgObj.payload.shelf || msgObj.payload.history || msgObj.payload.videoHistory)) return msgObj.payload;
-                                        // 检查是否有外部存储指针
-                                        if (msgObj.pastesKey) {
-                                            const pr = await fetch(`https://api.pastes.dev/${msgObj.pastesKey}`, {
-                                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-                                                signal: AbortSignal.timeout(4000)
-                                            });
-                                            if (pr.ok) return await pr.json();
-                                        }
-                                        if (msgObj.dpasteUrl) {
-                                            const rawUrl = msgObj.dpasteUrl.endsWith('/raw') ? msgObj.dpasteUrl : (msgObj.dpasteUrl + '/raw');
-                                            const dr = await fetch(rawUrl, {
-                                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-                                                signal: AbortSignal.timeout(4000)
-                                            });
-                                            if (dr.ok) return await dr.json();
-                                        }
-                                    } catch(notJsonMsg) {}
-                                }
-                                // 检查是否有附件 url
-                                if (evt.attachment && evt.attachment.url) {
-                                    const ar = await fetch(evt.attachment.url, {
-                                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-                                        signal: AbortSignal.timeout(4500)
-                                    });
-                                    if (ar.ok) return await ar.json();
-                                }
-                            } catch (e) {}
-                        }
-                    } catch (e) {}
-                    return null;
-                };
-
-                const [ntfySnap] = await Promise.allSettled([fetchNtfyCandidate()]);
+                // 4. 并发拉取全球多源高可用云快照
+                const [ntfySnap] = await Promise.allSettled([fetchNtfyCandidate(uid)]);
                 if (ntfySnap.status === 'fulfilled' && ntfySnap.value) {
                     pushCandidate(ntfySnap.value);
                 }
@@ -2964,71 +3038,117 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     }
                     if (!prevSnapshot) {
                         try {
-                            prevSnapshot = await fetchNtfyCandidate();
+                            prevSnapshot = await fetchNtfyCandidate(uid);
                         } catch(e) {}
                     }
 
                     if (prevSnapshot && typeof prevSnapshot === 'object') {
-                        // 1. 合并小说与漫画阅读历史
+                        // 1. 合并删除标记
+                        const deletedMap = { ...(prevSnapshot.deletedMap || {}), ...(payload.deletedMap || {}) };
+                        payload.deletedMap = deletedMap;
+
+                        // 2. 合并小说与漫画阅读历史 (严格区分 tab，章节单调向前)
                         const mergedHistory = Array.isArray(payload.history) ? [...payload.history] : [];
                         const prevHist = Array.isArray(prevSnapshot.history) ? prevSnapshot.history : [];
                         prevHist.forEach(prevItem => {
                             if (!prevItem || !prevItem.book_name) return;
                             const pName = prevItem.book_name.trim();
-                            const target = mergedHistory.find(b => b.book_name && b.book_name.trim() === pName);
-                            if (!target) {
+                            const pTab = prevItem.tab || (prevItem.source === '看漫画' ? '漫画' : '小说');
+                            const delKey = 'hist:' + pTab + ':' + pName;
+                            if (deletedMap[delKey] && Number(deletedMap[delKey]) > Number(prevItem.readTime || prevItem.updatedAt || 0)) return;
+
+                            const targetIdx = mergedHistory.findIndex(b => b.book_name && b.book_name.trim() === pName && (b.tab || (b.source === '看漫画' ? '漫画' : '小说')) === pTab);
+                            if (targetIdx === -1) {
                                 mergedHistory.push(prevItem);
                             } else {
-                                const pIdx = Number(prevItem.lastReadIndex || 0);
-                                const tIdx = Number(target.lastReadIndex || 0);
-                                if (pIdx > tIdx) {
-                                    target.lastReadIndex = pIdx;
-                                    target.lastReadTitle = prevItem.lastReadTitle || target.lastReadTitle;
-                                    target.lastReadPage = prevItem.lastReadPage || 0;
-                                    target.lastScrollRatio = prevItem.lastScrollRatio || 0;
-                                }
+                                const target = mergedHistory[targetIdx];
+                                const takeTarget = compareServerItem(target, prevItem);
+                                const winner = takeTarget ? target : prevItem;
+                                const loser = takeTarget ? prevItem : target;
+                                const maxTime = Math.max(Number(target.readTime || target.updatedAt || 0), Number(prevItem.readTime || prevItem.updatedAt || 0), Date.now());
+
+                                mergedHistory[targetIdx] = {
+                                    ...loser,
+                                    ...winner,
+                                    tab: pTab,
+                                    lastReadTitle: winner.lastReadTitle || loser.lastReadTitle || '第一章',
+                                    lastReadItemId: winner.lastReadItemId || loser.lastReadItemId || '',
+                                    lastReadIndex: winner.lastReadIndex !== undefined ? winner.lastReadIndex : loser.lastReadIndex,
+                                    lastReadPage: winner.lastReadPage !== undefined ? winner.lastReadPage : loser.lastReadPage,
+                                    lastScrollTop: winner.lastScrollTop !== undefined ? winner.lastScrollTop : loser.lastScrollTop,
+                                    lastScrollRatio: winner.lastScrollRatio !== undefined ? winner.lastScrollRatio : loser.lastScrollRatio,
+                                    lastMangaImgIndex: winner.lastMangaImgIndex !== undefined ? winner.lastMangaImgIndex : loser.lastMangaImgIndex,
+                                    lastProgressLabel: winner.lastProgressLabel || loser.lastProgressLabel || '',
+                                    readTime: maxTime,
+                                    updatedAt: maxTime
+                                };
                             }
                         });
-                        payload.history = mergedHistory;
+                        payload.history = mergedHistory.sort((a, b) => (Number(b.readTime) || 0) - (Number(a.readTime) || 0)).slice(0, 80);
 
-                        // 2. 合并我的书架
+                        // 3. 合并我的书架 (严格区分 tab，章节单调向前)
                         const mergedShelf = Array.isArray(payload.shelf) ? [...payload.shelf] : [];
                         const prevShelf = Array.isArray(prevSnapshot.shelf) ? prevSnapshot.shelf : [];
                         prevShelf.forEach(prevItem => {
                             if (!prevItem || !prevItem.book_name) return;
                             const pName = prevItem.book_name.trim();
-                            const target = mergedShelf.find(b => b.book_name && b.book_name.trim() === pName);
-                            if (!target) {
+                            const pTab = prevItem.tab || (prevItem.source === '看漫画' ? '漫画' : '小说');
+                            const delKey = 'shelf:' + (pTab === '漫画' ? 'manga:' : 'novel:') + pName;
+                            if (deletedMap[delKey] && Number(deletedMap[delKey]) > Number(prevItem.updatedAt || prevItem.readTime || 0)) return;
+
+                            const targetIdx = mergedShelf.findIndex(b => b.book_name && b.book_name.trim() === pName && (b.tab || (b.source === '看漫画' ? '漫画' : '小说')) === pTab);
+                            if (targetIdx === -1) {
                                 mergedShelf.push(prevItem);
                             } else {
-                                const pIdx = Number(prevItem.lastReadIndex || 0);
-                                const tIdx = Number(target.lastReadIndex || 0);
-                                if (pIdx > tIdx) {
-                                    target.lastReadIndex = pIdx;
-                                    target.lastReadTitle = prevItem.lastReadTitle || target.lastReadTitle;
-                                    target.lastReadPage = prevItem.lastReadPage || 0;
-                                    target.lastScrollRatio = prevItem.lastScrollRatio || 0;
-                                }
+                                const target = mergedShelf[targetIdx];
+                                const takeTarget = compareServerItem(target, prevItem);
+                                const winner = takeTarget ? target : prevItem;
+                                const loser = takeTarget ? prevItem : target;
+                                const maxTime = Math.max(Number(target.updatedAt || target.readTime || 0), Number(prevItem.updatedAt || prevItem.readTime || 0), Date.now());
+
+                                mergedShelf[targetIdx] = {
+                                    ...loser,
+                                    ...winner,
+                                    tab: pTab,
+                                    lastReadTitle: winner.lastReadTitle || loser.lastReadTitle || '第一章',
+                                    lastReadItemId: winner.lastReadItemId || loser.lastReadItemId || '',
+                                    lastReadIndex: winner.lastReadIndex !== undefined ? winner.lastReadIndex : loser.lastReadIndex,
+                                    lastReadPage: winner.lastReadPage !== undefined ? winner.lastReadPage : loser.lastReadPage,
+                                    lastScrollTop: winner.lastScrollTop !== undefined ? winner.lastScrollTop : loser.lastScrollTop,
+                                    lastScrollRatio: winner.lastScrollRatio !== undefined ? winner.lastScrollRatio : loser.lastScrollRatio,
+                                    lastMangaImgIndex: winner.lastMangaImgIndex !== undefined ? winner.lastMangaImgIndex : loser.lastMangaImgIndex,
+                                    lastProgressLabel: winner.lastProgressLabel || loser.lastProgressLabel || '',
+                                    updatedAt: maxTime,
+                                    readTime: maxTime
+                                };
                             }
                         });
                         payload.shelf = mergedShelf;
 
-                        // 3. 合并影视观看记录
+                        // 4. 合并影视观看记录
                         const mergedVid = Array.isArray(payload.videoHistory) ? [...payload.videoHistory] : [];
                         const prevVid = Array.isArray(prevSnapshot.videoHistory) ? prevSnapshot.videoHistory : [];
                         prevVid.forEach(prevItem => {
                             if (!prevItem || (!prevItem.vod_id && !prevItem.vod_name)) return;
                             const key = String(prevItem.vod_id || prevItem.vod_name).trim();
+                            if (deletedMap['vid:' + key] && Number(deletedMap['vid:' + key]) > Number(prevItem.time || 0)) return;
+
                             const target = mergedVid.find(v => String(v.vod_id || v.vod_name).trim() === key);
                             if (!target) {
                                 mergedVid.push(prevItem);
                             } else {
                                 const pEp = Number(prevItem.ep_idx || 0);
                                 const tEp = Number(target.ep_idx || 0);
-                                if (pEp > tEp || (pEp === tEp && Number(prevItem.play_seconds || 0) > Number(target.play_seconds || 0))) {
-                                    target.ep_idx = pEp;
-                                    target.ep_title = prevItem.ep_title || target.ep_title;
-                                    target.play_seconds = prevItem.play_seconds || 0;
+                                const pTime = Number(prevItem.time || 0);
+                                const tTime = Number(target.time || 0);
+                                if (tTime >= pTime) {
+                                    // Target has newer time, keep target
+                                } else {
+                                    if (pEp > tEp || (pEp === tEp && Number(prevItem.play_seconds || 0) > Number(target.play_seconds || 0))) {
+                                        target.ep_idx = pEp;
+                                        target.ep_title = prevItem.ep_title || target.ep_title;
+                                        target.play_seconds = prevItem.play_seconds || 0;
+                                    }
                                 }
                             }
                         });
