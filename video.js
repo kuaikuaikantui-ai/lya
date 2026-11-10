@@ -1193,20 +1193,12 @@
                             const scoreB = getRoutePriorityScore(b.name, b.episodes[0] && b.episodes[0].url);
                             return scoreB - scoreA;
                         });
-                        const currentActiveScore = currentActiveGroup ? getRoutePriorityScore(currentActiveGroup.name, currentActiveGroup.episodes[0]?.url) : 0;
-                        const bestRouteIdx = window.selectBestVideoRoute(window.currentVideo.groups, targetEpIdx);
-                        const bestScore = getRoutePriorityScore(window.currentVideo.groups[bestRouteIdx].name, window.currentVideo.groups[bestRouteIdx].episodes[0]?.url);
-                        const isAlreadyPlaying = window.dpInstance && window.dpInstance.video && !window.dpInstance.video.paused && window.dpInstance.video.currentTime > 1;
-                        if (!isAlreadyPlaying && currentActiveScore < 120 && bestScore >= 120) {
-                            window.switchPlayGroup(bestRouteIdx, targetEpIdx);
-                            if (window.dpInstance && window.dpInstance.notice) {
-                                window.dpInstance.notice('✨ 已自动升级切换至源站点 1080P 原画顶级首选线路', 3000);
-                            }
-                        } else if (currentActiveName) {
+                        // 仅静默更新线路标签栏供用户手动点选，绝不打断当前正在加载或播放的视频
+                        if (currentActiveName) {
                             const newIdx = window.currentVideo.groups.findIndex(g => g.name === currentActiveName);
                             if (newIdx !== -1) window.currentGroupIdx = newIdx;
-                            window.renderVideoSourceTabs(window.currentVideo.groups);
                         }
+                        window.renderVideoSourceTabs(window.currentVideo.groups);
                     }
                 })
                 .catch(() => {});
@@ -1300,32 +1292,36 @@
         }
     };
 
-    // 超时或断流自动切换至下一可用线路（优先原站主源，其次备用源）
+    // 超时或断流自动切换至下一可用线路（平滑防抖，优先原站主源，其次备用源）
     window.triggerAutoSwitchRoute = function(epIdx, reason = '加载超时') {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const groups = window.currentVideo.groups;
         const totalGroups = groups.length;
         if (totalGroups <= 1) return;
 
+        // 8 秒防抖冷却，彻底消除频繁弹窗和死循环切源
+        const now = Date.now();
+        if (window._lastAutoSwitchTime && (now - window._lastAutoSwitchTime < 8000)) {
+            console.warn('[Video] 换源冷却中，跳过短时间内频繁切换');
+            return;
+        }
+        window._lastAutoSwitchTime = now;
+
         if (!window._failedRouteSet) window._failedRouteSet = new Set();
         window._failedRouteSet.add(window.currentGroupIdx);
 
-        const curGroup = groups[window.currentGroupIdx];
-        if (curGroup && curGroup.name) {
-            if (!window._sessionSlowRouteNames) window._sessionSlowRouteNames = new Set();
-            window._sessionSlowRouteNames.add(curGroup.name);
-        }
-
-        if ((window._autoSwitchCount || 0) >= totalGroups - 1) {
+        if ((window._autoSwitchCount || 0) >= totalGroups) {
+            window._autoSwitchCount = 0;
+            window._failedRouteSet.clear();
             if (window.dpInstance && window.dpInstance.notice) {
-                window.dpInstance.notice('所有线路均已尝试，请手动点击上方其他线路重试', 4000);
+                window.dpInstance.notice('网络缓冲较慢，您可点击上方线路切换或稍候播放', 4500);
             }
             return;
         }
 
         window._autoSwitchCount = (window._autoSwitchCount || 0) + 1;
 
-        // 寻找下一个未失败且有当前集数的线路（由于 groups 已按主源->备用源排序，顺序查找即可保证主源优先）
+        // 寻找下一个未失败且有当前集数的线路
         let nextGroup = -1;
         for (let i = 0; i < totalGroups; i++) {
             if (!window._failedRouteSet.has(i) && groups[i].episodes && groups[i].episodes[epIdx]) {
@@ -1335,16 +1331,17 @@
         }
         if (nextGroup === -1) {
             nextGroup = (window.currentGroupIdx + 1) % totalGroups;
+            window._failedRouteSet.clear();
         }
 
         const nextName = formatFriendlyLineName(groups[nextGroup].name, nextGroup, groups[nextGroup].episodes[0]?.url);
         const curPlayTime = (window.dpInstance && window.dpInstance.video) ? (window.dpInstance.video.currentTime || 0) : 0;
         if (window.dpInstance && window.dpInstance.notice) {
-            window.dpInstance.notice(`当前线路${reason}，已自动无缝切换至: ${nextName}`, 3500);
+            window.dpInstance.notice(`当前线路${reason}，已为您切换至: ${nextName}`, 3000);
         }
         setTimeout(function () {
             window.switchPlayGroup(nextGroup, epIdx, curPlayTime);
-        }, 200);
+        }, 500);
     };
 
     // 渲染播放线路标签 (纯透明 Liquid Glass + 智能选源按钮 + 鼠标折射光斑与透镜框随动)
@@ -1445,7 +1442,7 @@
 
         // 检查是否有该集的播放秒数用于无缝换线续播与历史记录续播
         let resumePlaySeconds = 0;
-        if (preserveTime !== null && Number(preserveTime) > 0.5) {
+        if (preserveTime !== null && Number(preserveTime) > 3) {
             resumePlaySeconds = Number(preserveTime);
         } else {
             try {
@@ -1493,7 +1490,7 @@
         const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isMobile = isIOS || /Android|Mobile|Adr|MicroMessenger|UCBrowser|Quark|baiduboxapp/i.test(ua);
 
-        // 启动首帧看门狗：防止坏死源长期挂起，放宽至 15 秒并精准检测实际缓冲与播放进度
+        // 启动首帧看门狗：防止坏死源挂起，放宽至 20 秒并精准检测实际缓冲与播放进度
         const armPlaybackWatchdog = function(videoEl) {
             if (window._playbackWatchdogTimer) clearTimeout(window._playbackWatchdogTimer);
             const clearWatchdog = function() {
@@ -1513,13 +1510,13 @@
                 }
             });
             window._playbackWatchdogTimer = setTimeout(function() {
-                // 若视频正在缓冲有效数据或已播放，绝不暴力打断
-                if (!videoEl || videoEl.readyState >= 2 || videoEl.currentTime > 0 || (videoEl.buffered && videoEl.buffered.length > 0)) {
+                // 若视频正在缓冲有效数据或已播放或用户已暂停，绝不暴力打断
+                if (!videoEl || videoEl.readyState >= 2 || videoEl.currentTime > 0 || (videoEl.buffered && videoEl.buffered.length > 0) || videoEl.paused) {
                     clearWatchdog();
                     return;
                 }
                 window.triggerAutoSwitchRoute(idx, '响应超时');
-            }, 15000);
+            }, 20000);
         };
 
         window.dpInstance = new DPlayer({
@@ -1558,27 +1555,28 @@
                             return;
                         }
 
-                        // 2. Android 与 PC 走 Hls.js 引擎 (大幅拓宽预载缓冲池 + 提前预抓取下个分片 + 开启 ABR 智能自适应)
+                        // 2. Android 与 PC 走 Hls.js 引擎 (原生精准缓冲 + 错误深度自愈 + 安全平滑切源)
                         if (window.Hls && window.Hls.isSupported()) {
                             const hls = new window.Hls({
-                                enableWorker: true,
+                                enableWorker: false, // 禁用 Web Worker 内部转码，消除跨域与 CSP 导致的崩溃
                                 lowLatencyMode: false,
                                 startLevel: -1,
+                                startPosition: resumePlaySeconds > 3 ? resumePlaySeconds : -1,
                                 capLevelToPlayerSize: isMobile,
-                                maxBufferLength: isMobile ? 60 : 120,
-                                maxMaxBufferLength: isMobile ? 180 : 300,
-                                maxBufferSize: (isMobile ? 64 : 128) * 1024 * 1024,
+                                maxBufferLength: isMobile ? 30 : 60,
+                                maxMaxBufferLength: isMobile ? 60 : 120,
+                                maxBufferSize: (isMobile ? 32 : 64) * 1024 * 1024,
                                 maxBufferHole: 0.8,
-                                backBufferLength: isMobile ? 30 : 60,
-                                startFragPrefetch: true,
-                                fragLoadingTimeOut: 20000,
-                                fragLoadingMaxRetry: 4,
+                                backBufferLength: 30,
+                                startFragPrefetch: false, // 优先集中所有带宽下载第1个分片，秒开起播
+                                fragLoadingTimeOut: 25000,
+                                fragLoadingMaxRetry: 5,
                                 fragLoadingRetryDelay: 1000,
                                 fragLoadingMaxRetryTimeout: 64000,
-                                manifestLoadingTimeOut: 12000,
-                                manifestLoadingMaxRetry: 3,
-                                levelLoadingTimeOut: 12000,
-                                levelLoadingMaxRetry: 3
+                                manifestLoadingTimeOut: 20000,
+                                manifestLoadingMaxRetry: 4,
+                                levelLoadingTimeOut: 20000,
+                                levelLoadingMaxRetry: 4
                             });
 
                             // 仅在用户手动开启 P2P 加速时挂载 WebRTC 调度引擎，默认走原生零延迟直连
@@ -1653,26 +1651,33 @@
                             hls.on(window.Hls.Events.MANIFEST_PARSED, function (event, data) {
                                 // 开启智能 ABR 码率自适应：弱网不卡顿，强网保高清
                                 hls.currentLevel = -1;
-                                if (resumePlaySeconds > 0.5) {
-                                    try { video.currentTime = resumePlaySeconds; } catch(e){}
-                                }
                                 video.play().catch(function () {});
                             });
 
-                            // 错误自愈与网络抖动恢复 / 移动端原生回退 / 自动换线容灾
+                            // 错误深度自愈与网络抖动平滑重试 (绝不轻易粗暴切源中断播放)
                             let mediaErrorRecovered = false;
                             let networkErrorRetries = 0;
                             hls.on(window.Hls.Events.ERROR, function (event, data) {
                                 if (!data || !data.fatal) return;
-                                if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR && !mediaErrorRecovered) {
-                                    mediaErrorRecovered = true;
-                                    hls.recoverMediaError();
-                                    return;
+                                if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
+                                    if (!mediaErrorRecovered) {
+                                        mediaErrorRecovered = true;
+                                        console.warn('[Video] 尝试恢复媒体管线错误...');
+                                        hls.recoverMediaError();
+                                        return;
+                                    } else {
+                                        mediaErrorRecovered = false;
+                                        hls.swapAudioCodec();
+                                        hls.recoverMediaError();
+                                        return;
+                                    }
                                 }
-                                if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR && networkErrorRetries < 2) {
+                                if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR && networkErrorRetries < 4) {
                                     networkErrorRetries++;
-                                    console.warn('[Video] 网络瞬时抖动，尝试重新加载分片:', networkErrorRetries);
-                                    hls.startLoad();
+                                    console.warn('[Video] 网络抖动，尝试重新加载 (第' + networkErrorRetries + '次):', data.details);
+                                    setTimeout(() => {
+                                        if (window.currentHlsInstance === hls) hls.startLoad();
+                                    }, 1000);
                                     return;
                                 }
                                 // 如果移动端原生支持 m3u8，立即回退至手机浏览器原生解码
@@ -1683,7 +1688,7 @@
                                     video.play().catch(function () {});
                                     return;
                                 }
-                                // 若当前线路节点多次失败，调用智能容灾切源
+                                // 仅在多次重试均彻底失败后，才平滑自动容灾切源
                                 window.triggerAutoSwitchRoute(idx, '节点繁忙');
                             });
 
@@ -1798,7 +1803,7 @@
                     const cur = window.dpInstance.video.currentTime || 0;
                     const dur = window.dpInstance.video.duration || 0;
 
-                    if (!hasResumedTime && resumePlaySeconds > 0.5 && cur > 0.1) {
+                    if (!hasResumedTime && resumePlaySeconds > 3 && cur > 0.3) {
                         hasResumedTime = true;
                         hasSkippedIntro = true;
                         if (!dur || resumePlaySeconds < dur - 5) {
@@ -1806,7 +1811,7 @@
                             const mm = String(Math.floor(resumePlaySeconds / 60)).padStart(2, '0');
                             const ss = String(Math.floor(resumePlaySeconds % 60)).padStart(2, '0');
                             if (window.dpInstance.notice) {
-                                window.dpInstance.notice(`⚡ 已无缝换线续播至 ${mm}:${ss}`, 2500);
+                                window.dpInstance.notice(`⚡ 已为您无缝续播至 ${mm}:${ss}`, 2500);
                             }
                             return;
                         }
