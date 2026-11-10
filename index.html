@@ -2272,7 +2272,56 @@
             box-shadow: none !important;
             animation: none !important;
         }
-        /* 右侧一体化高级设置面板 */
+                /* 📱 iOS PWA 移动端 90° 旋转全屏巨幕模式 (专为 iOS 添加到主屏幕及锁屏状态打造) */
+        #dplayerContainer.dp-force-landscape {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vh !important;
+            height: 100vw !important;
+            max-width: none !important;
+            max-height: none !important;
+            transform: rotate(90deg) !important;
+            transform-origin: top left !important;
+            margin-left: 100vw !important;
+            z-index: 2147483647 !important;
+            background: #000 !important;
+            border-radius: 0 !important;
+        }
+        #dplayerContainer.dp-force-landscape .dplayer-video-wrap {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        #dplayerContainer.dp-force-landscape video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+        }
+        .dp-exit-landscape-btn {
+            display: none;
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 2147483647;
+            background: rgba(15, 23, 42, 0.78);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+        }
+        #dplayerContainer.dp-force-landscape .dp-exit-landscape-btn {
+            display: inline-flex !important;
+        }
+
+/* 右侧一体化高级设置面板 */
         #dplayerContainer .dplayer-setting-box {
             background: rgba(12, 16, 26, 0.92) !important;
             backdrop-filter: blur(28px) saturate(210%) !important;

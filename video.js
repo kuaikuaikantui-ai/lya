@@ -1871,7 +1871,37 @@
     };
 
     // 将独立弹幕开关、快捷控制与原先左上角的全套高级设置完整集成进播放器右下角控制栏与右侧设置弹窗
-    window.injectBottomRightPlayerControls = function(dpContainer) {
+        // iOS PWA / 移动端 90度强制横屏全屏控制器 (解决 iOS WebClip 添加到主屏幕无法横屏与锁屏问题)
+    window.toggleForceLandscape = function() {
+        const container = document.getElementById('dplayerContainer');
+        if (!container) return;
+        const isForced = container.classList.toggle('dp-force-landscape');
+        if (isForced) {
+            document.body.style.overflow = 'hidden';
+            if (window.dpInstance && window.dpInstance.notice) {
+                window.dpInstance.notice('⚡ 已开启旋转横屏巨幕，iOS锁死竖屏亦可超宽全屏观影', 2500);
+            }
+        } else {
+            document.body.style.overflow = '';
+        }
+    };
+
+    // 监听设备物理旋转事件：当用户未开启竖屏锁定时，物理横屏自动对齐
+    if (typeof window !== 'undefined') {
+        const syncDeviceOrientation = function() {
+            const container = document.getElementById('dplayerContainer');
+            if (!container || !window.dpInstance) return;
+            const isLandscape = window.innerWidth > window.innerHeight;
+            if (isLandscape && container.classList.contains('dp-force-landscape')) {
+                container.classList.remove('dp-force-landscape');
+                document.body.style.overflow = '';
+            }
+        };
+        window.addEventListener('orientationchange', syncDeviceOrientation);
+        window.addEventListener('resize', syncDeviceOrientation);
+    }
+
+window.injectBottomRightPlayerControls = function(dpContainer) {
         if (!dpContainer) return;
 
         // 1. 在底部右侧控制栏 (.dplayer-icons-right) 注入：独立弹幕开关胶囊、跳片头、P2P状态、下一集、画中画
@@ -1950,9 +1980,57 @@
                 window.togglePip();
             };
             pipBtn.innerHTML = '<span class="dplayer-icon-content"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z"/></svg></span>';
+            
             frag.appendChild(pipBtn);
 
+            // (F) 旋转横屏 / 强制横屏按钮 (专为 iOS PWA / 移动端锁竖屏量身打造)
+            const rotateBtn = document.createElement('button');
+            rotateBtn.type = 'button';
+            rotateBtn.className = 'dplayer-icon dp-custom-icon-btn dp-rotate-screen-btn';
+            rotateBtn.title = '旋转横屏 / 强制横屏 (iOS PWA专用)';
+            rotateBtn.setAttribute('aria-label', '旋转横屏');
+            rotateBtn.onclick = function(e) {
+                e.stopPropagation();
+                window.toggleForceLandscape();
+            };
+            rotateBtn.innerHTML = '<span class="dplayer-icon-content" style="display:flex;align-items:center;justify-content:center;"><i class="fas fa-rotate" style="font-size:14px;color:#38bdf8;"></i></span>';
+            frag.appendChild(rotateBtn);
+
+            // (G) iOS 专属系统原生播放器全屏按钮 (直接调用苹果系统级 AVPlayer，自带系统原生横屏与画中画)
+            const ua = navigator.userAgent || '';
+            const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            if (isIOS) {
+                const nativeIosBtn = document.createElement('button');
+                nativeIosBtn.type = 'button';
+                nativeIosBtn.className = 'dplayer-icon dp-custom-icon-btn dp-ios-native-btn';
+                nativeIosBtn.title = '调用苹果系统原生播放器 (支持原生横屏与系统控制)';
+                nativeIosBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    const video = window.dpInstance ? window.dpInstance.video : null;
+                    if (video && typeof video.webkitEnterFullscreen === 'function') {
+                        video.webkitEnterFullscreen();
+                    } else {
+                        window.toggleForceLandscape();
+                    }
+                };
+                nativeIosBtn.innerHTML = '<span class="dplayer-icon-content" style="font-size:11px;font-weight:700;color:var(--accent);">iOS</span>';
+                frag.appendChild(nativeIosBtn);
+            }
+
             rightIcons.insertBefore(frag, settingWrap);
+
+            let exitBtn = dpContainer.querySelector('.dp-exit-landscape-btn');
+            if (!exitBtn) {
+                exitBtn = document.createElement('button');
+                exitBtn.type = 'button';
+                exitBtn.className = 'dp-exit-landscape-btn';
+                exitBtn.innerHTML = '<i class="fas fa-compress"></i> 退出横屏';
+                exitBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    window.toggleForceLandscape();
+                };
+                dpContainer.appendChild(exitBtn);
+            }
         }
 
         // 2. 在右下角设置面板 (.dplayer-setting-origin-panel) 完整集成原先左上角的 5 大高级卡片设置 + 倍速/循环/弹幕透明度

@@ -1058,6 +1058,8 @@ async function searchOriginKanju(keyword, originId = '') {
     }
 }
 
+const KANJU_HOSTS = ['https://kanju.ai', 'https://kanju3.com'];
+
 async function fetchKanjuSigned(pathname, search = '') {
     const timestamp = String(Date.now());
     const nonceArr = new Uint8Array(16);
@@ -1076,19 +1078,24 @@ async function fetchKanjuSigned(pathname, search = '') {
     const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
     const signature = Array.from(new Uint8Array(sig), b => b.toString(16).padStart(2, '0')).join('');
 
-    const res = await fetch('https://kanju3.com' + pathname + search, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-            'Accept': 'application/json',
-            'Referer': 'https://kanju3.com/',
-            'x-ai-movie-timestamp': timestamp,
-            'x-ai-movie-nonce': nonce,
-            'x-ai-movie-signature': signature
-        },
-        signal: AbortSignal.timeout(3500)
+    // 双通道并发赛跑：kanju.ai (最新官方源) 与 kanju3.com 实时容灾切源
+    const fetchPromises = KANJU_HOSTS.map(async host => {
+        const res = await fetch(host + pathname + search, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                'Accept': 'application/json',
+                'Referer': host + '/',
+                'x-ai-movie-timestamp': timestamp,
+                'x-ai-movie-nonce': nonce,
+                'x-ai-movie-signature': signature
+            },
+            signal: AbortSignal.timeout(4500)
+        });
+        if (!res.ok) throw new Error(`${host} HTTP ${res.status}`);
+        return await res.json();
     });
-    if (!res.ok) throw new Error('Kanju HTTP ' + res.status);
-    return await res.json();
+
+    return await Promise.any(fetchPromises);
 }
 
 // 智能精准匹配对应书籍，严禁胡乱替换成其他不相干作品
