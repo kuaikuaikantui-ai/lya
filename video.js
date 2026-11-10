@@ -472,9 +472,8 @@
             return;
         }
 
-        // 挂载到播放列表最前列并立即起播对应集数
-        window.currentVideoList = [videoItem, ...(window.KANJU_HOT_LIST || [])];
-        window.openVideoDetail(0, targetEp);
+        // 直接播放续播目标视频，绝不篡改破坏主页全量片单推荐流 window.currentVideoList
+        window.openVideoDetail(videoItem, targetEp);
     };
 
     // kanju3 热门快搜标签点击
@@ -515,6 +514,7 @@
             if (h.vod_sub) hotMap.set(h.vod_sub, h);
         });
 
+        window._videoRegistry = window._videoRegistry || new Map();
         const flatList = [];
         let html = '';
 
@@ -531,6 +531,10 @@
                     item = { ...matchedHot, ...item, vod_play_from: matchedHot.vod_play_from, vod_play_url: matchedHot.vod_play_url };
                 }
                 const globalIdx = flatList.length;
+                const regKey = 'sec_' + sIdx + '_' + globalIdx;
+                window._videoRegistry.set(regKey, item);
+                if (item.vod_id) window._videoRegistry.set(String(item.vod_id), item);
+                if (item.vod_name) window._videoRegistry.set(String(item.vod_name), item);
                 flatList.push(item);
 
                 const rawPic = item.vod_pic || 'https://api.iconify.design/lucide:film.svg?color=%23555';
@@ -541,7 +545,7 @@
                 const loadingAttr = globalIdx < 16 ? 'eager' : 'lazy';
 
                 return `
-                    <div class="kanju-poster-card" onclick="window.openVideoDetail(${globalIdx})">
+                    <div class="kanju-poster-card" onclick="window.openVideoDetail('${regKey}', 0)">
                         <div class="kanju-poster-wrap">
                             <img src="${pic}" alt="${item.vod_name}" loading="${loadingAttr}" referrerpolicy="no-referrer" onerror="window.retryBaiduImg ? window.retryBaiduImg(this) : (this.src='https://api.iconify.design/lucide:film.svg?color=%23888')" />
                             <span class="kanju-score-badge">★ ${score}</span>
@@ -686,7 +690,8 @@
             const it = list[i];
             if (it && it.vod_name && it.vod_pic_slide && !usedNames.has(it.vod_name)) {
                 usedNames.add(it.vod_name);
-                picked.push({ item: it, globalIdx: i });
+                const regKey = String(it.vod_id || it.id || ('hero_' + i));
+                picked.push({ item: it, globalIdx: i, regKey: regKey });
             }
         }
 
@@ -695,7 +700,8 @@
             const it = list[i];
             if (it && it.vod_name && (it.vod_pic_slide || it.vod_pic) && !usedNames.has(it.vod_name)) {
                 usedNames.add(it.vod_name);
-                picked.push({ item: it, globalIdx: i });
+                const regKey = String(it.vod_id || it.id || ('hero_' + i));
+                picked.push({ item: it, globalIdx: i, regKey: regKey });
             }
         }
 
@@ -836,7 +842,7 @@
         if (!txHeroSlides || txHeroSlides.length === 0) return;
         const entry = txHeroSlides[txHeroActiveIdx] || txHeroSlides[0];
         if (!entry) return;
-        window.openVideoDetail(entry.globalIdx, 0);
+        window.openVideoDetail(entry.regKey || entry.item || entry.globalIdx, 0);
     };
 
     window.pauseTxHeroCarousel = function() {
@@ -1008,13 +1014,16 @@
             return;
         }
 
+        window._videoRegistry = window._videoRegistry || new Map();
         grid.innerHTML = list.map((item, idx) => {
+            const regKey = String(item.vod_id || item.id || ('search_' + idx));
+            window._videoRegistry.set(regKey, item);
             const pic = item.vod_pic || 'https://api.iconify.design/lucide:film.svg?color=%23555';
             const remark = item.vod_remarks || (item.vod_year ? item.vod_year + '年' : '高清正片');
             const type = item.type_name || '影视';
             const score = item.vod_score && item.vod_score !== '0.0' ? item.vod_score : '9.0';
             return `
-                <div class="kanju-poster-card" onclick="window.openVideoDetail(${idx})">
+                <div class="kanju-poster-card" onclick="window.openVideoDetail('${regKey}', 0)">
                     <div class="kanju-poster-wrap">
                         <img src="${pic}" alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='https://api.iconify.design/lucide:film.svg?color=%23888'" />
                         <span class="kanju-score-badge">★ ${score}</span>
@@ -1033,86 +1042,167 @@
         }).join('');
     };
 
-    // 打开视频详情与播放器 (兼具即时秒播与动态实时解析)
-    // 打开视频详情与播放器 (兼具即时秒播与精准全网多线路智能聚合)
-    window.openVideoDetail = async function(index, targetEpIdx = 0) {
-        let item = window.currentVideoList[index];
-        if (!item) return;
+    window._openVideoSessionId = 0;
 
-        // 如果卡片尚未挂载播放源 (属于动态推荐流在线卡片)，立刻发起秒级全网精准聚合检索
+    // 打开视频详情与播放器 (兼具即时秒播与精准全网多线路智能聚合)
+    window.openVideoDetail = async function(target, targetEpIdx = 0) {
+        const mySessionId = ++window._openVideoSessionId;
+
+        // 1. 智能寻址解析视频对象 (优先注册表与直接对象，兜底索引与全量列表)
+        let item = null;
+        if (target && typeof target === "object") {
+            item = target;
+        } else if (typeof target === "string") {
+            if (window._videoRegistry && window._videoRegistry.has(target)) {
+                item = window._videoRegistry.get(target);
+            } else {
+                item = (window.currentVideoList || []).find(v => String(v.vod_id) === target || v.vod_name === target) ||
+                       (window.videoSearchResults || []).find(v => String(v.vod_id) === target || v.vod_name === target);
+            }
+        } else if (typeof target === "number") {
+            item = (window.currentVideoList && window.currentVideoList[target]) ||
+                   (window.videoSearchResults && window.videoSearchResults[target]);
+        }
+
+        if (!item || !item.vod_name) {
+            console.warn("[OpenHappy Video] 未找到对应影片记录:", target);
+            return;
+        }
+
+        // 深拷贝单体对象，杜绝跨卡片状态污染
+        try {
+            item = JSON.parse(JSON.stringify(item));
+        } catch(e) {
+            item = { ...item };
+        }
+
+        // 2. 彻底销毁上一部影片的一切旧实例与定时器，清空播放容器与选集DOM
+        if (window._playbackWatchdogTimer) {
+            clearTimeout(window._playbackWatchdogTimer);
+            window._playbackWatchdogTimer = null;
+        }
+        if (window._routeSwitchTimer) {
+            clearTimeout(window._routeSwitchTimer);
+            window._routeSwitchTimer = null;
+        }
+        if (window.currentP2pEngine) {
+            try { window.currentP2pEngine.destroy(); } catch(e){}
+            window.currentP2pEngine = null;
+        }
+        if (window.currentHlsInstance) {
+            try { window.currentHlsInstance.destroy(); } catch(e){}
+            window.currentHlsInstance = null;
+        }
+        if (window.dpInstance) {
+            try { window.dpInstance.pause(); window.dpInstance.destroy(); } catch(e){}
+            window.dpInstance = null;
+        }
+
+        const dpBox = document.getElementById("dplayerContainer");
+        if (dpBox) dpBox.innerHTML = "";
+        const epBox = document.getElementById("videoEpisodesList");
+        if (epBox) epBox.innerHTML = "";
+        const tabsBox = document.getElementById("videoPlaySourceTabs");
+        if (tabsBox) tabsBox.innerHTML = "";
+
+        window.currentVideo = item;
+        window.currentGroupIdx = 0;
+        window.currentEpisodeIdx = targetEpIdx || 0;
+        window._failedRouteSet = new Set();
+        window._sessionSlowRouteNames = new Set();
+        window._autoSwitchCount = 0;
+
+        // 3. 立即切至播放视图并更新标题
+        const vSection = document.getElementById("videoSection");
+        if (vSection) vSection.style.display = "none";
+        const vPlayerView = document.getElementById("videoPlayerView");
+        if (vPlayerView) vPlayerView.style.display = "block";
+
+        const vPlayerTitle = document.getElementById("videoPlayerTitle");
+        if (vPlayerTitle) vPlayerTitle.innerText = item.vod_name;
+        const vDetailName = document.getElementById("videoDetailName");
+        if (vDetailName) vDetailName.innerText = item.vod_name + (item.vod_year ? " (" + item.vod_year + ")" : "");
+        const vSourceTag = document.getElementById("videoSourceTag");
+        if (vSourceTag) vSourceTag.innerText = item.type_name || "全网超清";
+        const vDetailMeta = document.getElementById("videoDetailMeta");
+        if (vDetailMeta) vDetailMeta.innerText = (item.vod_area || "") + " · " + (item.type_name || "") + " · 演员: " + (item.vod_actor ? item.vod_actor.slice(0, 36) + "..." : "暂无");
+        const vDetailDesc = document.getElementById("videoDetailDesc");
+        if (vDetailDesc) vDetailDesc.innerText = item.vod_content ? item.vod_content.replace(/<[^>]+>/g, "").slice(0, 140) + "..." : (item.vod_remarks || "暂无详细简介");
+
+        // 4. 如果卡片尚未挂载播放源 (属于动态推荐流在线卡片)，立刻发起秒级全网精准聚合检索
         if (!item.vod_play_url) {
-            const vSection = document.getElementById('videoSection');
-            if (vSection) vSection.style.display = 'none';
-            const vPlayerView = document.getElementById('videoPlayerView');
-            if (vPlayerView) vPlayerView.style.display = 'block';
-            const vPlayerTitle = document.getElementById('videoPlayerTitle');
-            if (vPlayerTitle) vPlayerTitle.innerText = '正在载入: ' + item.vod_name;
-            const vDetailName = document.getElementById('videoDetailName');
-            if (vDetailName) vDetailName.innerText = item.vod_name;
-            const vEpList = document.getElementById('videoEpisodesList');
-            if (vEpList) vEpList.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;"><i class="fas fa-spinner fa-spin"></i> 正在全网秒级调取超清播放线路...</div>';
+            if (vPlayerTitle) vPlayerTitle.innerText = "正在载入: " + item.vod_name;
+            if (epBox) epBox.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;"><i class="fas fa-spinner fa-spin"></i> 正在全网秒级调取超清播放线路...</div>';
 
             try {
-                // 构造多级精准搜索关键词：清洗零宽字符、完整标题、去除季数副标题、冒号/空格切分主剧名
-                const rawName = (item.vod_name || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
-                const cleanName1 = rawName.replace(/\s+第.*季/g, '').replace(/第.*季/g, '').replace(/[0-9]+$/g, '').trim();
+                const rawName = (item.vod_name || "").replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, "").trim();
+                const cleanName1 = rawName.replace(/\s+第.*季/g, "").replace(/第.*季/g, "").replace(/[0-9]+$/g, "").trim();
                 const cleanName2 = cleanName1.split(/[\s:：·~～\-]/)[0].trim();
                 const candidateQueries = [...new Set([rawName, cleanName1, cleanName2])].filter(q => q && q.length >= 1);
 
                 let matched = null;
                 for (const q of candidateQueries) {
-                    const origKanjuId = item.kanju_id || (String(item.vod_id || '').startsWith('av_') ? item.vod_id : '');
-                    let searchApiUrl = '/api/video/search?wd=' + encodeURIComponent(q);
-                    if (origKanjuId) searchApiUrl += '&id=' + encodeURIComponent(origKanjuId);
+                    if (mySessionId !== window._openVideoSessionId) return;
+                    const origKanjuId = item.kanju_id || (String(item.vod_id || "").startsWith("av_") ? item.vod_id : "");
+                    let searchApiUrl = "/api/video/search?wd=" + encodeURIComponent(q);
+                    if (origKanjuId) searchApiUrl += "&id=" + encodeURIComponent(origKanjuId);
                     const res = await fetch(searchApiUrl);
+                    if (mySessionId !== window._openVideoSessionId) return;
+
                     if (res.ok) {
                         const searchData = await res.json();
                         if (searchData.list && searchData.list.length > 0) {
-                            // 精确度过滤：优先匹配包含标题名称的项
-                            matched = searchData.list.find(it => 
-                                it.vod_name === rawName || 
-                                it.vod_name === cleanName1 || 
-                                it.vod_name.startsWith(cleanName1) || 
-                                it.vod_name.includes(cleanName1) ||
-                                (cleanName2.length >= 2 && it.vod_name.includes(cleanName2))
-                            ) || searchData.list[0];
+                            matched = searchData.list.find(it => {
+                                if (!it || !it.vod_name || !it.vod_play_url) return false;
+                                return it.vod_name === rawName || 
+                                       it.vod_name === cleanName1 || 
+                                       it.vod_name.startsWith(cleanName1) || 
+                                       it.vod_name.includes(cleanName1) ||
+                                       (cleanName2.length >= 2 && it.vod_name.includes(cleanName2));
+                            });
                             if (matched && matched.vod_play_url) break;
                         }
                     }
                 }
 
+                if (mySessionId !== window._openVideoSessionId) return;
+
                 if (matched && matched.vod_play_url) {
-                    const origKanjuId = item.kanju_id || (String(item.vod_id || '').startsWith('av_') ? item.vod_id : '');
+                    const origKanjuId = item.kanju_id || (String(item.vod_id || "").startsWith("av_") ? item.vod_id : "");
                     const origKanjuTitle = item.kanju_title || item.vod_name;
-                    item = { ...item, ...matched, kanju_id: origKanjuId || matched.kanju_id || '', kanju_title: origKanjuTitle };
-                    window.currentVideoList[index] = item;
+                    item = { ...item, ...matched, kanju_id: origKanjuId || matched.kanju_id || "", kanju_title: origKanjuTitle };
+                    if (typeof target === "string" && window._videoRegistry) {
+                        window._videoRegistry.set(target, item);
+                    }
                 } else {
-                    document.getElementById('videoEpisodesList').innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;">全网暂未聚合到该推荐片的免VIP源，请尝试其他大片。</div>';
+                    if (epBox) epBox.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:15px;">全网暂未聚合到该推荐片的免VIP源，请尝试其他大片。</div>';
                     window.loadVideoComments(item);
                     return;
                 }
             } catch(e) {
-                document.getElementById('videoEpisodesList').innerHTML = '<div style="color:red; font-size:12px; padding:15px;">调取片源失败: ' + e.message + '</div>';
+                if (mySessionId !== window._openVideoSessionId) return;
+                if (epBox) epBox.innerHTML = '<div style="color:red; font-size:12px; padding:15px;">调取片源失败: ' + e.message + '</div>';
                 window.loadVideoComments(item);
                 return;
             }
         }
 
+        if (mySessionId !== window._openVideoSessionId) return;
         window.currentVideo = item;
         window._failedRouteSet = new Set();
         window._sessionSlowRouteNames = new Set();
         window._autoSwitchCount = 0;
 
-        const playFroms = (item.vod_play_from || '默认线路').split('$$$');
-        const playGroups = (item.vod_play_url || '').split('$$$');
+        const playFroms = (item.vod_play_from || "默认线路").split("$$$");
+        const playGroups = (item.vod_play_url || "").split("$$$");
 
         let parsedGroups = [];
         playGroups.forEach((groupStr, gIdx) => {
-            const fromName = playFroms[gIdx] || ('线路' + (gIdx + 1));
-            const episodes = groupStr.split('#').filter(Boolean).map(e => {
-                const pair = e.split('$');
+            const fromName = playFroms[gIdx] || ("线路" + (gIdx + 1));
+            const episodes = groupStr.split("#").filter(Boolean).map(e => {
+                const pair = e.split("$");
                 return {
-                    title: pair[0] || '正片',
+                    title: pair[0] || "正片",
                     url: pair[1] || pair[0]
                 };
             });
@@ -1124,13 +1214,11 @@
             }
         });
 
-        // 过滤掉非直链的网页分享组，仅保留可直接播放的 .m3u8 / .mp4 视频流线路
-        const streamGroups = parsedGroups.filter(g => g.episodes.some(e => e.url.includes('.m3u8') || e.url.includes('.mp4')));
+        const streamGroups = parsedGroups.filter(g => g.episodes.some(e => e.url.includes(".m3u8") || e.url.includes(".mp4")));
         if (streamGroups.length > 0) {
             parsedGroups = streamGroups;
         }
 
-        // 严格按优先级排序：原站三大弹幕主源（量子、非凡、暴风）永远排在最前，其余作为备用专线
         parsedGroups.sort((a, b) => {
             const scoreA = getRoutePriorityScore(a.name, a.episodes[0] && a.episodes[0].url);
             const scoreB = getRoutePriorityScore(b.name, b.episodes[0] && b.episodes[0].url);
@@ -1140,51 +1228,43 @@
         window.currentVideo.groups = parsedGroups;
         window.currentGroupIdx = window.selectBestVideoRoute(parsedGroups, targetEpIdx);
 
-        const vSection = document.getElementById('videoSection');
-        if (vSection) vSection.style.display = 'none';
-        const vPlayerView = document.getElementById('videoPlayerView');
-        if (vPlayerView) vPlayerView.style.display = 'block';
-
-        const vPlayerTitle = document.getElementById('videoPlayerTitle');
         if (vPlayerTitle) vPlayerTitle.innerText = item.vod_name;
-        const vSourceTag = document.getElementById('videoSourceTag');
-        if (vSourceTag) vSourceTag.innerText = item.type_name || '全网超清';
-        const vDetailName = document.getElementById('videoDetailName');
-        if (vDetailName) vDetailName.innerText = item.vod_name + ' (' + (item.vod_year || '热播') + ')';
-        const vDetailMeta = document.getElementById('videoDetailMeta');
-        if (vDetailMeta) vDetailMeta.innerText = (item.vod_area || '') + ' · ' + (item.type_name || '') + ' · 演员: ' + (item.vod_actor ? item.vod_actor.slice(0, 36) + '...' : '暂无');
-        const vDetailDesc = document.getElementById('videoDetailDesc');
-        if (vDetailDesc) vDetailDesc.innerText = item.vod_content ? item.vod_content.replace(/<[^>]+>/g, '').slice(0, 140) + '...' : (item.vod_remarks || '暂无详细简介');
+        if (vSourceTag) vSourceTag.innerText = item.type_name || "全网超清";
+        if (vDetailName) vDetailName.innerText = item.vod_name + " (" + (item.vod_year || "热播") + ")";
+        if (vDetailMeta) vDetailMeta.innerText = (item.vod_area || "") + " · " + (item.type_name || "") + " · 演员: " + (item.vod_actor ? item.vod_actor.slice(0, 36) + "..." : "暂无");
+        if (vDetailDesc) vDetailDesc.innerText = item.vod_content ? item.vod_content.replace(/<[^>]+>/g, "").slice(0, 140) + "..." : (item.vod_remarks || "暂无详细简介");
 
         window.loadVideoComments(item);
         window.renderVideoSourceTabs(parsedGroups);
         window.renderVideoEpisodes(window.currentGroupIdx);
         window.playVideoEpisode(targetEpIdx);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: "smooth" });
 
         // 若是内置热播底包卡片（初始线路较少），后台静默并发检索全网13大源并动态追加备用线路
         if (!item._enriched && parsedGroups.length <= 3 && item.vod_name) {
             item._enriched = true;
-            const cleanQ = item.vod_name.replace(/\s+第.*季/g, '').replace(/第.*季/g, '').trim();
-            fetch('/api/video/search?wd=' + encodeURIComponent(cleanQ))
+            const enrichSessionId = mySessionId;
+            const cleanQ = item.vod_name.replace(/\s+第.*季/g, "").replace(/第.*季/g, "").trim();
+            fetch("/api/video/search?wd=" + encodeURIComponent(cleanQ))
                 .then(r => r.ok ? r.json() : null)
                 .then(sData => {
+                    if (enrichSessionId !== window._openVideoSessionId) return;
                     if (!sData || !Array.isArray(sData.list) || !window.currentVideo || window.currentVideo.vod_name !== item.vod_name) return;
-                    const match = sData.list.find(it => it.vod_name === item.vod_name || it.vod_name.includes(cleanQ)) || sData.list[0];
+                    const match = sData.list.find(it => it.vod_name === item.vod_name || it.vod_name.includes(cleanQ));
                     if (!match || !match.vod_play_url) return;
-                    const extraFroms = (match.vod_play_from || '').split('$$$').filter(Boolean);
-                    const extraUrls = (match.vod_play_url || '').split('$$$').filter(Boolean);
+                    const extraFroms = (match.vod_play_from || "").split("$$$").filter(Boolean);
+                    const extraUrls = (match.vod_play_url || "").split("$$$").filter(Boolean);
                     let added = false;
                     const currentActiveGroup = window.currentVideo.groups[window.currentGroupIdx];
-                    const currentActiveName = currentActiveGroup ? currentActiveGroup.name : '';
+                    const currentActiveName = currentActiveGroup ? currentActiveGroup.name : "";
                     extraUrls.forEach((gStr, gIdx) => {
-                        const fName = extraFroms[gIdx] || ('备用' + (gIdx + 1));
+                        const fName = extraFroms[gIdx] || ("备用" + (gIdx + 1));
                         if (window.currentVideo.groups.some(g => g.name === fName)) return;
-                        const eps = gStr.split('#').filter(Boolean).map(e => {
-                            const pair = e.split('$');
-                            return { title: pair[0] || '正片', url: pair[1] || pair[0] };
+                        const eps = gStr.split("#").filter(Boolean).map(e => {
+                            const pair = e.split("$");
+                            return { title: pair[0] || "正片", url: pair[1] || pair[0] };
                         });
-                        if (eps.some(e => e.url.includes('.m3u8') || e.url.includes('.mp4'))) {
+                        if (eps.some(e => e.url.includes(".m3u8") || e.url.includes(".mp4"))) {
                             window.currentVideo.groups.push({ name: fName, episodes: eps });
                             added = true;
                         }
@@ -1195,7 +1275,6 @@
                             const scoreB = getRoutePriorityScore(b.name, b.episodes[0] && b.episodes[0].url);
                             return scoreB - scoreA;
                         });
-                        // 仅静默更新线路标签栏供用户手动点选，绝不打断当前正在加载或播放的视频
                         if (currentActiveName) {
                             const newIdx = window.currentVideo.groups.findIndex(g => g.name === currentActiveName);
                             if (newIdx !== -1) window.currentGroupIdx = newIdx;
@@ -1206,7 +1285,6 @@
                 .catch(() => {});
         }
     };
-
     // 智能选源算法：优先选择高速稳定可达的蓝光/超清主力线路，若首选线路受阻自动下探
     window.selectBestVideoRoute = function(groups, targetEpIdx = 0) {
         if (!groups || groups.length === 0) return 0;
@@ -1368,7 +1446,8 @@
         if (window.dpInstance && window.dpInstance.notice) {
             window.dpInstance.notice(`⚡ 检测到当前线路${reason}，已自动无缝切换至: ${nextName}`, 3200);
         }
-        setTimeout(function () {
+        if (window._routeSwitchTimer) clearTimeout(window._routeSwitchTimer);
+        window._routeSwitchTimer = setTimeout(function () {
             window.switchPlayGroup(nextGroup, epIdx, curPlayTime);
         }, 250);
     };
@@ -1517,9 +1596,10 @@
         const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isMobile = isIOS || /Android|Mobile|Adr|MicroMessenger|UCBrowser|Quark|baiduboxapp/i.test(ua);
 
-        // 启动高灵敏度起播与卡顿看门狗：4.5秒起播超时或4秒缓冲卡顿自动无缝换线
+        // 启动高灵敏度起播与卡顿看门狗：智能感知用户播放动作，杜绝暂停时误触发换源
         let startupWatchTimer = null;
         let stallWatchTimer = null;
+        let userHasInitiatedPlay = !isMobile;
 
         const clearAllWatchdogs = function() {
             if (startupWatchTimer) { clearTimeout(startupWatchTimer); startupWatchTimer = null; }
@@ -1533,19 +1613,25 @@
         const armPlaybackWatchdog = function(videoEl) {
             clearAllWatchdogs();
 
-            // 1. 首帧快速起播看门狗：4.5 秒未出画面且未在正常播放，自动无缝切到更快的源
-            startupWatchTimer = setTimeout(function() {
-                if (!videoEl) return;
-                if (videoEl.currentTime > 0 && !videoEl.paused) {
-                    clearAllWatchdogs();
-                    return;
-                }
-                if (videoEl.paused && videoEl.currentTime > 0) return;
-                console.warn('[Video Watchdog] 起播 4.5 秒未出流，触发自动无缝换线...');
-                window.triggerAutoSwitchRoute(idx, '加载缓慢');
-            }, 4500);
+            const startWatchdog = function() {
+                clearAllWatchdogs();
+                startupWatchTimer = setTimeout(function() {
+                    if (!videoEl || videoEl.paused) return;
+                    if (videoEl.currentTime > 0) return;
+                    console.warn('[Video Watchdog] 起播超过 7 秒未出流，触发自动无缝换线...');
+                    window.triggerAutoSwitchRoute(idx, '加载缓慢');
+                }, 7000);
+                window._playbackWatchdogTimer = startupWatchTimer;
+            };
 
-            window._playbackWatchdogTimer = startupWatchTimer;
+            videoEl.addEventListener('play', function() {
+                userHasInitiatedPlay = true;
+                startWatchdog();
+            });
+
+            videoEl.addEventListener('pause', function() {
+                clearAllWatchdogs();
+            });
 
             // 首帧起播成功解除起播定时器并重置故障计数
             const onStreamPlaying = function() {
@@ -1557,16 +1643,16 @@
                 if (videoEl.currentTime > 0) onStreamPlaying();
             });
 
-            // 2. 播放中卡顿 / 缓冲停滞看门狗 (Waiting / Stalled 超过 4 秒自动无缝切源)
+            // 2. 播放中卡顿 / 缓冲停滞看门狗 (Waiting / Stalled 超过 6 秒且未暂停时切源)
             const onStalledWaiting = function() {
                 if (videoEl.paused) return;
                 if (stallWatchTimer) clearTimeout(stallWatchTimer);
                 stallWatchTimer = setTimeout(function() {
                     if (!videoEl.paused && videoEl.readyState < 3) {
-                        console.warn('[Video Watchdog] 播放卡顿超过 4 秒，自动无缝切换至极速线路...');
+                        console.warn('[Video Watchdog] 播放卡顿超过 6 秒，自动无缝切换至极速线路...');
                         window.triggerAutoSwitchRoute(idx, '缓冲卡顿');
                     }
-                }, 4000);
+                }, 6000);
             };
             videoEl.addEventListener('waiting', onStalledWaiting);
             videoEl.addEventListener('stalled', onStalledWaiting);
@@ -1576,6 +1662,10 @@
             videoEl.addEventListener('playing', function() {
                 if (stallWatchTimer) { clearTimeout(stallWatchTimer); stallWatchTimer = null; }
             });
+
+            if (userHasInitiatedPlay) {
+                startWatchdog();
+            }
         };
 
         window.dpInstance = new DPlayer({
@@ -2406,11 +2496,16 @@ window.injectBottomRightPlayerControls = function(dpContainer) {
         }
     };
 
-    // 关闭视频播放器，返回影视主视窗
+    // 关闭视频播放器，返回影视主视窗 (彻底销毁播放器与残留状态，重置当前播放视频为null)
     window.closeVideoPlayer = function() {
+        window._openVideoSessionId = (window._openVideoSessionId || 0) + 1;
         if (window._playbackWatchdogTimer) {
             clearTimeout(window._playbackWatchdogTimer);
             window._playbackWatchdogTimer = null;
+        }
+        if (window._routeSwitchTimer) {
+            clearTimeout(window._routeSwitchTimer);
+            window._routeSwitchTimer = null;
         }
         const drawer = document.getElementById('playerSettingsDrawer');
         const overlay = document.getElementById('drawerOverlay') || document.getElementById('settingsDrawerOverlay');
@@ -2433,6 +2528,22 @@ window.injectBottomRightPlayerControls = function(dpContainer) {
             } catch(e){}
             window.dpInstance = null;
         }
+
+        const dpBox = document.getElementById('dplayerContainer');
+        if (dpBox) dpBox.innerHTML = '';
+        const epBox = document.getElementById('videoEpisodesList');
+        if (epBox) epBox.innerHTML = '';
+        const tabsBox = document.getElementById('videoPlaySourceTabs');
+        if (tabsBox) tabsBox.innerHTML = '';
+        const titleBox = document.getElementById('videoPlayerTitle');
+        if (titleBox) titleBox.innerText = '';
+
+        window.currentVideo = null;
+        window.currentGroupIdx = 0;
+        window.currentEpisodeIdx = 0;
+        window._failedRouteSet = new Set();
+        window._sessionSlowRouteNames = new Set();
+
         document.getElementById('videoPlayerView').style.display = 'none';
         document.getElementById('videoSection').style.display = 'block';
         window.renderRecentWatchBar();
