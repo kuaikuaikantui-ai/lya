@@ -11516,6 +11516,10 @@ window.clearNovelSearch = function() {
         if (detailView && detailView.style.display !== 'none') {
             window.closeChiguaDetail(false);
         }
+        const videoPlayer = document.getElementById('videoPlayerView');
+        if (videoPlayer && videoPlayer.style.display !== 'none' && typeof window.closeVideoPlayer === 'function') {
+            window.closeVideoPlayer(false);
+        }
     });
 
     window.loadChiguaFeedByKeywords = async function(keywords, sectionTitle) {

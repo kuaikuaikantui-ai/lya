@@ -976,24 +976,26 @@ async function searchOriginKanju(keyword, originId = '') {
                 eps.map(ep => ep.token ? fetchKanjuSigned('/v1/playback/resolve/' + encodeURIComponent(ep.token)).catch(() => null) : null)
             );
 
-            // 并发解析首集 4K 专享 Ticket（仅保留换取到的真实有效 .m3u8 视频流）
             const ep0Resolved = resolvedList[0];
-            const fourKResolvedMap = new Map();
-            if (ep0Resolved && Array.isArray(ep0Resolved.line_options)) {
-                const fourKOptions = ep0Resolved.line_options.filter(l => 
-                    l && l.url && l.url.startsWith('resolve://') && 
-                    ((l.display_label || '').includes('4K') || (l.provider_name || '').includes('4K'))
-                );
-                await Promise.all(fourKOptions.map(async l => {
-                    try {
-                        const ticket = l.url.replace(/^resolve:\/\//, '');
-                        const r = await fetchKanjuSignedPost('/v1/playback/resolve-line?view=compact', { ticket });
-                        if (r && r.line && r.line.url && (r.line.url.includes('.m3u8') || r.line.url.includes('.mp4'))) {
-                            fourKResolvedMap.set(l.display_label || l.provider_name, r.line.url);
-                        }
-                    } catch(e) {}
-                }));
-            }
+            if (!ep0Resolved || !Array.isArray(ep0Resolved.line_options)) return [];
+
+            // 并发预解析首集所有原站官方直连票据 (4K海外、1080P官方R/Z、官方B等，自动过滤 401 VIP受限票据)
+            const ticketOptions = ep0Resolved.line_options.filter(l => l && l.url && l.url.startsWith('resolve://'));
+            const ticketResolvedMap = new Map();
+
+            await Promise.all(ticketOptions.map(async l => {
+                try {
+                    const ticket = l.url.replace(/^resolve:\/\//, '');
+                    const r = await fetchKanjuSignedPost('/v1/playback/resolve-line?view=compact', { ticket });
+                    if (r && r.line && r.line.url && (r.line.url.includes('.m3u8') || r.line.url.includes('.mp4'))) {
+                        ticketResolvedMap.set(l.display_label || l.provider_name, {
+                            url: r.line.url,
+                            weight: l.preference_weight || 990,
+                            rawLabel: l.display_label || l.provider_name
+                        });
+                    }
+                } catch(e) {}
+            }));
 
             const normalizeOriginName = (raw) => {
                 let name = String(raw || '').trim();
@@ -1001,7 +1003,7 @@ async function searchOriginKanju(keyword, originId = '') {
                     const sub = name.replace(/^(原站|源站)[·・\s\-_]*/g, '').replace(/^4K[·・\s\-_]*/g, '').trim();
                     return '原站4K超清·' + (sub || '专享4K');
                 }
-                if (name.includes('豆瓣') || name.includes('暴风') || name.includes('茅台')) {
+                if (name.includes('1080P') || name.includes('1080') || name.includes('官方')) {
                     const sub = name.replace(/^(原站|源站)[·・\s\-_]*/g, '').replace(/^1080P[·・\s\-_]*/g, '').trim();
                     return '原站1080P·' + (sub || '官方超清');
                 }
@@ -1012,78 +1014,76 @@ async function searchOriginKanju(keyword, originId = '') {
             };
 
             const providerMap = new Map();
-            const priorityKeys = ['豆瓣', '暴风', '茅台', '4K'];
             const ep0Title = cat.episodes[0].title || (eps.length === 1 ? '正片' : '第1集');
 
-            // 1. 挂载已证实有效的 4K 真实流
-            for (const [label, streamUrl] of fourKResolvedMap.entries()) {
-                if (streamUrl && streamUrl.startsWith('http') && (streamUrl.includes('.m3u8') || streamUrl.includes('.mp4'))) {
-                    const pName = normalizeOriginName(label);
-                    if (!providerMap.has(pName)) providerMap.set(pName, []);
-                    providerMap.get(pName).push(ep0Title + '$' + streamUrl);
+            // 1. 挂载已证实 100% 真实有效的源站官方直连流 (首集已换成真实m3u8，后续集数挂载对应票据由前端动态换流)
+            for (const [label, data] of ticketResolvedMap.entries()) {
+                const pName = normalizeOriginName(label);
+                if (!providerMap.has(pName)) {
+                    providerMap.set(pName, { weight: data.weight || 990, episodes: [] });
+                }
+                providerMap.get(pName).episodes.push(ep0Title + '$' + data.url);
+
+                // 尝试为后续集数寻找同名官方线路
+                for (let epIdx = 1; epIdx < eps.length; epIdx++) {
+                    const epRes = resolvedList[epIdx];
+                    if (!epRes || !Array.isArray(epRes.line_options)) continue;
+                    const thisTitle = cat.episodes[epIdx].title || ('第' + (epIdx + 1) + '集');
+                    const matchLine = epRes.line_options.find(l => (l.display_label || l.provider_name) === data.rawLabel);
+                    if (matchLine && matchLine.url) {
+                        providerMap.get(pName).episodes.push(thisTitle + '$' + matchLine.url);
+                    }
                 }
             }
 
-            // 2. 挂载源站原生 100% 直连可用 .m3u8 流（豆瓣/暴风/茅台/量子/极速/非凡等，严禁注入 resolve:// 票据）
+            // 2. 挂载源站原生免解析直连可用 .m3u8 线路 (豆瓣/暴风/茅台/红牛/极速/量子/非凡等)
             resolvedList.forEach((res, epIdx) => {
                 if (!res || !Array.isArray(res.line_options)) return;
                 const epTitle = cat.episodes[epIdx].title || (eps.length === 1 ? '正片' : ('第' + (epIdx + 1) + '集'));
 
-                const sortedOptions = [...res.line_options].sort((a, b) => {
-                    const nameA = a.display_label || a.provider_name || '';
-                    const nameB = b.display_label || b.provider_name || '';
-                    const prioA = priorityKeys.some(k => nameA.includes(k)) ? 1 : 0;
-                    const prioB = priorityKeys.some(k => nameB.includes(k)) ? 1 : 0;
-                    return prioB - prioA;
-                });
-
-                sortedOptions.forEach(line => {
+                res.line_options.forEach(line => {
                     if (!line || !line.url) return;
-                    // 核心保障：必须是真正的 http 视频直连流，过滤掉 resolve:// 动态加密票据与非视频内容
                     if (line.url.startsWith('http') && (line.url.includes('.m3u8') || line.url.includes('.mp4'))) {
                         const pName = normalizeOriginName(line.display_label || line.provider_name || '原站直连');
-                        if (!providerMap.has(pName)) providerMap.set(pName, []);
+                        if (!providerMap.has(pName)) {
+                            providerMap.set(pName, { weight: line.preference_weight || 700, episodes: [] });
+                        }
                         const epEntry = epTitle + '$' + line.url;
-                        if (!providerMap.get(pName).some(e => e.split('$')[0] === epTitle)) {
-                            providerMap.get(pName).push(epEntry);
+                        if (!providerMap.get(pName).episodes.some(e => e.split('$')[0] === epTitle)) {
+                            providerMap.get(pName).episodes.push(epEntry);
                         }
                     }
                 });
             });
 
-            const originRank = (name) => {
-                if (name.includes('豆瓣')) return 200;
-                if (name.includes('暴风') && (name.includes('1080') || name.includes('原站'))) return 195;
-                if (name.includes('茅台')) return 190;
-                if (name.includes('4K')) return 185;
-                if (name.includes('量子')) return 175;
-                if (name.includes('非凡')) return 170;
-                if (name.includes('极速')) return 165;
-                if (name.includes('西瓜')) return 160;
-                if (name.includes('无水印')) return 155;
-                if (name.includes('1080P') || name.includes('原画') || name.includes('蓝光') || name.includes('超清')) return 150;
-                if (name.includes('红牛')) return 140;
-                return 100;
-            };
+            // 按真实权重与品质排序（4K与官方1080P顶级置顶，主力CDN随其后）
+            const sortedEntries = Array.from(providerMap.entries()).sort((a, b) => {
+                const isA4K = a[0].includes('4K') ? 2000 : 0;
+                const isB4K = b[0].includes('4K') ? 2000 : 0;
+                const isA1080 = (a[0].includes('1080P') || a[0].includes('官方')) ? 1000 : 0;
+                const isB1080 = (b[0].includes('1080P') || b[0].includes('官方')) ? 1000 : 0;
+                const weightA = (a[1].weight || 0) + isA4K + isA1080;
+                const weightB = (b[1].weight || 0) + isB4K + isB1080;
+                return weightB - weightA;
+            });
 
-            const sortedEntries = Array.from(providerMap.entries()).sort((a, b) => originRank(b[0]) - originRank(a[0]));
             const playFroms = [];
             const playUrls = [];
-            for (const [pName, epList] of sortedEntries) {
-                if (epList.length > 0) {
+            for (const [pName, data] of sortedEntries) {
+                if (data.episodes && data.episodes.length > 0) {
                     playFroms.push(pName);
-                    playUrls.push(epList.join('#'));
+                    playUrls.push(data.episodes.join('#'));
                 }
             }
 
             if (playFroms.length > 0) {
                 const has4K = playFroms.some(f => f.includes('4K'));
-                const has1080 = playFroms.some(f => f.includes('1080P') || f.includes('豆瓣') || f.includes('暴风') || f.includes('茅台'));
+                const has1080 = playFroms.some(f => f.includes('1080P') || f.includes('官方'));
                 results.push({
                     vod_id: cat.id || target.id,
                     vod_name: cat.title || target.title,
                     vod_pic: cat.poster_url || cat.backdrop_url || '',
-                    vod_remarks: has4K ? '源站4K顶级超清' : (has1080 ? '源站1080P顶级原画' : (cat.remarks || '原站高清')),
+                    vod_remarks: has4K ? '源站4K顶级超清' : (has1080 ? '源站1080P官方超清' : (cat.remarks || '原站高清')),
                     vod_year: String(cat.year || ''),
                     vod_actor: (cat.actors || []).slice(0, 4).join(', '),
                     vod_director: (cat.directors || []).slice(0, 2).join(', '),
