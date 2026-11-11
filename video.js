@@ -1705,9 +1705,9 @@
                 startupWatchTimer = setTimeout(function() {
                     if (!videoEl || videoEl.paused) return;
                     if (videoEl.currentTime > 0) return;
-                    console.warn('[Video Watchdog] 起播超过 7 秒未出流，触发自动无缝换线...');
+                    console.warn('[Video Watchdog] 起播超过 10 秒未出流，触发自动无缝换线...');
                     window.triggerAutoSwitchRoute(idx, '加载缓慢');
-                }, 7000);
+                }, 10000);
                 window._playbackWatchdogTimer = startupWatchTimer;
             };
 
@@ -1728,18 +1728,33 @@
             videoEl.addEventListener('playing', onStreamPlaying);
             videoEl.addEventListener('timeupdate', function onTime() {
                 if (videoEl.currentTime > 0) onStreamPlaying();
+
+                // 核心防护：智能探测 HEVC (H.265) 硬件解码不支持导致的【黑屏有声有进度】现象
+                // 若视频已播放超 2.5 秒但画面宽度始终为 0 或画面解码帧数为 0，说明当前设备不支持该 4K 的 H.265 硬解
+                if (videoEl.currentTime > 2.5 && !videoEl.paused && !videoEl._hevcChecked) {
+                    videoEl._hevcChecked = true;
+                    const quality = typeof videoEl.getVideoPlaybackQuality === 'function' ? videoEl.getVideoPlaybackQuality() : null;
+                    const isBlackScreen = (videoEl.videoWidth === 0 || (quality && quality.totalVideoFrames === 0));
+                    if (isBlackScreen) {
+                        console.warn('[Video Watchdog] 检测到当前设备硬解不支持该4K HEVC/H.265(黑屏有声)，自动无缝降级切换至 1080P 官方超清...');
+                        if (window.dpInstance && window.dpInstance.notice) {
+                            window.dpInstance.notice('⚠️ 当前设备环境不支持此4K HEVC硬解，正在自动无缝切换至 1080P 超清...', 3500);
+                        }
+                        window.triggerAutoSwitchRoute(idx, '设备不支持该4K编码');
+                    }
+                }
             });
 
-            // 2. 播放中卡顿 / 缓冲停滞看门狗 (Waiting / Stalled 超过 6 秒且未暂停时切源)
+            // 2. 播放中卡顿 / 缓冲停滞看门狗 (Waiting / Stalled 超过 8.5 秒且未暂停时切源)
             const onStalledWaiting = function() {
                 if (videoEl.paused) return;
                 if (stallWatchTimer) clearTimeout(stallWatchTimer);
                 stallWatchTimer = setTimeout(function() {
                     if (!videoEl.paused && videoEl.readyState < 3) {
-                        console.warn('[Video Watchdog] 播放卡顿超过 6 秒，自动无缝切换至极速线路...');
+                        console.warn('[Video Watchdog] 播放卡顿超过 8.5 秒，自动无缝切换至极速线路...');
                         window.triggerAutoSwitchRoute(idx, '缓冲卡顿');
                     }
-                }, 6000);
+                }, 8500);
             };
             videoEl.addEventListener('waiting', onStalledWaiting);
             videoEl.addEventListener('stalled', onStalledWaiting);
