@@ -4796,10 +4796,10 @@
                 <div id="chiguaCustomSourceBox" style="display:none; margin-bottom:14px; padding:12px; border-radius:14px; background:rgba(15,23,42,0.5); border:1px solid rgba(244,63,94,0.28);">
                     <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                         <span><i class="fas fa-satellite-dish" style="color:#fb7185;"></i> 绑定吃瓜站点或导航页地址（支持自动解析多条线路与随机切线）：</span>
-                        <span id="chiguaSourceStatus" style="color:#fb7185; font-weight:600;">当前：https://active.ymmqlqkl.cc</span>
+                        <span id="chiguaSourceStatus" style="color:#fb7185; font-weight:600;">当前：https://active.nlvsriid.cc</span>
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <input type="text" id="chiguaOriginInput" class="search-input" style="flex:1; min-width:220px; padding:8px 12px; font-size:13px;" value="https://active.ymmqlqkl.cc" placeholder="输入吃瓜站点或导航页地址..." />
+                        <input type="text" id="chiguaOriginInput" class="search-input" style="flex:1; min-width:220px; padding:8px 12px; font-size:13px;" value="https://active.nlvsriid.cc" placeholder="输入吃瓜站点或导航页地址..." />
                         <button class="btn primary" style="padding:8px 16px; font-size:12px;" onclick="saveChiguaCustomOrigin()"><i class="fas fa-bolt"></i> 解析并加载</button>
                         <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="pickRandomChiguaLine()"><i class="fas fa-shuffle"></i> 随机换线</button>
                         <button class="btn" style="padding:8px 14px; font-size:12px;" onclick="clearChiguaCustomOrigin()"><i class="fas fa-rotate-left"></i> 恢复默认源</button>
@@ -8867,20 +8867,20 @@ window.clearNovelSearch = function() {
         showView('detail');
 
         try {
-            // 云端通行证预检并发进行（0毫秒额外耗时，确保从任何入口打开都自动对齐最新跨端进度）
+            // 云端通行证预检异步平滑执行（0毫秒阻塞，秒开目录并在拉取到最新远端进度时自动对齐）
             const cloudUser = getCloudUser();
-            const cloudFetchPromise = (cloudUser && cloudUser.uid) ? fetchCloudSnapshot(cloudUser.uid).catch(() => null) : Promise.resolve(null);
-
-            const [res, cloudPayload] = await Promise.all([
-                fetch(`/api/catalog?book_id=${encodeURIComponent(book.book_id)}&source=${encodeURIComponent(book.source)}&tab=${encodeURIComponent(activeTab)}&title=${encodeURIComponent(book.book_name || '')}`),
-                cloudFetchPromise
-            ]);
-
-            if (cloudPayload) {
-                const localPayload = buildLocalSyncPayload();
-                const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
-                applyMergedPayloadToLocal(merged);
+            if (cloudUser && cloudUser.uid) {
+                fetchCloudSnapshot(cloudUser.uid).then(cloudPayload => {
+                    if (cloudPayload) {
+                        const localPayload = buildLocalSyncPayload();
+                        const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
+                        applyMergedPayloadToLocal(merged);
+                        if (typeof updateDetailHeroReadBtn === 'function') updateDetailHeroReadBtn();
+                    }
+                }).catch(() => null);
             }
+
+            const res = await fetch(`/api/catalog?book_id=${encodeURIComponent(book.book_id)}&source=${encodeURIComponent(book.source)}&tab=${encodeURIComponent(activeTab)}&title=${encodeURIComponent(book.book_name || '')}`);
 
             let data = null;
             try {
@@ -10937,7 +10937,7 @@ window.clearNovelSearch = function() {
         }
         if (loadMoreBtn) loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
 
-        const customOrigin = (localStorage.getItem('openhappy_chigua_origin') || 'https://active.ymmqlqkl.cc').trim().replace(/\/+$/, '');
+        const customOrigin = (localStorage.getItem('openhappy_chigua_origin') || 'https://active.nlvsriid.cc').trim().replace(/\/+$/, '');
         let pageUrl;
         if (!slug) {
             pageUrl = page > 1 ? `${customOrigin}/page/${page}/` : `${customOrigin}/`;
@@ -11016,21 +11016,33 @@ window.clearNovelSearch = function() {
         if (!targetUrl || isInvalidChiguaUrl(targetUrl)) return '';
         const freshTimestamp = Date.now();
         const tryEdgeProxy = async () => {
-            const r = await fetch('/api/proxy?url=' + encodeURIComponent(targetUrl) + '&_t=' + freshTimestamp, { signal: AbortSignal.timeout(6000) });
+            const r = await fetch('/api/proxy?url=' + encodeURIComponent(targetUrl) + '&_t=' + freshTimestamp, { signal: AbortSignal.timeout(12000) });
             if (!r.ok) throw new Error('edge proxy ' + r.status);
+
+            // 自动侦测原站重定向与最新生效域名，无缝更新本地存储
+            const finalOrigin = r.headers.get('x-final-origin');
+            if (finalOrigin && !isInvalidChiguaUrl(finalOrigin)) {
+                const cur = (localStorage.getItem('openhappy_chigua_origin') || '').trim().replace(/\/+$/, '');
+                if (cur !== finalOrigin.replace(/\/+$/, '')) {
+                    localStorage.setItem('openhappy_chigua_origin', finalOrigin);
+                    const st = document.getElementById('chiguaSourceStatus');
+                    if (st) st.innerText = '当前：' + finalOrigin;
+                }
+            }
+
             const txt = await r.text();
             if (!txt || txt.length < 120 || txt.includes('"code":-1')) throw new Error('empty');
             return txt;
         };
         const tryAllOriginsJson = async () => {
-            const r = await window.__rawFetch('https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl) + '&disableCache=true&_ts=' + freshTimestamp, { signal: AbortSignal.timeout(7000) });
+            const r = await window.__rawFetch('https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl) + '&disableCache=true&_ts=' + freshTimestamp, { signal: AbortSignal.timeout(8000) });
             if (!r.ok) throw new Error('allorigins ' + r.status);
             const d = await r.json();
             if (!d || !d.contents || d.contents.length < 120) throw new Error('empty');
             return d.contents;
         };
         const tryCodetabs = async () => {
-            const r = await window.__rawFetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl) + '&_t=' + freshTimestamp, { signal: AbortSignal.timeout(7000) });
+            const r = await window.__rawFetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl) + '&_t=' + freshTimestamp, { signal: AbortSignal.timeout(8000) });
             if (!r.ok) throw new Error('codetabs ' + r.status);
             const txt = await r.text();
             if (!txt || txt.length < 120) throw new Error('empty');
@@ -11040,6 +11052,20 @@ window.clearNovelSearch = function() {
         try {
             return await Promise.any([tryEdgeProxy(), tryAllOriginsJson(), tryCodetabs()]);
         } catch (e) {
+            // 备用镜像主动接力：若原链接包含已失效旧域名，自动转换至当前活跃镜像站点重试一次
+            if (targetUrl.includes('ymmqlqkl.cc')) {
+                try {
+                    const fallbackUrl = targetUrl.replace('ymmqlqkl.cc', 'nlvsriid.cc');
+                    const r = await fetch('/api/proxy?url=' + encodeURIComponent(fallbackUrl) + '&_t=' + freshTimestamp, { signal: AbortSignal.timeout(10000) });
+                    if (r.ok) {
+                        const txt = await r.text();
+                        if (txt && txt.length >= 120 && !txt.includes('"code":-1')) {
+                            localStorage.setItem('openhappy_chigua_origin', 'https://active.nlvsriid.cc');
+                            return txt;
+                        }
+                    }
+                } catch(err2) {}
+            }
             return '';
         }
     }
@@ -11085,6 +11111,14 @@ window.clearNovelSearch = function() {
     }
 
     function parseGenericHtmlArticles(html, baseOrigin) {
+        let effectiveOrigin = baseOrigin;
+        try {
+            const mCanon = html.match(/<link[^>]+rel=["']canonical["'][^>]*href=["']([^"']+)["']/i) || html.match(/<meta[^>]+property=["']og:url["'][^>]*content=["']([^"']+)["']/i);
+            if (mCanon && mCanon[1] && /^https?:\/\//i.test(mCanon[1])) {
+                effectiveOrigin = new URL(mCanon[1]).origin;
+            }
+        } catch(e) {}
+
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const items = [];
         const seen = new Set();
@@ -11100,7 +11134,7 @@ window.clearNovelSearch = function() {
             let href = (linkEl.getAttribute('href') || '').trim();
             if (!href || href === '#' || href.startsWith('javascript:') || href.includes('#comments')) return;
             try {
-                href = new URL(href, baseOrigin).href;
+                href = new URL(href, effectiveOrigin).href;
             } catch (e) { return; }
             if (seen.has(href)) return;
 
@@ -11121,9 +11155,20 @@ window.clearNovelSearch = function() {
 
             // 若提取出的标题是 "热搜 HOT" 或徽章文字，继续从正文描述与标题属性深度挖掘
             if (!title || /^(?:热搜\s*HOT|HOT|热搜|置顶|推荐)$/i.test(title)) {
-                const subNode = scopeEl.querySelector('.post-card-bottom-text, [itemprop="headline"]');
-                if (subNode) {
-                    title = (subNode.textContent || '').replace(/\s+/g, ' ').trim();
+                const altNodes = [
+                    scopeEl.querySelector('.post-card-bottom-text'),
+                    scopeEl.querySelector('.post-card-bottom-title'),
+                    scopeEl.querySelector('.post-title'),
+                    linkEl.querySelector('.post-card-bottom-text'),
+                    linkEl.querySelector('.post-card-bottom-title'),
+                    linkEl.querySelector('[itemprop="headline"]')
+                ].filter(Boolean);
+                for (const node of altNodes) {
+                    const t = (node.textContent || '').replace(/热搜\s*HOT|HOT/gi, '').replace(/\s+/g, ' ').trim();
+                    if (t && t.length >= 4) {
+                        title = t;
+                        break;
+                    }
                 }
             }
 
@@ -11541,7 +11586,7 @@ window.clearNovelSearch = function() {
         const merged = [];
         const seenIds = new Set();
 
-        const customOrigin = (localStorage.getItem('openhappy_chigua_origin') || 'https://active.ymmqlqkl.cc').trim().replace(/\/+$/, '');
+        const customOrigin = (localStorage.getItem('openhappy_chigua_origin') || 'https://active.nlvsriid.cc').trim().replace(/\/+$/, '');
         if (customOrigin && !isInvalidChiguaUrl(customOrigin)) {
             const kw = keywords[0] || '';
             try {

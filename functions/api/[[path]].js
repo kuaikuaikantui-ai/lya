@@ -2220,91 +2220,171 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             }
 
             try {
-                const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
-                const data = await fetchUpstreamWithFailover(apiPath, false);
+                // 📚 小说目录高可用极速并发调度引擎：
+                // 第三方上游接口经常限流或报 illegal base64，若是小说且有书名，实行 1.5s 极速竞速 + 自研海量库（爱下电子书+搬山人）并发抢答
+                if (tab === '小说' && title) {
+                    const upstreamTask = (async () => {
+                        const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
+                        const d = await fetchUpstreamWithFailover(apiPath, false);
+                        if (d && Array.isArray(d.data) && d.data.length > 0) return d;
+                        throw new Error('Upstream novel catalog empty');
+                    })();
 
-                // 小说目录灾备救援（优先匹配【爱下电子书】海量库与【搬山人】优质源）
-                if (tab === '小说' && (!data || !data.data || data.data.length === 0) && title) {
-                    try {
+                    const ixTask = (async () => {
                         const ixList = await searchIxdzs(title);
                         const matchBook = findStrictBookMatch(ixList, title);
                         if (matchBook) {
                             const ixCat = await catalogIxdzs(matchBook.book_id);
                             if (ixCat && ixCat.length > 0) {
-                                return new Response(JSON.stringify({
+                                return {
                                     code: 0,
                                     msg: '已自动为您无缝接力至【爱下电子书】海量源目录',
                                     data: ixCat,
                                     autoSwitched: true,
                                     newSource: '爱下电子书',
                                     newBookId: matchBook.book_id
-                                }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
+                                };
                             }
                         }
-                    } catch(rescueErr) {}
-                    try {
+                        throw new Error('Ixdzs empty');
+                    })();
+
+                    const bsTask = (async () => {
                         const bList = await searchBanshanren(title);
                         const matchBook = findStrictBookMatch(bList, title);
                         if (matchBook) {
                             const bCat = await catalogBanshanren(matchBook.book_id);
                             if (bCat && bCat.length > 0) {
-                                return new Response(JSON.stringify({
+                                return {
                                     code: 0,
                                     msg: '已自动为您无缝接力至【搬山人】优质源目录',
                                     data: bCat,
                                     autoSwitched: true,
                                     newSource: '搬山人',
                                     newBookId: matchBook.book_id
-                                }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
+                                };
                             }
                         }
-                    } catch(rescueErr) {}
+                        throw new Error('Banshanren empty');
+                    })();
+
+                    const rescuePromise = Promise.any([ixTask, bsTask]);
+
+                    let finalRes = null;
+                    try {
+                        // 1.5 秒内上游快速出结果则用上游；超时或报错则直接采用并发跑赢的自研库结果，彻底告别十几秒傻等
+                        finalRes = await Promise.race([
+                            upstreamTask,
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+                        ]);
+                    } catch (e) {
+                        try {
+                            finalRes = await rescuePromise;
+                        } catch (rErr) {
+                            try { finalRes = await upstreamTask; } catch(uErr) {}
+                        }
+                    }
+
+                    if (finalRes && finalRes.data && finalRes.data.length > 0) {
+                        return new Response(JSON.stringify(finalRes), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                        });
+                    }
                 }
 
-                // 漫画目录灾备救援（优先匹配【极速韩漫】原画库与【看漫画】超清库）
-                if (tab === '漫画' && (!data || !data.data || data.data.length === 0) && title) {
+                const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
+                const data = await fetchUpstreamWithFailover(apiPath, false);
+
+                // 小说目录容灾兜底（爱下电子书 & 搬山人并发竞速）
+                if (tab === '小说' && (!data || !data.data || data.data.length === 0) && title) {
+                    const ixTask = (async () => {
+                        const ixList = await searchIxdzs(title);
+                        const matchBook = findStrictBookMatch(ixList, title);
+                        if (matchBook) {
+                            const ixCat = await catalogIxdzs(matchBook.book_id);
+                            if (ixCat && ixCat.length > 0) {
+                                return {
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【爱下电子书】海量源目录',
+                                    data: ixCat,
+                                    autoSwitched: true,
+                                    newSource: '爱下电子书',
+                                    newBookId: matchBook.book_id
+                                };
+                            }
+                        }
+                        throw new Error('Ixdzs empty');
+                    })();
+                    const bsTask = (async () => {
+                        const bList = await searchBanshanren(title);
+                        const matchBook = findStrictBookMatch(bList, title);
+                        if (matchBook) {
+                            const bCat = await catalogBanshanren(matchBook.book_id);
+                            if (bCat && bCat.length > 0) {
+                                return {
+                                    code: 0,
+                                    msg: '已自动为您无缝接力至【搬山人】优质源目录',
+                                    data: bCat,
+                                    autoSwitched: true,
+                                    newSource: '搬山人',
+                                    newBookId: matchBook.book_id
+                                };
+                            }
+                        }
+                        throw new Error('Banshanren empty');
+                    })();
                     try {
+                        const r = await Promise.any([ixTask, bsTask]);
+                        return new Response(JSON.stringify(r), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                        });
+                    } catch(e) {}
+                }
+
+                // 漫画目录灾备救援（优先匹配【极速韩漫】原画库与【看漫画】超清库并发竞速）
+                if (tab === '漫画' && (!data || !data.data || data.data.length === 0) && title) {
+                    const vTask = (async () => {
                         const vList = await searchVeryim(title);
                         const match = findStrictBookMatch(vList, title);
                         if (match) {
                             const vCat = await catalogVeryim(match.book_id);
                             if (vCat && vCat.length > 0) {
-                                return new Response(JSON.stringify({
+                                return {
                                     code: 0,
                                     msg: '已自动为您无缝接力至【极速韩漫】超清目录',
                                     data: vCat,
                                     autoSwitched: true,
                                     newSource: '极速韩漫',
                                     newBookId: match.book_id
-                                }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
+                                };
                             }
                         }
-                    } catch(rescueErr) {}
-                    try {
+                        throw new Error('Veryim empty');
+                    })();
+                    const kmTask = (async () => {
                         const kmList = await searchKanman(title);
                         const match = findStrictBookMatch(kmList, title);
                         if (match) {
                             const kmCat = await catalogKanman(match.book_id);
                             if (kmCat && kmCat.length > 0) {
-                                return new Response(JSON.stringify({
+                                return {
                                     code: 0,
                                     msg: '已自动为您无缝接力至【看漫画】超清源目录',
                                     data: kmCat,
                                     autoSwitched: true,
                                     newSource: '看漫画',
                                     newBookId: match.book_id
-                                }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
+                                };
                             }
                         }
-                    } catch(rescueErr) {}
+                        throw new Error('Kanman empty');
+                    })();
+                    try {
+                        const mRes = await Promise.any([vTask, kmTask]);
+                        return new Response(JSON.stringify(mRes), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                        });
+                    } catch(e) {}
                 }
 
                 return new Response(JSON.stringify(data), {
@@ -2312,83 +2392,91 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 });
             } catch(e) {
                 if (tab === '漫画' && title) {
-                    try {
+                    const vTask = (async () => {
                         const vList = await searchVeryim(title);
                         const match = findStrictBookMatch(vList, title);
                         if (match) {
                             const vCat = await catalogVeryim(match.book_id);
                             if (vCat && vCat.length > 0) {
-                                return new Response(JSON.stringify({
+                                return {
                                     code: 0,
                                     msg: '已自动为您无缝接力至【极速韩漫】超清目录',
                                     data: vCat,
                                     autoSwitched: true,
                                     newSource: '极速韩漫',
                                     newBookId: match.book_id
-                                }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
+                                };
                             }
                         }
-                    } catch(rescueErr) {}
-                    try {
+                        throw new Error('Veryim empty');
+                    })();
+                    const kmTask = (async () => {
                         const kmList = await searchKanman(title);
                         const match = findStrictBookMatch(kmList, title);
                         if (match) {
                             const kmCat = await catalogKanman(match.book_id);
                             if (kmCat && kmCat.length > 0) {
-                                return new Response(JSON.stringify({
+                                return {
                                     code: 0,
                                     msg: '已自动为您无缝接力至【看漫画】超清源目录',
                                     data: kmCat,
                                     autoSwitched: true,
                                     newSource: '看漫画',
                                     newBookId: match.book_id
-                                }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
+                                };
                             }
                         }
+                        throw new Error('Kanman empty');
+                    })();
+                    try {
+                        const mRes = await Promise.any([vTask, kmTask]);
+                        return new Response(JSON.stringify(mRes), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                        });
                     } catch(rescueErr) {}
                 }
                 if (tab === '小说' && title) {
-                    try {
+                    const ixTask = (async () => {
                         const ixList = await searchIxdzs(title);
                         const matchBook = findStrictBookMatch(ixList, title);
                         if (matchBook) {
                             const ixCat = await catalogIxdzs(matchBook.book_id);
                             if (ixCat && ixCat.length > 0) {
-                                return new Response(JSON.stringify({
+                                return {
                                     code: 0,
                                     msg: '已自动为您无缝接力至【爱下电子书】海量源目录',
                                     data: ixCat,
                                     autoSwitched: true,
                                     newSource: '爱下电子书',
                                     newBookId: matchBook.book_id
-                                }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
+                                };
                             }
                         }
-                    } catch(rescueErr) {}
-                    try {
+                        throw new Error('Ixdzs empty');
+                    })();
+                    const bsTask = (async () => {
                         const bList = await searchBanshanren(title);
                         const matchBook = findStrictBookMatch(bList, title);
                         if (matchBook) {
                             const bCat = await catalogBanshanren(matchBook.book_id);
                             if (bCat && bCat.length > 0) {
-                                return new Response(JSON.stringify({
+                                return {
                                     code: 0,
                                     msg: '已自动为您无缝接力至【搬山人】优质源目录',
                                     data: bCat,
                                     autoSwitched: true,
                                     newSource: '搬山人',
                                     newBookId: matchBook.book_id
-                                }), {
-                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                });
+                                };
                             }
                         }
+                        throw new Error('Banshanren empty');
+                    })();
+                    try {
+                        const r = await Promise.any([ixTask, bsTask]);
+                        return new Response(JSON.stringify(r), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                        });
                     } catch(rescueErr) {}
                 }
                 return new Response(JSON.stringify({ code: -1, msg: e.message, data: [] }), {
@@ -3292,37 +3380,75 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
             }
-            try {
-                const targetOrigin = new URL(targetUrl).origin;
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8500);
-                const r = await fetch(targetUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,application/json,image/*,*/*;q=0.8',
-                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                        'Referer': targetOrigin + '/'
-                    },
-                    redirect: 'follow',
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-                const contentType = r.headers.get('content-type') || 'text/html; charset=utf-8';
-                const body = await r.arrayBuffer();
-                return new Response(body, {
-                    status: r.status,
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': contentType,
-                        'Cache-Control': 'public, max-age=300'
+
+            // 智能容灾候选池：如果 targetUrl 属于吃瓜网轮换域名，备选当前最新活跃镜像站点，防止旧域名失效或重定向超时
+            const candidateUrls = [targetUrl];
+            if (targetUrl.includes('ymmqlqkl.cc')) {
+                candidateUrls.push(targetUrl.replace('ymmqlqkl.cc', 'nlvsriid.cc'));
+            } else if (targetUrl.includes('active.') && !targetUrl.includes('nlvsriid.cc')) {
+                try {
+                    const u = new URL(targetUrl);
+                    candidateUrls.push('https://active.nlvsriid.cc' + u.pathname + u.search);
+                } catch(e) {}
+            }
+
+            let lastErr = null;
+            let lastResp = null;
+
+            for (const cUrl of candidateUrls) {
+                try {
+                    const targetOrigin = new URL(cUrl).origin;
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 11000);
+                    const r = await fetch(cUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,application/json,image/*,*/*;q=0.8',
+                            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                            'Referer': targetOrigin + '/'
+                        },
+                        redirect: 'follow',
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (r.ok || (r.status >= 200 && r.status < 400)) {
+                        const contentType = r.headers.get('content-type') || 'text/html; charset=utf-8';
+                        const body = await r.arrayBuffer();
+                        const finalUrl = r.url || cUrl;
+                        let finalOrigin = targetOrigin;
+                        try { finalOrigin = new URL(finalUrl).origin; } catch(e){}
+
+                        return new Response(body, {
+                            status: r.status,
+                            headers: {
+                                ...corsHeaders,
+                                'Content-Type': contentType,
+                                'Cache-Control': 'public, max-age=180',
+                                'X-Final-Url': finalUrl,
+                                'X-Final-Origin': finalOrigin,
+                                'Access-Control-Expose-Headers': 'Content-Type, X-Final-Url, X-Final-Origin'
+                            }
+                        });
                     }
-                });
-            } catch (e) {
-                return new Response(JSON.stringify({ code: -1, msg: e.message }), {
-                    status: 502,
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                    lastResp = r;
+                } catch (e) {
+                    lastErr = e;
+                }
+            }
+
+            if (lastResp) {
+                const body = await lastResp.arrayBuffer();
+                return new Response(body, {
+                    status: lastResp.status,
+                    headers: { ...corsHeaders, 'Content-Type': lastResp.headers.get('content-type') || 'text/html; charset=utf-8' }
                 });
             }
+
+            return new Response(JSON.stringify({ code: -1, msg: lastErr ? lastErr.message : '代理请求失败' }), {
+                status: 502,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+            });
         }
 
         // 🚀 全球边缘画卷流式加速与极速边缘缓存网关 (支持 HTTP/2 分块多路复用与 30 天持久缓存)
