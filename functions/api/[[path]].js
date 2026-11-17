@@ -2945,16 +2945,31 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
             const parseOrderNum = (title) => {
                 const s = String(title || '').trim();
                 if (!s) return null;
-                const clean = s.replace(/^[^第\d]{1,25}[：:·\-\s]+(?=第|\d)/, '').replace(/^[\s\.:：\-_·]+/, '');
+                let clean = s.replace(/^[^第\d]{1,25}[：:·\-\s]+(?=第|\d)/, '').replace(/^[\s\.:：\-_·]+/, '');
                 if (/^(序[章言曲幕]?|楔子|引子|前言|预告|导读|Prologue)(\s|$|[：:·\-])/i.test(clean)) return 0;
+
+                // 优先从分卷中提取出章节编号 (例如 "第十二卷 第一百二十章" -> 120)
                 const mVol = clean.match(/^第\s*([0-9]+|[零〇一二两三四五六七八九十百千万]+)\s*卷(.*)$/);
-                if (mVol) return null;
+                if (mVol) {
+                    const rest = (mVol[2] || '').trim();
+                    if (rest) {
+                        const sub = parseOrderNum(rest);
+                        if (sub !== null) return sub;
+                    }
+                    return null;
+                }
+
                 const m1 = clean.match(/^(?:第\s*)?([0-9]+(?:\.[0-9]+)?|[零〇一二两三四五六七八九十百千万]+)\s*([话話章回集节節幕])(.*)$/);
                 if (m1) return chineseNumToArabic(m1[1]);
                 const mTotal = clean.match(/^总\s*(\d+(?:\.\d+)?)(.*)$/);
                 if (mTotal) return parseFloat(mTotal[1]);
                 const mEn = clean.match(/^(?:chapter|ep|ch)[\.\s]*(\d+(?:\.\d+)?)(.*)$/i);
                 if (mEn) return parseFloat(mEn[1]);
+                const mExtra = clean.match(/^(?:番外|特别篇|外传)[\s:：·\-_]*([0-9]+|[零〇一二两三四五六七八九十百千万]+)?/i);
+                if (mExtra) {
+                    const n = mExtra[1] ? chineseNumToArabic(mExtra[1]) : 1;
+                    return 10000 + (n || 1);
+                }
                 const mBare = clean.match(/^(\d{1,5}(?:\.\d+)?)(?:\s*[\.、:：\-_·\s]\s*(.*))?$/);
                 if (mBare) {
                     const n = parseFloat(mBare[1]);
@@ -2966,6 +2981,16 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
             const compareServerItem = (newItem, prevItem) => {
                 if (!prevItem) return true;
                 if (!newItem) return false;
+
+                const newTs = Number(newItem.readTime || newItem.updatedAt || 0);
+                const prevTs = Number(prevItem.readTime || prevItem.updatedAt || 0);
+
+                // 1. 如果两端阅读时间差异超过 5 分钟，说明用户在另一端明确进行了主动阅读操作，以较新时间戳优先 (支持回看重读与全书目同步)
+                if (newTs > 0 && prevTs > 0 && Math.abs(newTs - prevTs) > 300000) {
+                    return newTs > prevTs;
+                }
+
+                // 2. 时间戳接近或并发多端同步时，以章节较大者优先（防止毫秒级时钟偏差导致章节倒退）
                 const newNum = parseOrderNum(newItem.lastReadTitle || newItem.title);
                 const prevNum = parseOrderNum(prevItem.lastReadTitle || prevItem.title);
                 if (newNum !== null && prevNum !== null && newNum !== prevNum) {
@@ -2986,8 +3011,6 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 if (Math.abs(newScroll - prevScroll) > 0.03) {
                     return newScroll > prevScroll;
                 }
-                const newTs = Number(newItem.readTime || newItem.updatedAt || 0);
-                const prevTs = Number(prevItem.readTime || prevItem.updatedAt || 0);
                 return newTs >= prevTs;
             };
 
@@ -2995,7 +3018,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 try {
                     const r = await fetch(`https://ntfy.sh/oh_sync_${uid}/json?poll=1&since=all`, {
                         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                        signal: AbortSignal.timeout(5000)
+                        signal: AbortSignal.timeout(2500)
                     });
                     if (!r.ok) return null;
                     const text = (await r.text()).trim();
@@ -3080,10 +3103,12 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     }
                 } catch (e) {}
 
-                // 4. 并发拉取全球多源高可用云快照
-                const [ntfySnap] = await Promise.allSettled([fetchNtfyCandidate(uid)]);
-                if (ntfySnap.status === 'fulfilled' && ntfySnap.value) {
-                    pushCandidate(ntfySnap.value);
+                // 4. 若前序内存或 KV 缓存未命中，才通过网络拉取全球多源云快照 (限时2.5s极速兜底)
+                if (candidates.length === 0) {
+                    const [ntfySnap] = await Promise.allSettled([fetchNtfyCandidate(uid)]);
+                    if (ntfySnap.status === 'fulfilled' && ntfySnap.value) {
+                        pushCandidate(ntfySnap.value);
+                    }
                 }
 
                 if (candidates.length === 0) {
