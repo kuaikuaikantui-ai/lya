@@ -2985,8 +2985,8 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 const newTs = Number(newItem.readTime || newItem.updatedAt || 0);
                 const prevTs = Number(prevItem.readTime || prevItem.updatedAt || 0);
 
-                // 1. 如果两端阅读时间差异超过 5 分钟，说明用户在另一端明确进行了主动阅读操作，以较新时间戳优先 (支持回看重读与全书目同步)
-                if (newTs > 0 && prevTs > 0 && Math.abs(newTs - prevTs) > 300000) {
+                // 1. 如果两端阅读时间差异超过 15 秒，说明用户在另一端明确进行了主动阅读操作，以较新时间戳优先 (支持回看重读与全书目跨端跟随)
+                if (newTs > 0 && prevTs > 0 && Math.abs(newTs - prevTs) > 15000) {
                     return newTs > prevTs;
                 }
 
@@ -3406,8 +3406,16 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 });
             }
 
-            // 智能容灾候选池：如果 targetUrl 属于吃瓜网轮换域名，备选当前最新活跃镜像站点，防止旧域名失效或重定向超时
-            const candidateUrls = [targetUrl];
+            // 智能容灾候选池：如果 targetUrl 属于吃瓜网轮换域名或带有外部推广假域名，优先纠正为当前最新活跃镜像站点
+            const candidateUrls = [];
+            if (targetUrl.includes('hlapp') || targetUrl.includes('hl365')) {
+                try {
+                    const u = new URL(targetUrl);
+                    candidateUrls.push('https://active.nlvsriid.cc' + u.pathname + u.search);
+                } catch(e) {}
+            } else {
+                candidateUrls.push(targetUrl);
+            }
             if (targetUrl.includes('ymmqlqkl.cc')) {
                 candidateUrls.push(targetUrl.replace('ymmqlqkl.cc', 'nlvsriid.cc'));
             } else if (targetUrl.includes('active.') && !targetUrl.includes('nlvsriid.cc')) {

@@ -6578,8 +6578,8 @@
         const newTs = Number(newItem.readTime || newItem.updatedAt || 0);
         const exTs = Number(existingItem.readTime || existingItem.updatedAt || 0);
 
-        // 1. 若两端时间戳差异明显 (> 5分钟)，用户在另一端明确进行了主动阅读操作，以较新时间戳优先 (支持回看重读与全书目跨端跟随)
-        if (newTs > 0 && exTs > 0 && Math.abs(newTs - exTs) > 300000) {
+        // 1. 若两端时间戳差异明显 (> 15秒)，用户在另一端明确进行了主动阅读操作，以较新时间戳优先 (支持回看重读与全书目跨端跟随)
+        if (newTs > 0 && exTs > 0 && Math.abs(newTs - exTs) > 15000) {
             return newTs > exTs;
         }
 
@@ -8926,51 +8926,19 @@ window.clearNovelSearch = function() {
         showView('detail');
 
         try {
-            // 云端通行证预检与目录拉取并发进行（限时1.2秒，毫秒级对齐云端进度，彻底解决跨端打开落后章节）
+            // 云端通行证预检与目录拉取并发进行（毫秒级对齐云端进度，彻底解决跨端打开落后章节）
             const cloudUser = getCloudUser();
-            let cloudPromise = null;
-            if (cloudUser && cloudUser.uid) {
-                cloudPromise = fetchCloudSnapshot(cloudUser.uid).catch(() => null);
-            }
+            const cloudFetchPromise = (cloudUser && cloudUser.uid) ? fetchCloudSnapshot(cloudUser.uid).catch(() => null) : Promise.resolve(null);
 
             const [res, cloudPayload] = await Promise.all([
                 fetch(`/api/catalog?book_id=${encodeURIComponent(book.book_id)}&source=${encodeURIComponent(book.source)}&tab=${encodeURIComponent(activeTab)}&title=${encodeURIComponent(book.book_name || '')}`),
-                cloudPromise ? Promise.race([cloudPromise, new Promise(r => setTimeout(() => r(null), 1200))]) : Promise.resolve(null)
+                cloudFetchPromise
             ]);
 
             if (cloudPayload) {
                 const localPayload = buildLocalSyncPayload();
                 const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
                 applyMergedPayloadToLocal(merged);
-            } else if (cloudPromise) {
-                // 若云端响应滞后于 1.2 秒，到达后无感热更新详情页状态
-                cloudPromise.then(latePayload => {
-                    if (!latePayload) return;
-                    const localPayload = buildLocalSyncPayload();
-                    const { merged } = mergeCloudAndLocalData(localPayload, latePayload);
-                    applyMergedPayloadToLocal(merged);
-                    const dView = document.getElementById('detailView');
-                    if (dView && dView.style.display !== 'none' && currentBookInfo && currentBookInfo.book_name === book.book_name) {
-                        const bName = book.book_name.trim();
-                        const mHist = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === activeTab);
-                        const mShelf = (merged.shelf || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === activeTab);
-                        const best = (mHist && compareReadingProgress(mHist, mShelf)) ? mHist : (mShelf || mHist);
-                        if (best && currentCatalog && currentCatalog.length > 0) {
-                            const newIdx = findBestMatchingChapterIndex(currentCatalog, best);
-                            if (newIdx !== currentChapterIndex) {
-                                currentChapterIndex = newIdx;
-                                currentBookInfo.lastReadIndex = newIdx;
-                                currentBookInfo.lastReadTitle = currentCatalog[newIdx]?.title || best.lastReadTitle;
-                                currentBookInfo.lastReadPage = best.lastReadPage || 0;
-                                currentBookInfo.lastScrollTop = best.lastScrollTop || 0;
-                                currentBookInfo.lastScrollRatio = best.lastScrollRatio || 0;
-                                currentBookInfo.lastMangaImgIndex = best.lastMangaImgIndex || 0;
-                                updateDetailHeroReadBtn();
-                                renderDetailCatalogList();
-                            }
-                        }
-                    }
-                }).catch(() => null);
             }
 
             let data = null;
@@ -11143,10 +11111,10 @@ window.clearNovelSearch = function() {
         try {
             return await Promise.any([tryEdgeProxy(), tryAllOriginsJson(), tryCodetabs()]);
         } catch (e) {
-            // 备用镜像主动接力：若原链接包含已失效旧域名，自动转换至当前活跃镜像站点重试一次
-            if (targetUrl.includes('ymmqlqkl.cc')) {
+            // 备用镜像主动接力：若原链接包含已失效旧域名或外部推广域，自动转换至当前活跃镜像站点重试一次
+            if (targetUrl.includes('ymmqlqkl.cc') || targetUrl.includes('hlapp') || targetUrl.includes('hl365')) {
                 try {
-                    const fallbackUrl = targetUrl.replace('ymmqlqkl.cc', 'nlvsriid.cc');
+                    const fallbackUrl = targetUrl.replace(/https?:\/\/[^\/]+/, 'https://active.nlvsriid.cc');
                     const r = await fetch('/api/proxy?url=' + encodeURIComponent(fallbackUrl) + '&_t=' + freshTimestamp, { signal: AbortSignal.timeout(10000) });
                     if (r.ok) {
                         const txt = await r.text();
@@ -11202,14 +11170,6 @@ window.clearNovelSearch = function() {
     }
 
     function parseGenericHtmlArticles(html, baseOrigin) {
-        let effectiveOrigin = baseOrigin;
-        try {
-            const mCanon = html.match(/<link[^>]+rel=["']canonical["'][^>]*href=["']([^"']+)["']/i) || html.match(/<meta[^>]+property=["']og:url["'][^>]*content=["']([^"']+)["']/i);
-            if (mCanon && mCanon[1] && /^https?:\/\//i.test(mCanon[1])) {
-                effectiveOrigin = new URL(mCanon[1]).origin;
-            }
-        } catch(e) {}
-
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const items = [];
         const seen = new Set();
@@ -11225,7 +11185,7 @@ window.clearNovelSearch = function() {
             let href = (linkEl.getAttribute('href') || '').trim();
             if (!href || href === '#' || href.startsWith('javascript:') || href.includes('#comments')) return;
             try {
-                href = new URL(href, effectiveOrigin).href;
+                href = new URL(href, baseOrigin).href;
             } catch (e) { return; }
             if (seen.has(href)) return;
 
@@ -11235,38 +11195,44 @@ window.clearNovelSearch = function() {
             const hotBadgeEl = scopeEl.querySelector('.post-card-title, .wraps, .wrap');
             const isHot = !!(hotBadgeEl && /HOT|热搜|置顶/i.test(hotBadgeEl.textContent || ''));
 
-            // 核心修复：精准提取真实文章标题，绝不让 ".post-card-title" 中的 "热搜 HOT" 角标把正文标题吃掉
+            // 核心修复：精准提取真实文章标题，支持多种 Typecho / WordPress 吃瓜主题结构，保留真实标题，剔除 "热搜 HOT" 角标
             let title = '';
-            const headlineNode = scopeEl.querySelector('[itemprop="headline"], .post-card-bottom-title, .post-card-bottom-text, .entry-title, .post-title, h1, h2, h3, h4, .title');
-            if (headlineNode) {
-                const cloneHl = headlineNode.cloneNode(true);
-                cloneHl.querySelectorAll('.post-card-title, .wrap, .wraps, script, style').forEach(s => s.remove());
-                title = (cloneHl.textContent || '').replace(/\s+/g, ' ').trim();
-            }
+            const titleNodes = [
+                scopeEl.querySelector('.post-card-title'),
+                scopeEl.querySelector('[itemprop="headline"]'),
+                scopeEl.querySelector('.post-card-bottom-title'),
+                scopeEl.querySelector('.post-card-bottom-text'),
+                scopeEl.querySelector('.entry-title, .post-title, h1, h2, h3, h4, .title'),
+                linkEl.querySelector('.post-card-title'),
+                linkEl.querySelector('[itemprop="headline"]'),
+                linkEl.querySelector('.post-card-bottom-title'),
+                linkEl.querySelector('.post-card-bottom-text'),
+                linkEl.querySelector('h1, h2, h3, h4, .title')
+            ].filter(Boolean);
 
-            // 若提取出的标题是 "热搜 HOT" 或徽章文字，继续从正文描述与标题属性深度挖掘
-            if (!title || /^(?:热搜\s*HOT|HOT|热搜|置顶|推荐)$/i.test(title)) {
-                const altNodes = [
-                    scopeEl.querySelector('.post-card-bottom-text'),
-                    scopeEl.querySelector('.post-card-bottom-title'),
-                    scopeEl.querySelector('.post-title'),
-                    linkEl.querySelector('.post-card-bottom-text'),
-                    linkEl.querySelector('.post-card-bottom-title'),
-                    linkEl.querySelector('[itemprop="headline"]')
-                ].filter(Boolean);
-                for (const node of altNodes) {
-                    const t = (node.textContent || '').replace(/热搜\s*HOT|HOT/gi, '').replace(/\s+/g, ' ').trim();
-                    if (t && t.length >= 4) {
-                        title = t;
-                        break;
-                    }
+            for (const node of titleNodes) {
+                const clone = node.cloneNode(true);
+                // 只移除角标小标签，绝不移除包含正文标题的父级容器
+                clone.querySelectorAll('.wrap, .wraps, .badge, .tag, script, style').forEach(s => s.remove());
+                let t = (clone.textContent || '').replace(/热搜\s*HOT|HOT/gi, '').replace(/\s+/g, ' ').trim();
+                if (t && t.length >= 4 && !/^(?:热搜|置顶|推荐)$/.test(t)) {
+                    title = t;
+                    break;
                 }
             }
 
-            if (!title || /^(?:热搜\s*HOT|HOT|热搜|置顶|推荐)$/i.test(title)) {
-                const clone = linkEl.cloneNode(true);
-                clone.querySelectorAll('script, style, .post-card-info, .post-card-title, .wrap, .wraps').forEach(s => s.remove());
-                title = (linkEl.getAttribute('title') || clone.textContent || '').replace(/\s+/g, ' ').trim();
+            if (!title) {
+                const linkAttrTitle = (linkEl.getAttribute('title') || '').replace(/热搜\s*HOT|HOT/gi, '').trim();
+                if (linkAttrTitle && linkAttrTitle.length >= 4) {
+                    title = linkAttrTitle;
+                } else {
+                    const cloneLink = linkEl.cloneNode(true);
+                    cloneLink.querySelectorAll('script, style, .wrap, .wraps, .badge, .post-card-info, time, .date').forEach(s => s.remove());
+                    let t = (cloneLink.textContent || '').replace(/热搜\s*HOT|HOT/gi, '').replace(/\s+/g, ' ').trim();
+                    if (t && t.length >= 4) {
+                        title = t;
+                    }
+                }
             }
 
             // 剔除标题开头残留的 "热搜 HOT " 等前缀修饰
@@ -11363,6 +11329,16 @@ window.clearNovelSearch = function() {
             return;
         }
 
+        // 纠正与净化 article_url：如果历史卡片携带了 hlapp/hl365 假推广域或旧域名，自动映射到当前活跃源站
+        const curOrigin = (localStorage.getItem('openhappy_chigua_origin') || 'https://active.nlvsriid.cc').trim().replace(/\/+$/, '');
+        let targetArticleUrl = item.article_url;
+        try {
+            const u = new URL(targetArticleUrl);
+            if (isInvalidChiguaUrl(u.origin) || u.hostname.includes('hlapp') || u.hostname.includes('hl365') || u.hostname.includes('ymmqlqkl')) {
+                targetArticleUrl = curOrigin + u.pathname + u.search;
+            }
+        } catch(e) {}
+
         // 保存进入前的列表滚动位置与卡片 ID，返回时精准还原
         _chiguaSavedScrollTop = window.scrollY || document.documentElement.scrollTop || 0;
         _chiguaLastClickedCardId = item.vod_id || null;
@@ -11384,7 +11360,7 @@ window.clearNovelSearch = function() {
         window.scrollTo({ top: 0, behavior: 'instant' });
 
         try {
-            const rawHtml = await fetchTextWithCorsFallback(item.article_url);
+            const rawHtml = await fetchTextWithCorsFallback(targetArticleUrl);
             if (!rawHtml) {
                 document.getElementById('chiguaDetailLoading').innerHTML = '<div style="color:#f43f5e; padding:20px;"><i class="fas fa-triangle-exclamation"></i> 无法连接原站拉取文章，请尝试切换顶部线路或稍后重试</div>';
                 return;
