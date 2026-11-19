@@ -2360,6 +2360,95 @@
             };
             originPanel.appendChild(skipActionRow);
         }
+
+        // 3. 移动端/触屏长按 2.0X 极速播放（长按2倍速，松手立即恢复原速，解决长按无法取消的问题）
+        if (!dpContainer.querySelector('.dp-speed-hud')) {
+            const videoWrap = dpContainer.querySelector('.dplayer-video-wrap') || dpContainer;
+            const speedHud = document.createElement('div');
+            speedHud.className = 'dp-speed-hud';
+            speedHud.style.cssText = 'position:absolute;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#38bdf8;padding:8px 18px;border-radius:20px;font-size:13.5px;font-weight:700;display:none;align-items:center;gap:6px;z-index:99;border:1px solid rgba(56,189,248,0.5);pointer-events:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,0.5);';
+            speedHud.innerHTML = '<i class="fas fa-bolt" style="color:#38bdf8;"></i> <span>2.0X 极速播放中...</span>';
+            videoWrap.appendChild(speedHud);
+
+            let longPressTimer = null;
+            let isLongPressing = false;
+            let origSpeed = 1.0;
+            let startTouchX = 0;
+            let startTouchY = 0;
+
+            const cancelLongPress = function() {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+                if (isLongPressing) {
+                    isLongPressing = false;
+                    speedHud.style.display = 'none';
+                    if (window.dpInstance && window.dpInstance.video) {
+                        window.dpInstance.video.playbackRate = origSpeed;
+                    }
+                }
+            };
+
+            videoWrap.addEventListener('touchstart', function(e) {
+                if (e.touches.length !== 1) {
+                    cancelLongPress();
+                    return;
+                }
+                if (e.target.closest('.dplayer-controller') || e.target.closest('.dplayer-icons') || e.target.closest('button') || e.target.closest('.dplayer-setting-box')) {
+                    return;
+                }
+                startTouchX = e.touches[0].clientX;
+                startTouchY = e.touches[0].clientY;
+                cancelLongPress();
+
+                longPressTimer = setTimeout(function() {
+                    if (window.dpInstance && window.dpInstance.video && !window.dpInstance.video.paused) {
+                        isLongPressing = true;
+                        origSpeed = window.dpInstance.video.playbackRate || 1.0;
+                        window.dpInstance.video.playbackRate = 2.0;
+                        speedHud.style.display = 'flex';
+                        if (navigator.vibrate) {
+                            try { navigator.vibrate(30); } catch(v){}
+                        }
+                    }
+                }, 380);
+            }, { passive: true });
+
+            videoWrap.addEventListener('touchmove', function(e) {
+                if (longPressTimer && e.touches.length > 0) {
+                    const dx = Math.abs(e.touches[0].clientX - startTouchX);
+                    const dy = Math.abs(e.touches[0].clientY - startTouchY);
+                    if (dx > 12 || dy > 12) {
+                        cancelLongPress();
+                    }
+                }
+            }, { passive: true });
+
+            videoWrap.addEventListener('touchend', cancelLongPress, { passive: true });
+            videoWrap.addEventListener('touchcancel', cancelLongPress, { passive: true });
+        }
+
+        // 4. 全屏状态下左上角一键退出全屏浮动返回按钮
+        if (!dpContainer.querySelector('.dp-fullscreen-back-btn')) {
+            const fsBackBtn = document.createElement('button');
+            fsBackBtn.type = 'button';
+            fsBackBtn.className = 'dp-fullscreen-back-btn';
+            fsBackBtn.title = '退出全屏';
+            fsBackBtn.setAttribute('aria-label', '退出全屏');
+            fsBackBtn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="#ffffff"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
+            fsBackBtn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.dpInstance && window.dpInstance.fullScreen) {
+                    window.dpInstance.fullScreen.cancel('web');
+                }
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+                    window.webkit.messageHandlers.nativeOrientation.postMessage('portrait');
+                }
+            };
+            dpContainer.appendChild(fsBackBtn);
+        }
     };
 
     // 实时拉取并呈现 kanju3 原站真实讨论数据
