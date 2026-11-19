@@ -1676,6 +1676,25 @@
         }
         const isHls = videoUrl.includes('.m3u8');
         const videoTitle = window.currentVideo.kanju_title || window.currentVideo.vod_name || '';
+
+        // 核心集成：若运行在 iOS 原生真机客户端内，直接调用腾讯/B站级原生全屏播放器！
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.lyaNativePlayer) {
+            try {
+                window.webkit.messageHandlers.lyaNativePlayer.postMessage({
+                    action: 'play',
+                    title: videoTitle,
+                    episodeTitle: ep.title,
+                    url: videoUrl,
+                    resumeSeconds: resumePlaySeconds,
+                    currentEpIdx: idx,
+                    lineName: formatFriendlyLineName(group.name, window.currentGroupIdx, videoUrl),
+                    episodes: (group.episodes || []).map((e, i) => ({ title: e.title, url: e.url, index: i }))
+                });
+                return;
+            } catch(e) {
+                console.warn('[Native Player] 原生播放器调起失败，回退到网页播放器:', e);
+            }
+        }
         const kanjuCardId = window.currentVideo.kanju_id || (String(window.currentVideo.vod_id).startsWith('av_') ? window.currentVideo.vod_id : '');
 
         const ua = navigator.userAgent || '';
@@ -2648,6 +2667,31 @@ window.injectBottomRightPlayerControls = function(dpContainer) {
         document.getElementById('videoPlayerView').style.display = 'none';
         document.getElementById('videoSection').style.display = 'block';
         window.renderRecentWatchBar();
+    };
+
+    // iOS 原生播放器双向状态同步回调 (保持播放历史与云端单调同步)
+    window.onNativePlayerTimeUpdate = function(seconds, epIdx) {
+        if (window.currentVideo) {
+            const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
+            const ep = group && group.episodes && group.episodes[epIdx ?? window.currentEpisodeIdx ?? 0];
+            if (ep) {
+                window.saveVideoHistory(window.currentVideo, group.name, ep.title, epIdx ?? window.currentEpisodeIdx ?? 0, seconds);
+            }
+        }
+    };
+
+    window.onNativePlayerSwitchEpisode = function(newIdx) {
+        window.playVideoEpisode(newIdx);
+    };
+
+    window.onNativePlayerClose = function(lastSeconds) {
+        if (window.currentVideo) {
+            const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
+            const ep = group && group.episodes && group.episodes[window.currentEpisodeIdx || 0];
+            if (ep && lastSeconds > 3) {
+                window.saveVideoHistory(window.currentVideo, group.name, ep.title, window.currentEpisodeIdx || 0, lastSeconds);
+            }
+        }
     };
 })();
 
