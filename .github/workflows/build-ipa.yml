@@ -40,6 +40,7 @@ jobs:
       - name: Build iOS Application (.app)
         run: |
           cd ios
+          set -o pipefail
           xcodebuild -project Lya.xcodeproj \
             -scheme Lya \
             -configuration Release \
@@ -48,7 +49,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build
+            build 2>&1 | tee build.log || (echo "=== XCODEBUILD FAILED LOG ===" && tail -n 80 build.log && exit 1)
 
       - name: Package IPA
         run: |

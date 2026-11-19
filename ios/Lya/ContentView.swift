@@ -7,13 +7,7 @@ import UIKit
 struct OrientationHelper {
     static func forceLandscape() {
         DispatchQueue.main.async {
-            AppDelegate.orientationLock = .allButUpsideDown
-            if #available(iOS 16.0, *) {
-                if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
-                    let preferences = UIWindowScene.GeometryPreferences.iOS(interfaceOrientations: .landscapeRight)
-                    windowScene.requestGeometryUpdate(preferences) { _ in }
-                }
-            }
+            AppDelegate.orientationLock = .landscapeRight
             UIDevice.current.setValue(UIInterfaceOrientation.landscapeRight.rawValue, forKey: "orientation")
             UIViewController.attemptRotationToDeviceOrientation()
         }
@@ -22,12 +16,6 @@ struct OrientationHelper {
     static func forcePortrait() {
         DispatchQueue.main.async {
             AppDelegate.orientationLock = .portrait
-            if #available(iOS 16.0, *) {
-                if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
-                    let preferences = UIWindowScene.GeometryPreferences.iOS(interfaceOrientations: .portrait)
-                    windowScene.requestGeometryUpdate(preferences) { _ in }
-                }
-            }
             UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
             UIViewController.attemptRotationToDeviceOrientation()
         }
