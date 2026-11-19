@@ -1763,7 +1763,21 @@
                 if (stallWatchTimer) { clearTimeout(stallWatchTimer); stallWatchTimer = null; }
             });
 
-            if (userHasInitiatedPlay) {
+            // 监听设备物理旋转：横屏时无缝展开，竖屏时无缝收回
+        const handlePhysicalOrientation = function() {
+            if (!window.dpInstance) return;
+            const isLandscape = window.innerWidth > window.innerHeight;
+            const container = document.getElementById('dplayerContainer');
+            if (isLandscape && container && !container.classList.contains('dplayer-web-fullscreen')) {
+                window.dpInstance.fullScreen.request('web');
+            } else if (!isLandscape && container && container.classList.contains('dplayer-web-fullscreen')) {
+                window.dpInstance.fullScreen.cancel('web');
+            }
+        };
+        window.addEventListener('resize', handlePhysicalOrientation);
+        window.addEventListener('orientationchange', handlePhysicalOrientation);
+
+        if (userHasInitiatedPlay) {
                 startWatchdog();
             }
         };
@@ -2207,6 +2221,33 @@
             
             frag.appendChild(pipBtn);
             rightIcons.insertBefore(frag, settingWrap);
+
+            // 全屏按钮：使用 DPlayer 纯正 Web 全屏 + 原生硬件横屏联动 (不重新加载、0ms秒切、弹幕与全部功能完整保留)
+            const oldFullBtn = dpContainer.querySelector('.dplayer-full');
+            if (oldFullBtn) {
+                const newFullBtn = oldFullBtn.cloneNode(true);
+                oldFullBtn.parentNode.replaceChild(newFullBtn, oldFullBtn);
+                newFullBtn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+
+                    if (window.dpInstance && window.dpInstance.fullScreen) {
+                        const isWebFull = dpContainer.classList.contains('dplayer-web-fullscreen');
+                        if (isWebFull) {
+                            window.dpInstance.fullScreen.cancel('web');
+                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+                                window.webkit.messageHandlers.nativeOrientation.postMessage('portrait');
+                            }
+                        } else {
+                            window.dpInstance.fullScreen.request('web');
+                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+                                window.webkit.messageHandlers.nativeOrientation.postMessage('landscape');
+                            }
+                        }
+                    }
+                };
+            }
         }
 
         // 2. 在右下角设置面板 (.dplayer-setting-origin-panel) 完整集成原先左上角的 5 大高级卡片设置 + 倍速/循环/弹幕透明度
@@ -2543,6 +2584,9 @@
 
     // 关闭视频播放器，返回影视主视窗 (彻底销毁播放器与残留状态，重置当前播放视频为null)
     window.closeVideoPlayer = function(triggerPopstate = true) {
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+            window.webkit.messageHandlers.nativeOrientation.postMessage('portrait');
+        }
         if (triggerPopstate && history.state && history.state.videoPlayer) {
             try { history.back(); } catch(e) {}
         }

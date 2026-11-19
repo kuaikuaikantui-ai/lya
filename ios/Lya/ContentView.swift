@@ -3,6 +3,30 @@ import WebKit
 import AVFoundation
 import MediaPlayer
 
+struct OrientationHelper {
+    static func forceLandscape() {
+        AppDelegate.orientationLock = .allButUpsideDown
+        if #available(iOS 16.0, *) {
+            if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight)) { _ in }
+            }
+        }
+        UIDevice.current.setValue(UIInterfaceOrientation.landscapeRight.rawValue, forKey: "orientation")
+        UIViewController.attemptRotationToDeviceOrientation()
+    }
+
+    static func forcePortrait() {
+        AppDelegate.orientationLock = .portrait
+        if #available(iOS 16.0, *) {
+            if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) { _ in }
+            }
+        }
+        UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+        UIViewController.attemptRotationToDeviceOrientation()
+    }
+}
+
 struct ContentView: View {
     @AppStorage("lya_server_url") private var serverUrl: String = "https://lya-arr.pages.dev"
     @State private var reloadTrigger = UUID()
@@ -41,6 +65,9 @@ struct LyaWebView: UIViewRepresentable {
         config.allowsAirPlayForMediaPlayback = true
 
         let userContent = WKUserContentController()
+
+        // 注册原生方向同步 Bridge (实现无缝横竖屏切换，不重新缓冲)
+        userContent.add(context.coordinator, name: "nativeOrientation")
 
         // 强力全网广告免疫脚本 (屏蔽所有弹窗/联盟广告，保护视频主容器)
         let adBlockScript = WKUserScript(
@@ -122,7 +149,7 @@ struct LyaWebView: UIViewRepresentable {
         Coordinator(parent: self)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         let parent: LyaWebView
         var lastTrigger = UUID()
 
@@ -154,6 +181,17 @@ struct LyaWebView: UIViewRepresentable {
             }
         }
 
+        // 处理原生横竖屏旋转消息
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "nativeOrientation", let mode = message.body as? String {
+                if mode == "landscape" {
+                    OrientationHelper.forceLandscape()
+                } else if mode == "portrait" {
+                    OrientationHelper.forcePortrait()
+                }
+            }
+        }
+
         // 支持 JS confirm 对话框 (用于通行证注销/退出登录二次确认)
         func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
             let alert = UIAlertController(title: "提示", message: message, preferredStyle: .alert)
@@ -168,7 +206,7 @@ struct LyaWebView: UIViewRepresentable {
 
         // 支持 JS alert 提示框
         func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
-            let alert = UIAlertController(title: "提示", message: message, preferredStyle: .alert)
+            let alert = UIAlertController(title: "提示", message: message, preferredStyle: .default)
             alert.addAction(UIAlertAction(title: "知道了", style: .default, handler: { _ in
                 completionHandler()
             }))
