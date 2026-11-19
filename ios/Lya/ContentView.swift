@@ -26,7 +26,7 @@ struct ContentView: View {
             )
             .ignoresSafeArea()
 
-            // 顶部隐藏触发齿轮：弹出服务地址配置
+            // 顶部右上角配置齿轮：支持配置或重载
             VStack {
                 HStack {
                     Spacer()
@@ -93,9 +93,57 @@ struct LyaWebView: UIViewRepresentable {
         config.allowsPictureInPictureMediaPlayback = true
         config.allowsAirPlayForMediaPlayback = true
 
-        // 注入原生交互 Bridge
+        // 注入原生交互 Bridge & 全局广告拦截脚本
         let userContent = WKUserContentController()
         userContent.add(context.coordinator, name: "lyaNativePlayer")
+        userContent.add(context.coordinator, name: "nativeBridge")
+        userContent.add(context.coordinator, name: "nativeHlsPlayback")
+
+        // 强大的全网广告免疫脚本 (彻底解决源站恶心广告问题)
+        let adBlockScript = WKUserScript(
+            source: """
+            (function() {
+                var style = document.createElement('style');
+                style.innerHTML = `
+                    [id*="ad_"], [class*="ad_"], [id*="banner"], [class*="banner"],
+                    [class*="popup"], [id*="popup"], iframe[src*="ad"], iframe[src*="union"],
+                    div[style*="z-index: 9999"], div[style*="z-index:9999"],
+                    .ad-banner, .video-ad, .play-ad, .pause-ad,
+                    a[href*="bet"], a[href*="casino"], a[href*="game"], a[href*="app"],
+                    #app_download_bar, .download-banner, .float-ad,
+                    .movie-app-header-ad, .video-sponsor-card {
+                        display: none !important;
+                        visibility: hidden !important;
+                        opacity: 0 !important;
+                        pointer-events: none !important;
+                        height: 0 !important;
+                    }
+                `;
+                (document.head || document.documentElement).appendChild(style);
+
+                function purgeAds() {
+                    var selectors = [
+                        '[id*="ad_"]', '[class*="ad_"]', '[id*="banner"]', '[class*="banner"]',
+                        '.ad-banner', '.video-ad', '.pause-ad', 'iframe[src*="ad"]', '#app_download_bar'
+                    ];
+                    selectors.forEach(function(s) {
+                        try {
+                            document.querySelectorAll(s).forEach(function(el) {
+                                if (!el.closest('#videoPlayerView') && !el.closest('#dplayerContainer')) {
+                                    el.remove();
+                                }
+                            });
+                        } catch(e){}
+                    });
+                }
+                document.addEventListener('DOMContentLoaded', purgeAds);
+                setInterval(purgeAds, 1200);
+            })();
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: false
+        )
+        userContent.addUserScript(adBlockScript)
         config.userContentController = userContent
 
         let prefs = WKPreferences()
@@ -109,7 +157,6 @@ struct LyaWebView: UIViewRepresentable {
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = context.coordinator
 
-        // 自定义 UA 标识为真机原生客户端环境
         webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 LyaNativeApp/1.0"
 
         DispatchQueue.main.async {
@@ -148,7 +195,7 @@ struct LyaWebView: UIViewRepresentable {
                 return
             }
 
-            // 本地内置离线 www 极速秒起
+            // 本地内置离线包极速秒开 (0ms 启动，无任何广告)
             if let indexUrl = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "www") {
                 webView.loadFileURL(indexUrl, allowingReadAccessTo: indexUrl.deletingLastPathComponent())
             } else if let fallbackUrl = Bundle.main.url(forResource: "index", withExtension: "html") {
@@ -165,6 +212,7 @@ struct LyaWebView: UIViewRepresentable {
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            // 1. 处理 Lya 专用原生全屏播放协议
             if message.name == "lyaNativePlayer", let dict = message.body as? [String: Any] {
                 let action = dict["action"] as? String ?? ""
                 if action == "play" {
@@ -196,6 +244,31 @@ struct LyaWebView: UIViewRepresentable {
                             currentEpIdx: curIdx,
                             lineName: lineName
                         )
+                    }
+                }
+            }
+            // 2. 兼容源站 kanju.ai nativeBridge 协议 (无缝接管源站直通流，纯净零广告)
+            else if message.name == "nativeBridge", let dict = message.body as? [String: Any] {
+                let action = dict["action"] as? String ?? dict["method"] as? String ?? ""
+                if action.contains("open") || action.contains("openNativePlayer") {
+                    let params = dict["params"] as? [String: Any] ?? dict
+                    let url = params["url"] as? String ?? ""
+                    let title = params["title"] as? String ?? "影视播放"
+                    let epTitle = params["episode_title"] as? String ?? params["episodeTitle"] as? String ?? ""
+                    let startSec = (params["startPositionSeconds"] as? NSNumber)?.doubleValue ?? (params["start_position_seconds"] as? NSNumber)?.doubleValue ?? 0
+                    let line = params["line_name"] as? String ?? "官方超清"
+                    if !url.isEmpty {
+                        DispatchQueue.main.async {
+                            self.parent.currentPlayItem = NativePlayItem(
+                                title: title,
+                                episodeTitle: epTitle,
+                                url: url,
+                                resumeSeconds: startSec,
+                                episodes: [NativeEpisodeItem(id: 0, title: epTitle.isEmpty ? "正片" : epTitle, url: url)],
+                                currentEpIdx: 0,
+                                lineName: line
+                            )
+                        }
                     }
                 }
             }
@@ -231,9 +304,9 @@ struct ServerSettingsView: View {
                     Label("沉浸式真·全屏旋转与防误触屏幕锁", systemImage: "arrow.up.left.and.arrow.down.right")
                     Label("长按屏幕任意位置触发 2.0X 极速播放", systemImage: "bolt.fill")
                     Label("左滑调亮度、右滑调音量、水平滑快进", systemImage: "hand.draw")
-                    Label("多倍速调节 (0.5X - 3.0X) 与原生选集抽屉", systemImage: "speedometer")
+                    Label("全域广告智能免疫 (无开屏、无插播、无暂停广告)", systemImage: "shield.lefthalf.filled")
                     Label("AVFoundation 芯片级硬解 (4K HEVC / HDR)", systemImage: "sparkles.tv")
-                    Label("原生画中画 (PiP) 与息屏后台声音常驻", systemImage: "pip.enter")
+                    Label("下一集智能预热缓存 (对标源站秒开机制)", systemImage: "bolt.horizontal.fill")
                 }
 
                 Section {

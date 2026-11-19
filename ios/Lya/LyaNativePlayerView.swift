@@ -21,7 +21,7 @@ struct NativeEpisodeItem: Identifiable, Equatable {
     let url: String
 }
 
-// MARK: - 原生腾讯/B站风格超清播放器
+// MARK: - 原生腾讯/B站风格超清播放器 (对标源站底层架构，零广告，更纯净)
 struct LyaNativePlayerView: View {
     @Binding var playItem: NativePlayItem?
     var onTimeUpdate: ((Double, Int) -> Void)?
@@ -42,6 +42,7 @@ struct LyaNativePlayerView: View {
     @State private var panBrightness: CGFloat = 0.5
     @State private var panVolume: Float = 0.5
     @State private var panSeekTime: Double = 0
+    @State private var seekFrameTick: Int = 0
     @State private var isDraggingSlider = false
     @State private var sliderValue: Double = 0
 
@@ -124,7 +125,7 @@ struct LyaNativePlayerView: View {
             } else if panType == .volume {
                 BrightnessVolumeHUD(icon: "speaker.wave.3.fill", value: CGFloat(panVolume), label: "音量")
             } else if panType == .seek {
-                SeekHUD(seekTime: panSeekTime, duration: playerModel.duration)
+                SeekHUD(seekTime: panSeekTime, duration: playerModel.duration, frameTick: seekFrameTick)
             }
 
             // 4. 屏幕左侧防误触锁屏按钮
@@ -404,6 +405,7 @@ struct LyaNativePlayerView: View {
         case .seek:
             let delta = Double(translation.width) * (playerModel.duration > 3600 ? 1.5 : 0.6)
             panSeekTime = max(0, min(playerModel.duration, playerModel.currentTime + delta))
+            seekFrameTick = (seekFrameTick + 1) % 28
         case .none:
             break
         }
@@ -501,7 +503,13 @@ class PlayerModel: NSObject, ObservableObject, AVPictureInPictureControllerDeleg
         isPlaying = true
         playbackRate = 1.0
 
-        // 监听时长
+        // 下一集智能预热 (对标源站 NativePlaybackNextEpisodePrewarmer 机制)
+        if item.currentEpIdx + 1 < item.episodes.count {
+            let nextEpUrl = item.episodes[item.currentEpIdx + 1].url
+            prewarmNextEpisode(urlStr: nextEpUrl)
+        }
+
+        // 监听播完
         NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: playerItem,
@@ -560,6 +568,14 @@ class PlayerModel: NSObject, ObservableObject, AVPictureInPictureControllerDeleg
                 slider.value = val
             }
         }
+    }
+
+    private func prewarmNextEpisode(urlStr: String) {
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("bytes=0-1048576", forHTTPHeaderField: "Range") // 预取首兆数据进系统缓存
+        let session = URLSession(configuration: .default)
+        session.dataTask(with: req).resume()
     }
 
     private func setupTimeObserver() {
@@ -713,12 +729,20 @@ struct BrightnessVolumeHUD: View {
 struct SeekHUD: View {
     let seekTime: Double
     let duration: Double
+    let frameTick: Int
 
     var body: some View {
         VStack(spacing: 6) {
-            Image(systemName: "goforward")
-                .font(.system(size: 28))
-                .foregroundColor(.cyan)
+            // 源站同款平滑动画帧或火箭快进图标
+            if let frameImg = loadFrameImage(index: frameTick) {
+                Image(uiImage: frameImg)
+                    .resizable()
+                    .frame(width: 44, height: 44)
+            } else {
+                Image(systemName: "goforward")
+                    .font(.system(size: 28))
+                    .foregroundColor(.cyan)
+            }
             Text(formatTime(seekTime))
                 .font(.system(size: 20, weight: .bold).monospacedDigit())
                 .foregroundColor(.white)
@@ -729,6 +753,14 @@ struct SeekHUD: View {
         .padding(20)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color.black.opacity(0.8)))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.cyan.opacity(0.4), lineWidth: 1))
+    }
+
+    private func loadFrameImage(index: Int) -> UIImage? {
+        let name = String(format: "icon_fast_%05d", index % 28)
+        if let path = Bundle.main.path(forResource: name, ofType: "png", inDirectory: "SeekFrames") {
+            return UIImage(contentsOfFile: path)
+        }
+        return UIImage(named: name)
     }
 
     private func formatTime(_ seconds: Double) -> String {
