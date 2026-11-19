@@ -1677,33 +1677,50 @@
         const isHls = videoUrl.includes('.m3u8');
         const videoTitle = window.currentVideo.kanju_title || window.currentVideo.vod_name || '';
 
-        // 核心集成：若运行在 iOS 原生真机客户端内，直接调用腾讯/B站级原生全屏播放器！
-        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.lyaNativePlayer) {
+        // 注册全屏原生唤起函数 (供半屏播放器全屏按钮点击时呼出腾讯/B站级横屏全屏播放器)
+        window.triggerNativeFullscreen = function() {
+            if (!window.webkit || !window.webkit.messageHandlers || !window.webkit.messageHandlers.lyaNativePlayer) return false;
+            if (!window.currentVideo) return false;
+            const curIdx = window.currentEpisodeIdx || idx || 0;
+            const curGroup = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
+            const curEp = curGroup && curGroup.episodes && curGroup.episodes[curIdx];
+            if (!curEp) return false;
+
+            let curSec = 0;
+            if (window.dpInstance && window.dpInstance.video) {
+                curSec = window.dpInstance.video.currentTime || 0;
+                try { window.dpInstance.pause(); } catch(e){}
+            }
+
+            const curTitle = window.currentVideo.kanju_title || window.currentVideo.vod_name || '';
+            const allNativeLines = (window.currentVideo.groups || []).map((g, gIdx) => ({
+                id: gIdx,
+                name: formatFriendlyLineName(g.name, gIdx, g.episodes && g.episodes[0] ? g.episodes[0].url : ''),
+                rawName: g.name,
+                is4K: (g.name || '').toUpperCase().includes('4K'),
+                isOfficial: (g.name || '').includes('官方') || (g.name || '').includes('专享'),
+                episodes: (g.episodes || []).map((e, i) => ({ title: e.title, url: e.url, index: i }))
+            }));
+
             try {
                 window.webkit.messageHandlers.lyaNativePlayer.postMessage({
                     action: 'play',
-                    title: videoTitle,
-                    episodeTitle: ep.title,
-                    url: videoUrl,
-                    resumeSeconds: resumePlaySeconds,
-                    currentEpIdx: idx,
-                    lineName: formatFriendlyLineName(group.name, window.currentGroupIdx, videoUrl),
-                    lines: (window.currentVideo.groups || []).map((g, gIdx) => ({
-                        id: gIdx,
-                        name: formatFriendlyLineName(g.name, gIdx, g.episodes && g.episodes[0] ? g.episodes[0].url : ''),
-                        rawName: g.name,
-                        is4K: (g.name || '').toUpperCase().includes('4K'),
-                        isOfficial: (g.name || '').includes('官方') || (g.name || '').includes('专享'),
-                        episodes: (g.episodes || []).map((e, i) => ({ title: e.title, url: e.url, index: i }))
-                    })),
+                    title: curTitle,
+                    episodeTitle: curEp.title,
+                    url: curEp.url,
+                    resumeSeconds: curSec,
+                    currentEpIdx: curIdx,
+                    lineName: formatFriendlyLineName(curGroup.name, window.currentGroupIdx, curEp.url),
+                    lines: allNativeLines,
                     currentLineIdx: window.currentGroupIdx || 0,
-                    episodes: (group.episodes || []).map((e, i) => ({ title: e.title, url: e.url, index: i }))
+                    episodes: (curGroup.episodes || []).map((e, i) => ({ title: e.title, url: e.url, index: i }))
                 });
-                return;
+                return true;
             } catch(e) {
-                console.warn('[Native Player] 原生播放器调起失败，回退到网页播放器:', e);
+                console.warn('[Native Player] 全屏唤起失败:', e);
+                return false;
             }
-        }
+        };
         const kanjuCardId = window.currentVideo.kanju_id || (String(window.currentVideo.vod_id).startsWith('av_') ? window.currentVideo.vod_id : '');
 
         const ua = navigator.userAgent || '';
@@ -2276,6 +2293,20 @@ window.injectBottomRightPlayerControls = function(dpContainer) {
 
             rightIcons.insertBefore(frag, settingWrap);
 
+            // (G) iOS 原生客户端：点击全屏按钮直接呼出腾讯/B站级横屏原生超级播放器
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.lyaNativePlayer) {
+                const fullBtn = dpContainer.querySelector('.dplayer-full');
+                if (fullBtn) {
+                    fullBtn.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (typeof window.triggerNativeFullscreen === 'function') {
+                            window.triggerNativeFullscreen();
+                        }
+                    };
+                }
+            }
+
             let exitBtn = dpContainer.querySelector('.dp-exit-landscape-btn');
             if (!exitBtn) {
                 exitBtn = document.createElement('button');
@@ -2704,6 +2735,14 @@ window.injectBottomRightPlayerControls = function(dpContainer) {
     };
 
     window.onNativePlayerClose = function(lastSeconds) {
+        if (window.dpInstance && window.dpInstance.video) {
+            try {
+                if (lastSeconds > 0) {
+                    window.dpInstance.seek(lastSeconds);
+                }
+                window.dpInstance.play();
+            } catch(e){}
+        }
         if (window.currentVideo) {
             const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
             const ep = group && group.episodes && group.episodes[window.currentEpisodeIdx || 0];

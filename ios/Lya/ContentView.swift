@@ -25,27 +25,6 @@ struct ContentView: View {
                 sharedWebView: $sharedWebView
             )
             .ignoresSafeArea()
-
-            // 顶部右上角配置齿轮：支持配置或重载
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        inputUrl = serverUrl
-                        showSettings = true
-                    }) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 15))
-                            .foregroundColor(.white.opacity(0.18))
-                            .padding(12)
-                            .background(Color.black.opacity(0.1))
-                            .clipShape(Circle())
-                    }
-                    .padding(.trailing, 16)
-                    .padding(.top, 40)
-                }
-                Spacer()
-            }
         }
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true

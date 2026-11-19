@@ -171,7 +171,7 @@ struct LyaNativePlayerView: View {
             }
         }
         .onAppear {
-            OrientationHelper.allowRotation()
+            OrientationHelper.forceLandscape()
             if let item = playItem {
                 playerModel.loadVideo(item: item)
                 resetControlsTimer()
@@ -245,8 +245,8 @@ struct LyaNativePlayerView: View {
                     .padding(6)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 24)
+        .padding(.horizontal, 40)
+        .padding(.top, 16)
         .padding(.bottom, 14)
         .background(
             LinearGradient(colors: [Color.black.opacity(0.85), Color.clear], startPoint: .top, endPoint: .bottom)
@@ -281,7 +281,7 @@ struct LyaNativePlayerView: View {
                     .font(.system(size: 12, weight: .medium).monospacedDigit())
                     .foregroundColor(.gray)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 40)
 
             // 控制按钮排布
             HStack(spacing: 22) {
@@ -804,6 +804,18 @@ struct CustomVideoPlayerLayerView: UIViewRepresentable {
 struct OrientationHelper {
     static func allowRotation() {
         AppDelegate.orientationLock = .allButUpsideDown
+    }
+
+    static func forceLandscape() {
+        AppDelegate.orientationLock = .allButUpsideDown
+        if #available(iOS 16.0, *) {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight)) { _ in }
+            }
+        } else {
+            UIDevice.current.setValue(UIInterfaceOrientation.landscapeRight.rawValue, forKey: "orientation")
+        }
+        UIViewController.attemptRotationToDeviceOrientation()
     }
 
     static func forcePortrait() {
