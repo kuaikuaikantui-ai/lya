@@ -1,0 +1,25 @@
+name: Lya
+options:
+  bundleIdPrefix: com.lya
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+
+targets:
+  Lya:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Lya
+    settings:
+      base:
+        PRODUCT_NAME: Lya
+        PRODUCT_BUNDLE_IDENTIFIER: com.lya.app
+        INFOPLIST_FILE: Lya/Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGN_IDENTITY: ""
+        ENABLE_BITCODE: "NO"

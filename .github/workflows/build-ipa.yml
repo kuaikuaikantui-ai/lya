@@ -1,0 +1,91 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ios/**'
+      - '.github/workflows/build-ipa.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-ipa:
+    name: Build & Package Lya IPA
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Prepare Web Assets for Native App
+        run: |
+          mkdir -p ios/Lya/www
+          cp index.html video.js dplayer.min.js hls.min.js p2p-engine.min.js recommend_data.js sw.js ios/Lya/www/
+          echo "Web assets successfully copied into ios/Lya/www/"
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: |
+          cd ios
+          xcodegen generate
+          echo "Xcode project generated successfully"
+
+      - name: Build iOS Application (.app)
+        run: |
+          cd ios
+          xcodebuild -project Lya.xcodeproj \
+            -scheme Lya \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -r ios/build/Build/Products/Release-iphoneos/Lya.app Payload/
+          zip -r Lya.ipa Payload
+          ls -lh Lya.ipa
+          echo "Lya.ipa generated successfully"
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lya-iOS-Unsigned-IPA
+          path: Lya.ipa
+          retention-days: 30
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          tag_name: v1.0.0-ipa
+          name: Lya iOS 客户端 (自签 IPA 安装包)
+          body: |
+            ### 📱 Lya iOS 客户端自签安装包已生成！
+
+            #### ✨ 原生集成特性：
+            - **AVFoundation 原生硬解全开**：支持 HEVC (H.265) 4K、HDR、H.264 零掉帧硬件解码
+            - **锁屏后台音频播放**：退出应用或锁屏状态下继续播放小说、听剧、听歌
+            - **原生画中画 (PiP)**：支持小窗浮窗多任务边聊微信边看剧
+            - **ATS 全域直连**：解除 Safari 安全限制，任意 HTTP/HTTPS 视频 CDN 直连秒开
+            - **长屏与动态岛适配**：完美适配全面屏全屏手势
+
+            #### 🛠️ 自签安装指引：
+            1. **巨魔商店 (TrollStore)**（推荐，永久免重签）：
+               - 在手机端 Safari 下载 `Lya.ipa`，点击分享选择「使用 TrollStore 打开」即可永久安装。
+            2. **牛蛙助手 / 爱思助手 / AltStore / Sideloadly**（个人免费 Apple ID 签名）：
+               - 导入 `Lya.ipa`，输入个人 Apple ID 进行自签安装，即可在真机上畅爽运行。
+          files: Lya.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
