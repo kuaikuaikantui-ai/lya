@@ -2,6 +2,7 @@ import SwiftUI
 import WebKit
 import AVFoundation
 import MediaPlayer
+import UIKit
 
 struct OrientationHelper {
     static func forceLandscape() {
