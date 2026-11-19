@@ -195,19 +195,18 @@
 
 
     // 判断是否为源站优先与原站主力源（豆瓣1080P原画、暴风1080P超清、茅台1080P蓝光、原站全部直连源绝对置顶优先）
-    // 线路优先级与健康度评级算法（源站官方4K/1080P原画最高优先级，极速CDN次之，备用再次之）
+    // 线路优先级与健康度评级算法（精准对标源站：官方秒播CDN最高优先级秒开，4K专享顶级原画紧随其后）
     function getRoutePriorityScore(rawName, sampleUrl) {
         const name = String(rawName || '').trim();
         const lower = name.toLowerCase();
         const urlStr = String(sampleUrl || '').toLowerCase();
 
-        // 1. 原站 4K 专享超清线路（极致原画画质）
-        if (name.includes('4K') || lower.includes('4k')) return 220;
+        // 1. 原站官方极速直连 1080P/超清（字节跳动CDN / 官方自建高速节点，50ms秒开起播最稳）
+        if (name.includes('官方Z') || name.includes('官方S') || name.includes('官方V') || name.includes('官方B') || urlStr.includes('onewsvod') || name.includes('官方R') || urlStr.includes('zshtys888') || name.includes('官方C') || urlStr.includes('wikjdd')) return 230;
+        if (name.includes('官方') && (name.includes('原站') || name.includes('源站') || name.includes('1080'))) return 225;
 
-        // 2. 原站官方直连 1080P/超清（字节跳动CDN / 官方自建高速节点，秒开秒播最稳）
-        if (name.includes('官方R') || urlStr.includes('zshtys888') || name.includes('官方Z') || name.includes('官方B') || urlStr.includes('onewsvod') || name.includes('官方C') || urlStr.includes('wikjdd')) return 210;
-        if (name.includes('1080zyk') || urlStr.includes('playback-speed')) return 205;
-        if (name.includes('官方') && (name.includes('原站') || name.includes('源站') || name.includes('1080'))) return 200;
+        // 2. 原站 4K 专享超清线路（3840x2160 顶级原画画质，高可用专线）
+        if (name.includes('4K') || lower.includes('4k')) return 215;
 
         // 3. 原站三大首选原画直连
         if (name.includes('豆瓣') || lower.includes('douban') || urlStr.includes('ajupf') || urlStr.includes('ddbbffcdn')) return 195;
@@ -1729,16 +1728,13 @@
             videoEl.addEventListener('timeupdate', function onTime() {
                 if (videoEl.currentTime > 0) onStreamPlaying();
 
-                // 核心防护：智能探测 HEVC (H.265) 硬件解码不支持导致的【黑屏有声有进度】现象
-                // 若视频已播放超 2.5 秒但画面宽度始终为 0 或画面解码帧数为 0，说明当前设备不支持该 4K 的 H.265 硬解
-                if (videoEl.currentTime > 2.5 && !videoEl.paused && !videoEl._hevcChecked) {
-                    videoEl._hevcChecked = true;
-                    const quality = typeof videoEl.getVideoPlaybackQuality === 'function' ? videoEl.getVideoPlaybackQuality() : null;
-                    const isBlackScreen = (videoEl.videoWidth === 0 || (quality && quality.totalVideoFrames === 0));
-                    if (isBlackScreen) {
-                        console.warn('[Video Watchdog] 检测到当前设备硬解不支持该4K HEVC/H.265(黑屏有声)，自动无缝降级切换至 1080P 官方超清...');
+                // 真实硬件解码检测：仅在播放超 6 秒且视频宽高均确定为 0 时才判定为设备硬解缺失，杜绝首帧渲染延迟导致的误切
+                if (videoEl.currentTime > 6 && !videoEl.paused && !videoEl._hevcChecked && videoEl.readyState >= 2) {
+                    if (videoEl.videoWidth === 0 && videoEl.videoHeight === 0) {
+                        videoEl._hevcChecked = true;
+                        console.warn('[Video Watchdog] 检测到当前设备硬解不支持该4K编码(黑屏有声)，自动无缝切换至极速官方超清...');
                         if (window.dpInstance && window.dpInstance.notice) {
-                            window.dpInstance.notice('⚠️ 当前设备环境不支持此4K HEVC硬解，正在自动无缝切换至 1080P 超清...', 3500);
+                            window.dpInstance.notice('⚠️ 当前设备不支持此4K硬解，已为您自动切换至极速超清...', 3500);
                         }
                         window.triggerAutoSwitchRoute(idx, '设备不支持该4K编码');
                     }
@@ -1812,7 +1808,7 @@
                         // 2. Android 与 PC 走 Hls.js 引擎 (原生精准缓冲 + 错误深度自愈 + 安全平滑切源)
                         if (window.Hls && window.Hls.isSupported()) {
                             const hls = new window.Hls({
-                                enableWorker: false, // 禁用 Web Worker 内部转码，消除跨域与 CSP 导致的崩溃
+                                enableWorker: true, // 启用 Web Worker，让 TS 解复用在后台独立线程运行，杜绝4K大分片阻塞主线程
                                 lowLatencyMode: false,
                                 startLevel: -1,
                                 startPosition: resumePlaySeconds > 3 ? resumePlaySeconds : -1,
@@ -1820,11 +1816,11 @@
                                 maxBufferLength: isMobile ? 30 : 60,
                                 maxMaxBufferLength: isMobile ? 60 : 120,
                                 maxBufferSize: (isMobile ? 32 : 64) * 1024 * 1024,
-                                maxBufferHole: 0.8,
-                                backBufferLength: 30,
-                                startFragPrefetch: false, // 优先集中所有带宽下载第1个分片，秒开起播
-                                fragLoadingTimeOut: 25000,
-                                fragLoadingMaxRetry: 5,
+                                maxBufferHole: 0.5,
+                                backBufferLength: 60,
+                                startFragPrefetch: true, // 预取后续分片，对标 LibreTV / 源站，保障 4K 平滑起播
+                                fragLoadingTimeOut: 30000,
+                                fragLoadingMaxRetry: 6,
                                 fragLoadingRetryDelay: 1000,
                                 fragLoadingMaxRetryTimeout: 64000,
                                 manifestLoadingTimeOut: 20000,

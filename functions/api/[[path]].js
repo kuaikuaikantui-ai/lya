@@ -1056,14 +1056,10 @@ async function searchOriginKanju(keyword, originId = '') {
                 });
             });
 
-            // 按真实权重与品质排序（4K与官方1080P顶级置顶，主力CDN随其后）
+            // 严格遵循源站真实网络权重排序（官方秒开CDN 1000/999、4K专享 995-993、主力高速CDN按序排列）
             const sortedEntries = Array.from(providerMap.entries()).sort((a, b) => {
-                const isA4K = a[0].includes('4K') ? 2000 : 0;
-                const isB4K = b[0].includes('4K') ? 2000 : 0;
-                const isA1080 = (a[0].includes('1080P') || a[0].includes('官方')) ? 1000 : 0;
-                const isB1080 = (b[0].includes('1080P') || b[0].includes('官方')) ? 1000 : 0;
-                const weightA = (a[1].weight || 0) + isA4K + isA1080;
-                const weightB = (b[1].weight || 0) + isB4K + isB1080;
+                const weightA = Number(a[1].weight || 700);
+                const weightB = Number(b[1].weight || 700);
                 return weightB - weightA;
             });
 
