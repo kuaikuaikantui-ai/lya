@@ -67,14 +67,11 @@ struct LyaNativePlayerView: View {
             // 1. 底层视频图层
             CustomVideoPlayerLayerView(player: playerModel.player)
                 .ignoresSafeArea()
-                .onTapGesture(count: 2) {
-                    if !isLocked {
-                        playerModel.togglePlay()
-                        triggerHaptic(.medium)
-                        resetControlsTimer()
-                    }
-                }
-                .onTapGesture(count: 1) {
+
+            // 2. 原生手势响应层 (完美支持长按 2.0X 极速播放、松手立即恢复、单双击与全手势)
+            PlayerGestureOverlayView(
+                isLocked: isLocked,
+                onSingleTap: {
                     if isLocked {
                         withAnimation(.easeInOut(duration: 0.2)) { showControls.toggle() }
                     } else {
@@ -83,32 +80,35 @@ struct LyaNativePlayerView: View {
                             if showControls { resetControlsTimer() }
                         }
                     }
+                },
+                onDoubleTap: {
+                    playerModel.togglePlay()
+                    triggerHaptic(.medium)
+                    resetControlsTimer()
+                },
+                onLongPressBegan: {
+                    guard playerModel.isPlaying else { return }
+                    isLongPressing = true
+                    previousRate = playerModel.playbackRate
+                    playerModel.setRate(2.0)
+                    triggerHaptic(.heavy)
+                },
+                onLongPressEnded: {
+                    if isLongPressing {
+                        isLongPressing = false
+                        playerModel.setRate(previousRate)
+                        triggerHaptic(.medium)
+                    }
+                },
+                onPanChanged: { translation, location in
+                    guard !isLongPressing else { return }
+                    handlePanChanged(translation: translation, startLocation: location)
+                },
+                onPanEnded: {
+                    handlePanEnded()
                 }
-                .gesture(
-                    LongPressGesture(minimumDuration: 0.35)
-                        .onEnded { _ in
-                            guard !isLocked && playerModel.isPlaying else { return }
-                            isLongPressing = true
-                            previousRate = playerModel.playbackRate
-                            playerModel.setRate(2.0)
-                            triggerHaptic(.heavy)
-                        }
-                )
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 10)
-                        .onChanged { value in
-                            guard !isLocked && !isLongPressing else { return }
-                            handlePanChanged(value)
-                        }
-                        .onEnded { _ in
-                            if isLongPressing {
-                                isLongPressing = false
-                                playerModel.setRate(previousRate)
-                                triggerHaptic(.medium)
-                            }
-                            handlePanEnded()
-                        }
-                )
+            )
+            .ignoresSafeArea()
 
             // 2. 长按 2.0X 极速播放 HUD 浮窗
             if isLongPressing {
@@ -171,6 +171,7 @@ struct LyaNativePlayerView: View {
             }
         }
         .onAppear {
+            OrientationHelper.allowRotation()
             if let item = playItem {
                 playerModel.loadVideo(item: item)
                 resetControlsTimer()
@@ -187,6 +188,7 @@ struct LyaNativePlayerView: View {
             controlsTimer?.invalidate()
             controlsTimer = nil
             playerModel.cleanup()
+            OrientationHelper.forcePortrait()
         }
         .sheet(isPresented: $showEpisodeSheet) {
             episodeSelectionSheet
@@ -200,6 +202,7 @@ struct LyaNativePlayerView: View {
     private var topControlBar: some View {
         HStack(spacing: 14) {
             Button(action: {
+                OrientationHelper.forcePortrait()
                 onClose?(playerModel.currentTime)
                 playItem = nil
             }) {
@@ -477,34 +480,35 @@ struct LyaNativePlayerView: View {
     }
 
     // MARK: - 手势处理逻辑
-    private func handlePanChanged(_ value: DragGesture.Value) {
-        let translation = value.translation
+    private func handlePanChanged(translation: CGPoint, startLocation: CGPoint) {
         let screenWidth = UIScreen.main.bounds.width
 
         if panType == .none {
-            if abs(translation.width) > abs(translation.height) {
+            if abs(translation.x) > abs(translation.y) && abs(translation.x) > 12 {
                 panType = .seek
                 panSeekTime = playerModel.currentTime
-            } else if value.startLocation.x < screenWidth * 0.45 {
-                panType = .brightness
-                panBrightness = UIScreen.main.brightness
-            } else {
-                panType = .volume
-                panVolume = playerModel.getSystemVolume()
+            } else if abs(translation.y) > 12 {
+                if startLocation.x < screenWidth * 0.45 {
+                    panType = .brightness
+                    panBrightness = UIScreen.main.brightness
+                } else {
+                    panType = .volume
+                    panVolume = playerModel.getSystemVolume()
+                }
             }
         }
 
         switch panType {
         case .brightness:
-            let delta = -translation.height / 300.0
+            let delta = -translation.y / 280.0
             let target = max(0, min(1, panBrightness + delta))
             UIScreen.main.brightness = target
         case .volume:
-            let delta = Float(-translation.height / 300.0)
+            let delta = Float(-translation.y / 280.0)
             let target = max(0, min(1, panVolume + delta))
             playerModel.setSystemVolume(target)
         case .seek:
-            let delta = Double(translation.width) * (playerModel.duration > 3600 ? 1.5 : 0.6)
+            let delta = Double(translation.x) * (playerModel.duration > 3600 ? 1.5 : 0.6)
             panSeekTime = max(0, min(playerModel.duration, playerModel.currentTime + delta))
             seekFrameTick = (seekFrameTick + 1) % 28
         case .none:
@@ -552,16 +556,8 @@ struct LyaNativePlayerView: View {
     }
 
     private func toggleOrientation() {
-        if #available(iOS 16.0, *) {
-            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
-            let isLandscape = windowScene.interfaceOrientation.isLandscape
-            let target: UIInterfaceOrientationMask = isLandscape ? .portrait : .landscapeRight
-            windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: target))
-        } else {
-            let isLandscape = UIDevice.current.orientation.isLandscape
-            let target = isLandscape ? UIInterfaceOrientation.portrait.rawValue : UIInterfaceOrientation.landscapeRight.rawValue
-            UIDevice.current.setValue(target, forKey: "orientation")
-        }
+        OrientationHelper.toggleLandscape()
+        resetControlsTimer()
     }
 
     private func resetControlsTimer() {
@@ -800,6 +796,145 @@ struct CustomVideoPlayerLayerView: UIViewRepresentable {
 
         required init?(coder: NSCoder) {
             fatalError("init(coder:) has not been implemented")
+        }
+    }
+}
+
+// MARK: - 屏幕旋转与方向锁定管理器 (保障退出播放器时 100% 恢复竖屏)
+struct OrientationHelper {
+    static func allowRotation() {
+        AppDelegate.orientationLock = .allButUpsideDown
+    }
+
+    static func forcePortrait() {
+        AppDelegate.orientationLock = .portrait
+        if #available(iOS 16.0, *) {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) { _ in }
+            }
+        } else {
+            UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+        }
+        UIViewController.attemptRotationToDeviceOrientation()
+    }
+
+    static func toggleLandscape() {
+        if #available(iOS 16.0, *) {
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
+            let isLandscape = windowScene.interfaceOrientation.isLandscape
+            let target: UIInterfaceOrientationMask = isLandscape ? .portrait : .landscapeRight
+            windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: target)) { _ in }
+        } else {
+            let isLandscape = UIDevice.current.orientation.isLandscape
+            let target = isLandscape ? UIInterfaceOrientation.portrait.rawValue : UIInterfaceOrientation.landscapeRight.rawValue
+            UIDevice.current.setValue(target, forKey: "orientation")
+        }
+        UIViewController.attemptRotationToDeviceOrientation()
+    }
+}
+
+// MARK: - 原生手势响应覆盖层 (高灵敏长按 2.0X 极速播放、松手立即恢复、单双击与全手势)
+struct PlayerGestureOverlayView: UIViewRepresentable {
+    var isLocked: Bool
+    var onSingleTap: () -> Void
+    var onDoubleTap: () -> Void
+    var onLongPressBegan: () -> Void
+    var onLongPressEnded: () -> Void
+    var onPanChanged: (CGPoint, CGPoint) -> Void
+    var onPanEnded: () -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+
+        let doubleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDoubleTap))
+        doubleTap.numberOfTapsRequired = 2
+
+        let singleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleSingleTap))
+        singleTap.numberOfTapsRequired = 1
+        singleTap.require(toFail: doubleTap)
+
+        let longPress = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleLongPress(_:)))
+        longPress.minimumPressDuration = 0.28
+        longPress.allowableMovement = 35
+        longPress.delegate = context.coordinator
+
+        let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
+        pan.maximumNumberOfTouches = 1
+        pan.delegate = context.coordinator
+
+        context.coordinator.singleTap = singleTap
+        context.coordinator.doubleTap = doubleTap
+        context.coordinator.longPress = longPress
+        context.coordinator.pan = pan
+
+        view.addGestureRecognizer(doubleTap)
+        view.addGestureRecognizer(singleTap)
+        view.addGestureRecognizer(longPress)
+        view.addGestureRecognizer(pan)
+
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.parent = self
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var parent: PlayerGestureOverlayView
+        weak var singleTap: UITapGestureRecognizer?
+        weak var doubleTap: UITapGestureRecognizer?
+        weak var longPress: UILongPressGestureRecognizer?
+        weak var pan: UIPanGestureRecognizer?
+
+        init(_ parent: PlayerGestureOverlayView) {
+            self.parent = parent
+        }
+
+        @objc func handleSingleTap() {
+            parent.onSingleTap()
+        }
+
+        @objc func handleDoubleTap() {
+            if !parent.isLocked {
+                parent.onDoubleTap()
+            }
+        }
+
+        @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+            if parent.isLocked { return }
+            switch gesture.state {
+            case .began:
+                parent.onLongPressBegan()
+            case .ended, .cancelled, .failed:
+                parent.onLongPressEnded()
+            default:
+                break
+            }
+        }
+
+        @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
+            if parent.isLocked { return }
+            guard let view = gesture.view else { return }
+            let translation = gesture.translation(in: view)
+            let location = gesture.location(in: view)
+
+            switch gesture.state {
+            case .changed:
+                parent.onPanChanged(translation, location)
+            case .ended, .cancelled, .failed:
+                parent.onPanEnded()
+            default:
+                break
+            }
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            return true
         }
     }
 }

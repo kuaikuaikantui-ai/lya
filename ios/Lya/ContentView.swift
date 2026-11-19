@@ -159,6 +159,7 @@ struct LyaWebView: UIViewRepresentable {
         webView.scrollView.backgroundColor = UIColor(red: 15/255, green: 20/255, blue: 28/255, alpha: 1)
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
 
         webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 LyaNativeApp/1.0"
 
@@ -181,7 +182,7 @@ struct LyaWebView: UIViewRepresentable {
         Coordinator(parent: self)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate {
         let parent: LyaWebView
         var lastTrigger = UUID()
 
@@ -301,6 +302,32 @@ struct LyaWebView: UIViewRepresentable {
                     }
                 }
             }
+        }
+
+        // MARK: - WKUIDelegate (支持原生 Alert 与 Confirm 弹窗，解决通行证注销/提示问题)
+        func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+            let alert = UIAlertController(title: "提示", message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "确定", style: .default) { _ in completionHandler() })
+            findTopViewController()?.present(alert, animated: true)
+        }
+
+        func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+            let alert = UIAlertController(title: "提示", message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "取消", style: .cancel) { _ in completionHandler(false) })
+            alert.addAction(UIAlertAction(title: "确定", style: .destructive) { _ in completionHandler(true) })
+            findTopViewController()?.present(alert, animated: true)
+        }
+
+        private func findTopViewController() -> UIViewController? {
+            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first,
+                  var top = window.rootViewController else {
+                return nil
+            }
+            while let presented = top.presentedViewController {
+                top = presented
+            }
+            return top
         }
     }
 }

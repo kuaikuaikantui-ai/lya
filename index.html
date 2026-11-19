@@ -7560,9 +7560,12 @@
     };
 
     window.doCloudLogout = function() {
-        if (!confirm('确定要在此设备退出云同步通行证吗？（本机已有的书架和观看记录仍会保留）')) return;
+        try {
+            if (typeof confirm === 'function' && !confirm('确定要在此设备退出云同步通行证吗？（本机已有的书架和观看记录仍会保留）')) return;
+        } catch(e) {}
         saveCloudUser(null);
         ensureCloudLiveStream();
+        updateCloudSyncUI(false);
         showCloudToast('已退出云同步通行证', 'fa-info-circle', '#38bdf8');
     };
 
