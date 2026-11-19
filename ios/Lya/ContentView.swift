@@ -7,7 +7,7 @@ import UIKit
 struct OrientationHelper {
     static func forceLandscape() {
         DispatchQueue.main.async {
-            AppDelegate.orientationLock = .landscapeRight
+            AppDelegate.orientationLock = .allButUpsideDown
             UIDevice.current.setValue(UIInterfaceOrientation.landscapeRight.rawValue, forKey: "orientation")
             UIViewController.attemptRotationToDeviceOrientation()
         }
@@ -201,7 +201,7 @@ struct LyaWebView: UIViewRepresentable {
 
         // 支持 JS alert 提示框
         func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
-            let alert = UIAlertController(title: "提示", message: message, preferredStyle: .default)
+            let alert = UIAlertController(title: "提示", message: message, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "知道了", style: .default, handler: { _ in
                 completionHandler()
             }))
