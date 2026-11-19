@@ -3,7 +3,7 @@ import AVFoundation
 import UIKit
 
 class AppDelegate: NSObject, UIApplicationDelegate {
-    static var orientationLock = UIInterfaceOrientationMask.portrait
+    static var orientationLock = UIInterfaceOrientationMask.allButUpsideDown
 
     func application(
         _ application: UIApplication,

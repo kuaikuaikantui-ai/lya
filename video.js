@@ -1678,59 +1678,6 @@
         const videoTitle = window.currentVideo.kanju_title || window.currentVideo.vod_name || '';
 
         // 注册全屏原生唤起函数 (供半屏播放器全屏按钮点击时呼出腾讯/B站级横屏全屏播放器)
-        window.triggerNativeFullscreen = function() {
-            if (!window.webkit || !window.webkit.messageHandlers || !window.webkit.messageHandlers.lyaNativePlayer) return false;
-            if (!window.currentVideo) return false;
-            const curIdx = window.currentEpisodeIdx || idx || 0;
-            const curGroup = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
-            const curEp = curGroup && curGroup.episodes && curGroup.episodes[curIdx];
-            if (!curEp) return false;
-
-            let curSec = 0;
-            if (window.dpInstance && window.dpInstance.video) {
-                curSec = window.dpInstance.video.currentTime || 0;
-                try { window.dpInstance.pause(); } catch(e){}
-            }
-
-            const rawUrl = (videoUrl || curEp.url || '');
-            const fullVideoUrl = rawUrl.startsWith('http') ? rawUrl : (window.location.origin + rawUrl);
-            const curTitle = window.currentVideo.kanju_title || window.currentVideo.vod_name || '';
-            const allNativeLines = (window.currentVideo.groups || []).map((g, gIdx) => ({
-                id: gIdx,
-                name: formatFriendlyLineName(g.name, gIdx, g.episodes && g.episodes[0] ? g.episodes[0].url : ''),
-                rawName: g.name,
-                is4K: (g.name || '').toUpperCase().includes('4K'),
-                isOfficial: (g.name || '').includes('官方') || (g.name || '').includes('专享'),
-                episodes: (g.episodes || []).map((e, i) => {
-                    const epUrl = e.url || '';
-                    const fullEpUrl = epUrl.startsWith('http') ? epUrl : (window.location.origin + epUrl);
-                    return { title: e.title, url: fullEpUrl, index: i };
-                })
-            }));
-
-            try {
-                window.webkit.messageHandlers.lyaNativePlayer.postMessage({
-                    action: 'play',
-                    title: curTitle,
-                    episodeTitle: curEp.title,
-                    url: fullVideoUrl,
-                    resumeSeconds: curSec,
-                    currentEpIdx: curIdx,
-                    lineName: formatFriendlyLineName(curGroup.name, window.currentGroupIdx, fullVideoUrl),
-                    lines: allNativeLines,
-                    currentLineIdx: window.currentGroupIdx || 0,
-                    episodes: (curGroup.episodes || []).map((e, i) => {
-                        const epUrl = e.url || '';
-                        const fullEpUrl = epUrl.startsWith('http') ? epUrl : (window.location.origin + epUrl);
-                        return { title: e.title, url: fullEpUrl, index: i };
-                    })
-                });
-                return true;
-            } catch(e) {
-                console.warn('[Native Player] 全屏唤起失败:', e);
-                return false;
-            }
-        };
         const kanjuCardId = window.currentVideo.kanju_id || (String(window.currentVideo.vod_id).startsWith('av_') ? window.currentVideo.vod_id : '');
 
         const ua = navigator.userAgent || '';
@@ -1843,18 +1790,7 @@
                         video.setAttribute('x5-playsinline', 'true');
                         video.setAttribute('x5-video-player-type', 'h5-page');
 
-                        // 拦截 iOS 默认系统全屏，防止原生 App 中唤起系统播放器
-                        const useOriginPlayer = localStorage.getItem('lya_prefer_origin_player') === 'true';
-                        if (!useOriginPlayer && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.lyaNativePlayer) {
-                            try {
-                                video.webkitEnterFullscreen = function() {
-                                    if (typeof window.triggerNativeFullscreen === 'function') {
-                                        window.triggerNativeFullscreen();
-                                    }
-                                };
-                                video.webkitExitFullscreen = function() {};
-                            } catch(e) {}
-                        }
+
 
                         armPlaybackWatchdog(video);
 
@@ -2189,37 +2125,7 @@
     };
 
     // 将独立弹幕开关、快捷控制与原先左上角的全套高级设置完整集成进播放器右下角控制栏与右侧设置弹窗
-        // iOS PWA / 移动端 90度强制横屏全屏控制器 (解决 iOS WebClip 添加到主屏幕无法横屏与锁屏问题)
-    window.toggleForceLandscape = function() {
-        const container = document.getElementById('dplayerContainer');
-        if (!container) return;
-        const isForced = container.classList.toggle('dp-force-landscape');
-        if (isForced) {
-            document.body.style.overflow = 'hidden';
-            if (window.dpInstance && window.dpInstance.notice) {
-                window.dpInstance.notice('⚡ 已开启旋转横屏巨幕，iOS锁死竖屏亦可超宽全屏观影', 2500);
-            }
-        } else {
-            document.body.style.overflow = '';
-        }
-    };
-
-    // 监听设备物理旋转事件：当用户未开启竖屏锁定时，物理横屏自动对齐
-    if (typeof window !== 'undefined') {
-        const syncDeviceOrientation = function() {
-            const container = document.getElementById('dplayerContainer');
-            if (!container || !window.dpInstance) return;
-            const isLandscape = window.innerWidth > window.innerHeight;
-            if (isLandscape && container.classList.contains('dp-force-landscape')) {
-                container.classList.remove('dp-force-landscape');
-                document.body.style.overflow = '';
-            }
-        };
-        window.addEventListener('orientationchange', syncDeviceOrientation);
-        window.addEventListener('resize', syncDeviceOrientation);
-    }
-
-window.injectBottomRightPlayerControls = function(dpContainer) {
+        window.injectBottomRightPlayerControls = function(dpContainer) {
         if (!dpContainer) return;
 
         // 1. 在底部右侧控制栏 (.dplayer-icons-right) 注入：独立弹幕开关胶囊、跳片头、P2P状态、下一集、画中画
@@ -2300,30 +2206,7 @@ window.injectBottomRightPlayerControls = function(dpContainer) {
             pipBtn.innerHTML = '<span class="dplayer-icon-content"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z"/></svg></span>';
             
             frag.appendChild(pipBtn);
-
-            // (F) 终极全屏控制器：彻底清除 DPlayer 内部绑定的 webkitEnterFullscreen 事件，杜绝重复弹窗
-            const oldFullBtn = dpContainer.querySelector('.dplayer-full');
-            if (oldFullBtn) {
-                const newFullBtn = oldFullBtn.cloneNode(true);
-                oldFullBtn.parentNode.replaceChild(newFullBtn, oldFullBtn);
-                newFullBtn.onclick = function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-
-                    const useOrigin = localStorage.getItem('lya_prefer_origin_player') === 'true';
-                    if (!useOrigin && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.lyaNativePlayer) {
-                        if (typeof window.triggerNativeFullscreen === 'function') {
-                            window.triggerNativeFullscreen();
-                        }
-                    } else {
-                        // 原站默认全屏模式：直接调用 DPlayer 自带的全屏切换或 HTML5 全屏
-                        if (window.dpInstance && window.dpInstance.fullScreen) {
-                            window.dpInstance.fullScreen.toggle('browser');
-                        }
-                    }
-                };
-            }
+            rightIcons.insertBefore(frag, settingWrap);
         }
 
         // 2. 在右下角设置面板 (.dplayer-setting-origin-panel) 完整集成原先左上角的 5 大高级卡片设置 + 倍速/循环/弹幕透明度
@@ -2334,43 +2217,6 @@ window.injectBottomRightPlayerControls = function(dpContainer) {
             headerRow.className = 'dp-setting-panel-header';
             headerRow.innerHTML = `<i class="fas fa-sliders" style="color:var(--accent);"></i> <span>播放器与画质偏好设置</span>`;
             originPanel.insertBefore(headerRow, originPanel.firstChild);
-
-            // 全屏播放内核选择行 (支持在 Lya 原生横屏超清播放器 与 原站默认网页播放器 之间自由切换)
-            const engineRow = document.createElement('div');
-            engineRow.className = 'dp-setting-item dp-custom-setting-row';
-            engineRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);';
-            const curPref = localStorage.getItem('lya_prefer_origin_player') === 'true' ? 'origin' : 'native';
-            engineRow.innerHTML = `
-                <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--text-main);display:flex;align-items:center;gap:6px;">
-                        <i class="fas fa-play-circle" style="color:#38bdf8;font-size:13px;"></i>
-                        <span>全屏播放内核</span>
-                    </div>
-                    <div id="dpPlayerEngineTip" style="font-size:10px;color:var(--text-muted);margin-top:2px;">
-                        ${curPref === 'native' ? 'Lya 原生超清横屏 (支持长按2倍速/手势/选集)' : '原站默认播放器 (原汁原味网页全屏)'}
-                    </div>
-                </div>
-                <select id="dpPlayerEngineSelect" style="background:#1e293b;color:#38bdf8;border:1px solid rgba(56,189,248,0.3);border-radius:6px;padding:3px 8px;font-size:12px;outline:none;cursor:pointer;">
-                    <option value="native" ${curPref === 'native' ? 'selected' : ''}>原生横屏</option>
-                    <option value="origin" ${curPref === 'origin' ? 'selected' : ''}>原站播放器</option>
-                </select>
-            `;
-            originPanel.insertBefore(engineRow, originPanel.children[1] || null);
-
-            const sel = engineRow.querySelector('#dpPlayerEngineSelect');
-            if (sel) {
-                sel.addEventListener('change', function(e) {
-                    const val = e.target.value;
-                    localStorage.setItem('lya_prefer_origin_player', val === 'origin' ? 'true' : 'false');
-                    const tip = document.getElementById('dpPlayerEngineTip');
-                    if (tip) {
-                        tip.innerText = val === 'native' ? 'Lya 原生超清横屏 (支持长按2倍速/手势/选集)' : '原站默认播放器 (原汁原味网页全屏)';
-                    }
-                    if (window.dpInstance && window.dpInstance.notice) {
-                        window.dpInstance.notice(val === 'native' ? '已切换为 Lya 原生横屏超清播放器' : '已切换为 原站默认播放器', 2000);
-                    }
-                });
-            }
 
             // 在原生播放速度行右侧显示当前倍速数值
             const speedToggle = originPanel.querySelector('.dplayer-setting-speed .dplayer-toggle');

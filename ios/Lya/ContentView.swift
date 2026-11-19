@@ -5,12 +5,8 @@ import MediaPlayer
 
 struct ContentView: View {
     @AppStorage("lya_server_url") private var serverUrl: String = "https://lya-arr.pages.dev"
-    @State private var showSettings = false
-    @State private var inputUrl = ""
     @State private var reloadTrigger = UUID()
     @State private var isOfflineMode = false
-    @State private var currentPlayItem: NativePlayItem? = nil
-
     @State private var sharedWebView: WKWebView? = nil
 
     var body: some View {
@@ -21,42 +17,12 @@ struct ContentView: View {
                 serverUrl: serverUrl,
                 reloadTrigger: reloadTrigger,
                 isOfflineMode: isOfflineMode,
-                currentPlayItem: $currentPlayItem,
                 sharedWebView: $sharedWebView
             )
             .ignoresSafeArea()
         }
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
-        }
-        .fullScreenCover(item: $currentPlayItem) { item in
-            LyaNativePlayerView(
-                playItem: $currentPlayItem,
-                onTimeUpdate: { seconds, epIdx in
-                    sharedWebView?.evaluateJavaScript("if (window.onNativePlayerTimeUpdate) window.onNativePlayerTimeUpdate(\(seconds), \(epIdx));", completionHandler: nil)
-                },
-                onSwitchEpisode: { newIdx in
-                    sharedWebView?.evaluateJavaScript("if (window.onNativePlayerSwitchEpisode) window.onNativePlayerSwitchEpisode(\(newIdx));", completionHandler: nil)
-                },
-                onSwitchLine: { newLineIdx in
-                    sharedWebView?.evaluateJavaScript("if (window.onNativePlayerSwitchLine) window.onNativePlayerSwitchLine(\(newLineIdx));", completionHandler: nil)
-                },
-                onClose: { lastSeconds in
-                    sharedWebView?.evaluateJavaScript("if (window.onNativePlayerClose) window.onNativePlayerClose(\(lastSeconds));", completionHandler: nil)
-                }
-            )
-            .ignoresSafeArea()
-        }
-        .sheet(isPresented: $showSettings) {
-            ServerSettingsView(
-                serverUrl: $serverUrl,
-                inputUrl: $inputUrl,
-                isOfflineMode: $isOfflineMode,
-                onSave: {
-                    reloadTrigger = UUID()
-                    showSettings = false
-                }
-            )
         }
     }
 }
@@ -65,7 +31,6 @@ struct LyaWebView: UIViewRepresentable {
     let serverUrl: String
     let reloadTrigger: UUID
     let isOfflineMode: Bool
-    @Binding var currentPlayItem: NativePlayItem?
     @Binding var sharedWebView: WKWebView?
 
     func makeUIView(context: Context) -> WKWebView {
@@ -75,13 +40,9 @@ struct LyaWebView: UIViewRepresentable {
         config.allowsPictureInPictureMediaPlayback = true
         config.allowsAirPlayForMediaPlayback = true
 
-        // 注入原生交互 Bridge & 全局广告拦截脚本
         let userContent = WKUserContentController()
-        userContent.add(context.coordinator, name: "lyaNativePlayer")
-        userContent.add(context.coordinator, name: "nativeBridge")
-        userContent.add(context.coordinator, name: "nativeHlsPlayback")
 
-        // 强大的全网广告免疫脚本 (彻底解决源站恶心广告问题)
+        // 强力全网广告免疫脚本 (屏蔽所有弹窗/联盟广告，保护视频主容器)
         let adBlockScript = WKUserScript(
             source: """
             (function() {
@@ -161,7 +122,7 @@ struct LyaWebView: UIViewRepresentable {
         Coordinator(parent: self)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let parent: LyaWebView
         var lastTrigger = UUID()
 
@@ -178,7 +139,6 @@ struct LyaWebView: UIViewRepresentable {
                 return
             }
 
-            // 本地内置离线包极速秒开 (0ms 启动，无任何广告)
             if let indexUrl = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "www") {
                 webView.loadFileURL(indexUrl, allowingReadAccessTo: indexUrl.deletingLastPathComponent())
             } else if let fallbackUrl = Bundle.main.url(forResource: "index", withExtension: "html") {
@@ -194,169 +154,37 @@ struct LyaWebView: UIViewRepresentable {
             }
         }
 
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            // 1. 处理 Lya 专用原生全屏播放协议
-            if message.name == "lyaNativePlayer", let dict = message.body as? [String: Any] {
-                let action = dict["action"] as? String ?? ""
-                if action == "play" {
-                    let title = dict["title"] as? String ?? "视频播放"
-                    let epTitle = dict["episodeTitle"] as? String ?? ""
-                    let url = dict["url"] as? String ?? ""
-                    let resumeSec = (dict["resumeSeconds"] as? NSNumber)?.doubleValue ?? 0
-                    let curIdx = (dict["currentEpIdx"] as? NSNumber)?.intValue ?? 0
-                    let lineName = dict["lineName"] as? String ?? "官方极速"
-                    let curLineIdx = (dict["currentLineIdx"] as? NSNumber)?.intValue ?? 0
-
-                    var eps: [NativeEpisodeItem] = []
-                    if let rawList = dict["episodes"] as? [[String: Any]] {
-                        eps = rawList.enumerated().map { (idx, e) in
-                            NativeEpisodeItem(
-                                id: (e["index"] as? NSNumber)?.intValue ?? idx,
-                                title: e["title"] as? String ?? "第\(idx + 1)集",
-                                url: e["url"] as? String ?? ""
-                            )
-                        }
-                    }
-
-                    var lines: [NativeLineOption] = []
-                    if let rawLines = dict["lines"] as? [[String: Any]] {
-                        lines = rawLines.enumerated().map { (lIdx, l) in
-                            var lEps: [NativeEpisodeItem] = []
-                            if let rawLEps = l["episodes"] as? [[String: Any]] {
-                                lEps = rawLEps.enumerated().map { (eIdx, e) in
-                                    NativeEpisodeItem(
-                                        id: (e["index"] as? NSNumber)?.intValue ?? eIdx,
-                                        title: e["title"] as? String ?? "第\(eIdx + 1)集",
-                                        url: e["url"] as? String ?? ""
-                                    )
-                                }
-                            }
-                            return NativeLineOption(
-                                id: (l["id"] as? NSNumber)?.intValue ?? lIdx,
-                                name: l["name"] as? String ?? "线路 \(lIdx + 1)",
-                                is4K: l["is4K"] as? Bool ?? false,
-                                isOfficial: l["isOfficial"] as? Bool ?? false,
-                                episodes: lEps
-                            )
-                        }
-                    }
-
-                    DispatchQueue.main.async {
-                        self.parent.currentPlayItem = NativePlayItem(
-                            title: title,
-                            episodeTitle: epTitle,
-                            url: url,
-                            resumeSeconds: resumeSec,
-                            episodes: eps,
-                            currentEpIdx: curIdx,
-                            lineName: lineName,
-                            lines: lines,
-                            currentLineIdx: curLineIdx
-                        )
-                    }
-                }
-            }
-            // 2. 兼容源站 kanju.ai nativeBridge 协议 (无缝接管源站直通流，纯净零广告)
-            else if message.name == "nativeBridge", let dict = message.body as? [String: Any] {
-                let action = dict["action"] as? String ?? dict["method"] as? String ?? ""
-                if action.contains("open") || action.contains("openNativePlayer") {
-                    let params = dict["params"] as? [String: Any] ?? dict
-                    let url = params["url"] as? String ?? ""
-                    let title = params["title"] as? String ?? "影视播放"
-                    let epTitle = params["episode_title"] as? String ?? params["episodeTitle"] as? String ?? ""
-                    let startSec = (params["startPositionSeconds"] as? NSNumber)?.doubleValue ?? (params["start_position_seconds"] as? NSNumber)?.doubleValue ?? 0
-                    let line = params["line_name"] as? String ?? "官方超清"
-                    if !url.isEmpty {
-                        DispatchQueue.main.async {
-                            self.parent.currentPlayItem = NativePlayItem(
-                                title: title,
-                                episodeTitle: epTitle,
-                                url: url,
-                                resumeSeconds: startSec,
-                                episodes: [NativeEpisodeItem(id: 0, title: epTitle.isEmpty ? "正片" : epTitle, url: url)],
-                                currentEpIdx: 0,
-                                lineName: line
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // MARK: - WKUIDelegate (支持原生 Alert 与 Confirm 弹窗，解决通行证注销/提示问题)
-        func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
-            let alert = UIAlertController(title: "提示", message: message, preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "确定", style: .default) { _ in completionHandler() })
-            findTopViewController()?.present(alert, animated: true)
-        }
-
+        // 支持 JS confirm 对话框 (用于通行证注销/退出登录二次确认)
         func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
             let alert = UIAlertController(title: "提示", message: message, preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "取消", style: .cancel) { _ in completionHandler(false) })
-            alert.addAction(UIAlertAction(title: "确定", style: .destructive) { _ in completionHandler(true) })
-            findTopViewController()?.present(alert, animated: true)
+            alert.addAction(UIAlertAction(title: "取消", style: .cancel, handler: { _ in
+                completionHandler(false)
+            }))
+            alert.addAction(UIAlertAction(title: "确定", style: .default, handler: { _ in
+                completionHandler(true)
+            }))
+            getTopViewController()?.present(alert, animated: true)
         }
 
-        private func findTopViewController() -> UIViewController? {
-            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                  let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first,
-                  var top = window.rootViewController else {
+        // 支持 JS alert 提示框
+        func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+            let alert = UIAlertController(title: "提示", message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "知道了", style: .default, handler: { _ in
+                completionHandler()
+            }))
+            getTopViewController()?.present(alert, animated: true)
+        }
+
+        private func getTopViewController() -> UIViewController? {
+            guard let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+                  let window = windowScene.windows.first(where: { $0.isKeyWindow }) else {
                 return nil
             }
-            while let presented = top.presentedViewController {
-                top = presented
+            var topController = window.rootViewController
+            while let presentedViewController = topController?.presentedViewController {
+                topController = presentedViewController
             }
-            return top
-        }
-    }
-}
-
-struct ServerSettingsView: View {
-    @Binding var serverUrl: String
-    @Binding var inputUrl: String
-    @Binding var isOfflineMode: Bool
-    var onSave: () -> Void
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("服务连接模式")) {
-                    Toggle("纯本地打包离线模式 (Local Bundle)", isOn: $isOfflineMode)
-                    if !isOfflineMode {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Cloudflare Pages 部署地址 / 自建域名")
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                            TextField("例如 https://xxx.pages.dev", text: $inputUrl)
-                                .autocapitalization(.none)
-                                .disableAutocorrection(true)
-                                .keyboardType(.URL)
-                        }
-                    }
-                }
-
-                Section(header: Text("内置腾讯/B站级原生播放器特性")) {
-                    Label("沉浸式真·全屏旋转与防误触屏幕锁", systemImage: "arrow.up.left.and.arrow.down.right")
-                    Label("长按屏幕任意位置触发 2.0X 极速播放", systemImage: "bolt.fill")
-                    Label("左滑调亮度、右滑调音量、水平滑快进", systemImage: "hand.draw")
-                    Label("全域广告智能免疫 (无开屏、无插播、无暂停广告)", systemImage: "shield.lefthalf.filled")
-                    Label("AVFoundation 芯片级硬解 (4K HEVC / HDR)", systemImage: "sparkles.tv")
-                    Label("下一集智能预热缓存 (对标源站秒开机制)", systemImage: "bolt.horizontal.fill")
-                }
-
-                Section {
-                    Button("保存并刷新生效") {
-                        if !isOfflineMode {
-                            serverUrl = inputUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-                        }
-                        onSave()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .foregroundColor(.blue)
-                }
-            }
-            .navigationTitle("Lya 客户端设置")
-            .navigationBarTitleDisplayMode(.inline)
+            return topController
         }
     }
 }
