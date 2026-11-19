@@ -4,7 +4,7 @@ import AVFoundation
 import MediaPlayer
 
 struct ContentView: View {
-    @AppStorage("lya_server_url") private var serverUrl: String = ""
+    @AppStorage("lya_server_url") private var serverUrl: String = "https://lya-arr.pages.dev"
     @State private var showSettings = false
     @State private var inputUrl = ""
     @State private var reloadTrigger = UUID()
@@ -200,7 +200,7 @@ struct LyaWebView: UIViewRepresentable {
                 webView.loadFileURL(indexUrl, allowingReadAccessTo: indexUrl.deletingLastPathComponent())
             } else if let fallbackUrl = Bundle.main.url(forResource: "index", withExtension: "html") {
                 webView.loadFileURL(fallbackUrl, allowingReadAccessTo: fallbackUrl.deletingLastPathComponent())
-            } else if let defaultTarget = URL(string: "https://lya.pages.dev") {
+            } else if let defaultTarget = URL(string: "https://lya-arr.pages.dev") {
                 webView.load(URLRequest(url: defaultTarget))
             }
         }
