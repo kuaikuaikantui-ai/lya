@@ -140,6 +140,20 @@ struct LyaNativePlayerView: View {
                 SeekHUD(seekTime: panSeekTime, duration: playerModel.duration, frameTick: seekFrameTick)
             }
 
+            // 3.5 极速缓冲指示器
+            if playerModel.isBuffering {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .cyan))
+                        .scaleEffect(1.4)
+                    Text("极速加载中...")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+                .padding(20)
+                .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.65)))
+            }
+
             // 4. 屏幕左侧防误触锁屏按钮
             if showControls {
                 HStack {
@@ -592,6 +606,7 @@ class PlayerModel: NSObject, ObservableObject, AVPictureInPictureControllerDeleg
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
     @Published var playbackRate: Float = 1.0
+    @Published var isBuffering: Bool = true
 
     let player = AVPlayer()
     private var timeObserver: Any?
@@ -606,6 +621,7 @@ class PlayerModel: NSObject, ObservableObject, AVPictureInPictureControllerDeleg
 
     func loadVideo(item: NativePlayItem) {
         guard let url = URL(string: item.url) else { return }
+        isBuffering = true
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
         // 极速起播优化（借鉴源站秒开机制）
@@ -641,6 +657,7 @@ class PlayerModel: NSObject, ObservableObject, AVPictureInPictureControllerDeleg
     /// 无缝热切换播放源 (保持当前进度、播放倍速，不黑屏不重置播放器)
     func switchSource(newUrl: String) {
         guard let url = URL(string: newUrl) else { return }
+        isBuffering = true
         let asset = AVURLAsset(url: url)
         let newItem = AVPlayerItem(asset: asset)
         newItem.preferredForwardBufferDuration = 15.0
@@ -736,9 +753,17 @@ class PlayerModel: NSObject, ObservableObject, AVPictureInPictureControllerDeleg
         ) { [weak self] time in
             guard let self = self else { return }
             self.currentTime = time.seconds
+            if self.player.timeControlStatus == .playing {
+                self.isBuffering = false
+            }
             if let item = self.player.currentItem {
                 let d = item.duration.seconds
                 if !d.isNaN && d > 0 { self.duration = d }
+                if item.isPlaybackLikelyToKeepUp {
+                    self.isBuffering = false
+                } else if item.isPlaybackBufferEmpty {
+                    self.isBuffering = true
+                }
             }
         }
     }
