@@ -1688,6 +1688,15 @@
                     resumeSeconds: resumePlaySeconds,
                     currentEpIdx: idx,
                     lineName: formatFriendlyLineName(group.name, window.currentGroupIdx, videoUrl),
+                    lines: (window.currentVideo.groups || []).map((g, gIdx) => ({
+                        id: gIdx,
+                        name: formatFriendlyLineName(g.name, gIdx, g.episodes && g.episodes[0] ? g.episodes[0].url : ''),
+                        rawName: g.name,
+                        is4K: (g.name || '').toUpperCase().includes('4K'),
+                        isOfficial: (g.name || '').includes('官方') || (g.name || '').includes('专享'),
+                        episodes: (g.episodes || []).map((e, i) => ({ title: e.title, url: e.url, index: i }))
+                    })),
+                    currentLineIdx: window.currentGroupIdx || 0,
                     episodes: (group.episodes || []).map((e, i) => ({ title: e.title, url: e.url, index: i }))
                 });
                 return;
@@ -2682,6 +2691,16 @@ window.injectBottomRightPlayerControls = function(dpContainer) {
 
     window.onNativePlayerSwitchEpisode = function(newIdx) {
         window.playVideoEpisode(newIdx);
+    };
+
+    window.onNativePlayerSwitchLine = function(newLineIdx) {
+        if (window.currentVideo && window.currentVideo.groups && window.currentVideo.groups[newLineIdx]) {
+            window.currentGroupIdx = newLineIdx;
+            const lineSelector = document.getElementById('videoLineSelector');
+            if (lineSelector) {
+                lineSelector.value = newLineIdx;
+            }
+        }
     };
 
     window.onNativePlayerClose = function(lastSeconds) {

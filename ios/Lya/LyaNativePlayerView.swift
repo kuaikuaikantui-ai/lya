@@ -13,6 +13,16 @@ struct NativePlayItem: Identifiable, Equatable {
     var episodes: [NativeEpisodeItem]
     var currentEpIdx: Int
     var lineName: String
+    var lines: [NativeLineOption] = []
+    var currentLineIdx: Int = 0
+}
+
+struct NativeLineOption: Identifiable, Equatable {
+    let id: Int
+    let name: String
+    let is4K: Bool
+    let isOfficial: Bool
+    let episodes: [NativeEpisodeItem]
 }
 
 struct NativeEpisodeItem: Identifiable, Equatable {
@@ -26,6 +36,7 @@ struct LyaNativePlayerView: View {
     @Binding var playItem: NativePlayItem?
     var onTimeUpdate: ((Double, Int) -> Void)?
     var onSwitchEpisode: ((Int) -> Void)?
+    var onSwitchLine: ((Int) -> Void)?
     var onClose: ((Double) -> Void)?
 
     @StateObject private var playerModel = PlayerModel()
@@ -35,6 +46,7 @@ struct LyaNativePlayerView: View {
     @State private var previousRate: Float = 1.0
     @State private var showSpeedMenu = false
     @State private var showEpisodeSheet = false
+    @State private var showLineSheet = false
     @State private var controlsTimer: Timer?
 
     // 手势状态
@@ -179,6 +191,9 @@ struct LyaNativePlayerView: View {
         .sheet(isPresented: $showEpisodeSheet) {
             episodeSelectionSheet
         }
+        .sheet(isPresented: $showLineSheet) {
+            lineSelectionSheet
+        }
     }
 
     // MARK: - 顶部控制栏
@@ -308,6 +323,25 @@ struct LyaNativePlayerView: View {
                         .background(Capsule().fill(Color.white.opacity(0.18)))
                 }
 
+                // 线路选择抽屉 (无缝热切换)
+                if let item = playItem, item.lines.count > 1 {
+                    Button(action: {
+                        showLineSheet = true
+                        controlsTimer?.invalidate()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "point.3.filled.connected.trianglepath.dotted")
+                                .font(.system(size: 11))
+                            Text(item.lines.indices.contains(item.currentLineIdx) ? item.lines[item.currentLineIdx].name : "换源")
+                                .font(.system(size: 13, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.white.opacity(0.18)))
+                    }
+                }
+
                 // 选集抽屉
                 if let item = playItem, item.episodes.count > 1 {
                     Button(action: {
@@ -375,6 +409,73 @@ struct LyaNativePlayerView: View {
         }
     }
 
+    // MARK: - 线路选择抽屉面板 (无缝热切换)
+    private var lineSelectionSheet: some View {
+        NavigationView {
+            List {
+                if let item = playItem {
+                    Section(header: Text("可用播放源 (点击秒切，无需退出全屏)").font(.system(size: 12)).foregroundColor(.gray)) {
+                        ForEach(item.lines) { line in
+                            Button(action: {
+                                switchToLine(index: line.id)
+                                showLineSheet = false
+                            }) {
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack(spacing: 6) {
+                                            Text(line.name)
+                                                .font(.system(size: 15, weight: .bold))
+                                                .foregroundColor(.white)
+
+                                            if line.is4K {
+                                                Text("4K 专享")
+                                                    .font(.system(size: 10, weight: .bold))
+                                                    .foregroundColor(.yellow)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Capsule().fill(Color.yellow.opacity(0.2)))
+                                            } else if line.isOfficial {
+                                                Text("官方极速")
+                                                    .font(.system(size: 10, weight: .bold))
+                                                    .foregroundColor(.cyan)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Capsule().fill(Color.cyan.opacity(0.2)))
+                                            }
+                                        }
+
+                                        Text(line.episodes.indices.contains(item.currentEpIdx) ? "同步至：\(line.episodes[item.currentEpIdx].title)" : "共 \(line.episodes.count) 集")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.gray)
+                                    }
+
+                                    Spacer()
+
+                                    if line.id == item.currentLineIdx {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.cyan)
+                                            .font(.system(size: 18))
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                            .listRowBackground(line.id == item.currentLineIdx ? Color.white.opacity(0.08) : Color.clear)
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .background(Color(red: 20/255, green: 24/255, blue: 33/255).ignoresSafeArea())
+            .navigationTitle("切换播放线路")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { showLineSheet = false; resetControlsTimer() }
+                }
+            }
+        }
+    }
+
     // MARK: - 手势处理逻辑
     private func handlePanChanged(_ value: DragGesture.Value) {
         let translation = value.translation
@@ -428,6 +529,25 @@ struct LyaNativePlayerView: View {
         playItem = item
         playerModel.loadVideo(item: item)
         onSwitchEpisode?(index)
+        resetControlsTimer()
+    }
+
+    private func switchToLine(index: Int) {
+        guard var item = playItem, index < item.lines.count else { return }
+        let targetLine = item.lines[index]
+        guard item.currentEpIdx < targetLine.episodes.count else { return }
+        let targetEp = targetLine.episodes[item.currentEpIdx]
+        guard !targetEp.url.isEmpty else { return }
+
+        item.currentLineIdx = index
+        item.lineName = targetLine.name
+        item.url = targetEp.url
+        item.episodes = targetLine.episodes
+        playItem = item
+
+        // 无缝热切换：保持当前播放秒数和播放倍速，完全不退出全屏、不黑屏重新初始化！
+        playerModel.switchSource(newUrl: targetEp.url)
+        onSwitchLine?(index)
         resetControlsTimer()
     }
 
@@ -492,6 +612,9 @@ class PlayerModel: NSObject, ObservableObject, AVPictureInPictureControllerDeleg
         guard let url = URL(string: item.url) else { return }
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
+        // 极速起播优化（借鉴源站秒开机制）
+        playerItem.preferredForwardBufferDuration = 15.0
+        player.automaticallyWaitsToMinimizeStalling = true
 
         player.replaceCurrentItem(with: playerItem)
 
@@ -513,6 +636,38 @@ class PlayerModel: NSObject, ObservableObject, AVPictureInPictureControllerDeleg
         NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: playerItem,
+            queue: .main
+        ) { [weak self] _ in
+            self?.isPlaying = false
+        }
+    }
+
+    /// 无缝热切换播放源 (保持当前进度、播放倍速，不黑屏不重置播放器)
+    func switchSource(newUrl: String) {
+        guard let url = URL(string: newUrl) else { return }
+        let asset = AVURLAsset(url: url)
+        let newItem = AVPlayerItem(asset: asset)
+        newItem.preferredForwardBufferDuration = 15.0
+
+        let curTime = currentTime
+        let rate = playbackRate
+        let wasPlaying = isPlaying
+
+        player.replaceCurrentItem(with: newItem)
+        if curTime > 0 {
+            player.seek(to: CMTime(seconds: curTime, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+        }
+
+        if wasPlaying {
+            player.play()
+            player.rate = rate
+            isPlaying = true
+        }
+
+        // 监听新视频流播完
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: newItem,
             queue: .main
         ) { [weak self] _ in
             self?.isPlaying = false

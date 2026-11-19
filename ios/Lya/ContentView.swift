@@ -59,6 +59,9 @@ struct ContentView: View {
                 onSwitchEpisode: { newIdx in
                     sharedWebView?.evaluateJavaScript("if (window.onNativePlayerSwitchEpisode) window.onNativePlayerSwitchEpisode(\(newIdx));", completionHandler: nil)
                 },
+                onSwitchLine: { newLineIdx in
+                    sharedWebView?.evaluateJavaScript("if (window.onNativePlayerSwitchLine) window.onNativePlayerSwitchLine(\(newLineIdx));", completionHandler: nil)
+                },
                 onClose: { lastSeconds in
                     sharedWebView?.evaluateJavaScript("if (window.onNativePlayerClose) window.onNativePlayerClose(\(lastSeconds));", completionHandler: nil)
                 }
@@ -222,6 +225,7 @@ struct LyaWebView: UIViewRepresentable {
                     let resumeSec = (dict["resumeSeconds"] as? NSNumber)?.doubleValue ?? 0
                     let curIdx = (dict["currentEpIdx"] as? NSNumber)?.intValue ?? 0
                     let lineName = dict["lineName"] as? String ?? "官方极速"
+                    let curLineIdx = (dict["currentLineIdx"] as? NSNumber)?.intValue ?? 0
 
                     var eps: [NativeEpisodeItem] = []
                     if let rawList = dict["episodes"] as? [[String: Any]] {
@@ -234,6 +238,29 @@ struct LyaWebView: UIViewRepresentable {
                         }
                     }
 
+                    var lines: [NativeLineOption] = []
+                    if let rawLines = dict["lines"] as? [[String: Any]] {
+                        lines = rawLines.enumerated().map { (lIdx, l) in
+                            var lEps: [NativeEpisodeItem] = []
+                            if let rawLEps = l["episodes"] as? [[String: Any]] {
+                                lEps = rawLEps.enumerated().map { (eIdx, e) in
+                                    NativeEpisodeItem(
+                                        id: (e["index"] as? NSNumber)?.intValue ?? eIdx,
+                                        title: e["title"] as? String ?? "第\(eIdx + 1)集",
+                                        url: e["url"] as? String ?? ""
+                                    )
+                                }
+                            }
+                            return NativeLineOption(
+                                id: (l["id"] as? NSNumber)?.intValue ?? lIdx,
+                                name: l["name"] as? String ?? "线路 \(lIdx + 1)",
+                                is4K: l["is4K"] as? Bool ?? false,
+                                isOfficial: l["isOfficial"] as? Bool ?? false,
+                                episodes: lEps
+                            )
+                        }
+                    }
+
                     DispatchQueue.main.async {
                         self.parent.currentPlayItem = NativePlayItem(
                             title: title,
@@ -242,7 +269,9 @@ struct LyaWebView: UIViewRepresentable {
                             resumeSeconds: resumeSec,
                             episodes: eps,
                             currentEpIdx: curIdx,
-                            lineName: lineName
+                            lineName: lineName,
+                            lines: lines,
+                            currentLineIdx: curLineIdx
                         )
                     }
                 }
