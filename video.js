@@ -2134,6 +2134,28 @@
                 if (!window.isDanmakuEnabled && window.dpInstance.danmaku) {
                     window.dpInstance.danmaku.hide();
                 }
+
+                // 原生硬件横竖屏联动监听
+                window.dpInstance.on('fullscreen', function() {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+                        window.webkit.messageHandlers.nativeOrientation.postMessage('landscape');
+                    }
+                });
+                window.dpInstance.on('fullscreen_cancel', function() {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+                        window.webkit.messageHandlers.nativeOrientation.postMessage('portrait');
+                    }
+                });
+                window.dpInstance.on('webfullscreen', function() {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+                        window.webkit.messageHandlers.nativeOrientation.postMessage('landscape');
+                    }
+                });
+                window.dpInstance.on('webfullscreen_cancel', function() {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+                        window.webkit.messageHandlers.nativeOrientation.postMessage('portrait');
+                    }
+                });
             }
         }, 500);
     };
@@ -2434,17 +2456,22 @@
             const fsBackBtn = document.createElement('button');
             fsBackBtn.type = 'button';
             fsBackBtn.className = 'dp-fullscreen-back-btn';
-            fsBackBtn.title = '退出全屏';
-            fsBackBtn.setAttribute('aria-label', '退出全屏');
-            fsBackBtn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="#ffffff"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
+            fsBackBtn.title = '退出全屏并转回竖屏';
+            fsBackBtn.setAttribute('aria-label', '退出全屏并转回竖屏');
+            fsBackBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg> <span>返回</span>';
             fsBackBtn.onclick = function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                if (window.dpInstance && window.dpInstance.fullScreen) {
-                    window.dpInstance.fullScreen.cancel('web');
-                }
-                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
-                    window.webkit.messageHandlers.nativeOrientation.postMessage('portrait');
+                if (typeof window.toggleLyaFullscreen === 'function') {
+                    window.toggleLyaFullscreen();
+                } else {
+                    if (window.dpInstance && window.dpInstance.fullScreen) {
+                        try { window.dpInstance.fullScreen.cancel('web'); } catch(err){}
+                        try { window.dpInstance.fullScreen.cancel('browser'); } catch(err){}
+                    }
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+                        window.webkit.messageHandlers.nativeOrientation.postMessage('portrait');
+                    }
                 }
             };
             dpContainer.appendChild(fsBackBtn);
