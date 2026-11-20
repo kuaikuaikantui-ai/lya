@@ -803,7 +803,11 @@ async function getLiveSourcesConfig() {
     if (cachedConfig && (now - lastConfigFetch < 86400000)) return cachedConfig;
 
     try {
-        const res = await fetch(CONFIG_URL, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        // 加 6s 超时保护：上游配置端点偶发挂起时不再拖死整个 /api/info
+        const controller = new AbortController();
+        const cfgTimer = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(CONFIG_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: controller.signal });
+        clearTimeout(cfgTimer);
         if (res.ok) {
             const data = await res.json();
             let rawNovelSources = (data["搜索小说"] || data["小说"] || ["番茄", "七猫", "全本小说", "半夏小说", "塔读", "QQ阅读", "书旗", "红烛小说"]).filter(s => s !== '老福特');
@@ -1186,6 +1190,178 @@ function findStrictBookMatch(list, targetTitle) {
         const bName = String(b.book_name || '').replace(/[\s:：·・\-_《》第季]/g, '').toLowerCase();
         return bName === cleanT || (cleanT.length >= 3 && (bName.startsWith(cleanT) || cleanT.startsWith(bName)));
     }) || null;
+}
+
+// ==================== 视频源注册表 + 健康分系统（网络可达性优化核心） ====================
+// 为每个源记录失败连击与延迟 EMA：连续失败 >=2 的源在 10 分钟窗口内被熔断跳过，
+// 聚合请求不再在不可达源（外网超时）上反复浪费整轮 2.6s，响应速度与稳定性双提升。
+const VOD_API_BASES = [
+    { url: 'https://cj.lziapi.com/api.php/provide/vod/?ac=detail', name: '量子蓝光' },
+    { url: 'https://cj.ffzyapi.com/api.php/provide/vod/?ac=detail', name: '非凡超清' },
+    { url: 'https://bfzyapi.com/api.php/provide/vod/?ac=detail', name: '暴风专线' },
+    { url: 'https://jszyapi.com/api.php/provide/vod/?ac=detail', name: '极速蓝光' },
+    { url: 'https://www.subocaiji.com/api.php/provide/vod/?ac=detail', name: '速播蓝光' },
+    { url: 'https://jyzyapi.com/provide/vod/from/jinyingm3u8/?ac=detail', name: '金鹰蓝光' },
+    { url: 'https://api.apibdzy.com/api.php/provide/vod/?ac=detail', name: '百度超清' },
+    { url: 'https://360zy.com/api.php/provide/vod/?ac=detail', name: '360超清' },
+    { url: 'https://cj.rycjapi.com/api.php/provide/vod/?ac=detail', name: '如意专线' },
+    { url: 'https://subocaiji.com/api.php/provide/vod/?ac=detail', name: '速播专线' },
+    { url: 'https://ikunzyapi.com/api.php/provide/vod/?ac=detail', name: 'iKun超清' },
+    { url: 'https://www.mdzyapi.com/api.php/provide/vod/?ac=detail', name: '魔都专线' },
+    { url: 'https://api.wujinapi.com/api.php/provide/vod/from/wjm3u8/?ac=detail', name: '无尽专线' },
+    { url: 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/?ac=detail', name: '光速蓝光' }
+];
+
+const VOD_SOURCE_HEALTH = new Map();
+
+function vodHealthKey(u) {
+    try { return new URL(u).host; } catch (e) { return String(u); }
+}
+
+function recordVodSourceHealth(u, ok, ms) {
+    const key = vodHealthKey(u);
+    const prev = VOD_SOURCE_HEALTH.get(key) || { failStreak: 0, emaMs: 0, lastFailAt: 0, lastOkAt: 0 };
+    if (ok) {
+        prev.failStreak = 0;
+        prev.lastOkAt = Date.now();
+        prev.emaMs = prev.emaMs ? Math.round(prev.emaMs * 0.7 + ms * 0.3) : ms;
+    } else {
+        prev.failStreak += 1;
+        prev.lastFailAt = Date.now();
+    }
+    VOD_SOURCE_HEALTH.set(key, prev);
+}
+
+function isVodSourceBlocked(u) {
+    const h = VOD_SOURCE_HEALTH.get(vodHealthKey(u));
+    return !!(h && h.failStreak >= 2 && (Date.now() - h.lastFailAt < 600000));
+}
+
+function pickHealthyVodSources() {
+    const healthy = VOD_API_BASES.filter(b => !isVodSourceBlocked(b.url));
+    // 极端情况全部熔断时放行前 3 个主力源兜底，避免整站无结果
+    if (healthy.length === 0) return VOD_API_BASES.slice(0, 3);
+    return healthy;
+}
+
+// 统一的 VOD JSON 拉取器：自动记录健康分，返回解析后的 JSON 或 null
+async function fetchVodJson(apiUrl, extraParams, timeoutMs) {
+    const limit = timeoutMs || 3000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), limit);
+    const t0 = Date.now();
+    try {
+        const targetUrl = apiUrl + (extraParams ? (apiUrl.includes('?') ? '&' : '?') + extraParams : '');
+        const r = await fetch(targetUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15' },
+            signal: controller.signal
+        });
+        const ms = Date.now() - t0;
+        if (!r.ok) {
+            recordVodSourceHealth(apiUrl, false, ms);
+            return null;
+        }
+        const json = await r.json();
+        recordVodSourceHealth(apiUrl, true, ms);
+        return json;
+    } catch (e) {
+        recordVodSourceHealth(apiUrl, false, Date.now() - t0);
+        return null;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+// ==================== 频道分类系统（腾讯式频道页数据层） ====================
+// 把各源 ac=list 返回的 type_id/type_name 归一化为统一频道：电影/电视剧/综艺/动漫/短剧
+function classifyVodTypeName(name) {
+    const n = String(name || '');
+    if (n.includes('短剧')) return '短剧';
+    if (n.endsWith('片') || n.includes('电影') || n.includes('院线') || n.includes('剧场版')) return '电影';
+    if (n.includes('综艺')) return '综艺';
+    if (n.includes('剧') || n.includes('连续') || n.includes('电视')) return '电视剧';
+    if (n.includes('动漫') || n.includes('动画') || n.includes('番剧') || n.includes('漫画')) return '动漫';
+    return null;
+}
+
+// 归一化芯片的噪音黑名单（后缀剥离产物如 '电视'/'连续'、单字芯片、其他）不作为分类芯片展示
+const VOD_CHIP_NOISE = new Set(['电视', '连续', '其他', '电影', '剧场', '全部', '漫', '短', '预告', '预告片', '抢先', '片花', 'AI漫', '舞臺', '舞台']);
+
+function normalizeVodClassChip(typeName) {
+    const n = String(typeName || '').trim();
+    let chip;
+    if (n.endsWith('片') || n.endsWith('剧')) chip = n.slice(0, -1);
+    else chip = n;
+    if (chip.length < 2 || VOD_CHIP_NOISE.has(chip)) return '';
+    return chip;
+}
+
+const VOD_CLASS_CACHE = { data: null, at: 0 };
+
+// 并发拉取全部健康源的 ac=list 分类表，缓存 6 小时；失败时用旧缓存兜底
+async function getVodClassMap() {
+    const now = Date.now();
+    if (VOD_CLASS_CACHE.data && (now - VOD_CLASS_CACHE.at < 21600000)) return VOD_CLASS_CACHE.data;
+
+    const bases = pickHealthyVodSources();
+    const results = await Promise.all(bases.map(async (b) => {
+        const listUrl = b.url.replace('ac=detail', 'ac=list');
+        const json = await fetchVodJson(listUrl, '', 3800);
+        return (json && Array.isArray(json.class)) ? { base: b, classes: json.class } : null;
+    }));
+    const perSource = results.filter(Boolean);
+
+    if (perSource.length === 0) {
+        if (VOD_CLASS_CACHE.data) return VOD_CLASS_CACHE.data;
+        return { channels: {}, sources: {} };
+    }
+
+    const map = { channels: {}, sources: {} };
+    perSource.forEach(({ base, classes }) => {
+        const host = vodHealthKey(base.url);
+        map.sources[host] = { url: base.url, items: classes.map(c => ({ id: String(c.type_id), name: String(c.type_name) })) };
+        classes.forEach(c => {
+            const ch = classifyVodTypeName(c.type_name);
+            if (!ch) return;
+            if (!map.channels[ch]) map.channels[ch] = { chips: new Map() };
+            const chip = normalizeVodClassChip(c.type_name);
+            if (chip && chip.length <= 6) {
+                const entry = map.channels[ch].chips.get(chip) || { count: 0 };
+                entry.count += 1;
+                map.channels[ch].chips.set(chip, entry);
+            }
+        });
+    });
+    // Map -> 排序数组（按被多少个源收录排序，越通用的分类越靠前）
+    const out = { channels: {}, sources: map.sources, fetchedAt: now };
+    Object.keys(map.channels).forEach(ch => {
+        out.channels[ch] = Array.from(map.channels[ch].chips.entries())
+            .sort((a, b) => b[1].count - a[1].count)
+            .map(([chip]) => chip);
+    });
+    if (Object.keys(out.channels).length > 0) {
+        VOD_CLASS_CACHE.data = out;
+        VOD_CLASS_CACHE.at = now;
+    }
+    return out;
+}
+
+// 按频道+分类芯片挑选各源命中的 type_id（每个源最多 2 个，总任务数上限 18，控制聚合成本）
+function pickChannelTypeTasks(classMap, channel, chip) {
+    const tasks = [];
+    if (!classMap || !classMap.sources) return tasks;
+    const wantAll = !chip || chip === '全部';
+    Object.values(classMap.sources).forEach(src => {
+        const matched = src.items.filter(it => {
+            if (classifyVodTypeName(it.name) !== channel) return false;
+            if (wantAll) return true;
+            const norm = normalizeVodClassChip(it.name);
+            return norm === chip || it.name.includes(chip) || chip.includes(norm);
+        });
+        matched.slice(0, wantAll ? 2 : 1).forEach(m => tasks.push({ url: src.url, id: m.id }));
+        if (tasks.length >= 18) return;
+    });
+    return tasks.slice(0, 18);
 }
 
 const workerHandler = {
@@ -1942,6 +2118,93 @@ if (source === '轻小说文库' || source === 'Wenku8') {
         }
 
         // 🎬 影视聚合检索接口 (原站主力源优先 + 10条高速备用源并发容灾)
+        if (url.pathname === '/api/video/classes') {
+            const classMap = await getVodClassMap();
+            return new Response(JSON.stringify({ code: 0, channels: classMap.channels || {} }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }
+            });
+        }
+
+        // 腾讯式频道页：/api/video/channel?type=电影&class=动作&area=&year=&pg=1
+        // 各源按自身 type_id 查询，聚合去重后合并返回
+        if (url.pathname === '/api/video/channel') {
+            const channel = (url.searchParams.get('type') || '电影').trim();
+            const chip = (url.searchParams.get('class') || '全部').trim();
+            const area = (url.searchParams.get('area') || '').trim();
+            const year = (url.searchParams.get('year') || '').trim();
+            const pg = parseInt(url.searchParams.get('pg') || '1', 10) || 1;
+
+            const classMap = await getVodClassMap();
+            const tasks = pickChannelTypeTasks(classMap, channel, chip);
+
+            const settled = await Promise.all(tasks.map(t => {
+                let params = 't=' + encodeURIComponent(t.id) + '&pg=' + pg;
+                if (area) params += '&area=' + encodeURIComponent(area);
+                if (year) params += '&year=' + encodeURIComponent(year);
+                return fetchVodJson(t.url, params, 3400);
+            }));
+
+            const mergedMap = new Map();
+            settled.forEach(res => {
+                const jsonList = (res && Array.isArray(res.list)) ? res.list : [];
+                jsonList.forEach(item => {
+                    if (!item || !item.vod_name || !item.vod_play_url) return;
+                    const rawFroms = (item.vod_play_from || '').split('$$$').filter(Boolean);
+                    const rawUrls = (item.vod_play_url || '').split('$$$').filter(Boolean);
+                    const validUrls = [];
+                    const validFroms = [];
+                    rawUrls.forEach((u, idx) => {
+                        if (u && (u.includes('.m3u8') || u.includes('.mp4'))) {
+                            validUrls.push(u);
+                            validFroms.push(rawFroms[idx] || ('线路' + (idx + 1)));
+                        }
+                    });
+                    if (validUrls.length === 0) return;
+
+                    const key = item.vod_name.replace(/[:：\s·・\-]/g, '').toLowerCase();
+                    const entry = {
+                        ...item,
+                        vod_play_from: validFroms.join('$$$'),
+                        vod_play_url: validUrls.join('$$$')
+                    };
+                    if (!mergedMap.has(key)) {
+                        mergedMap.set(key, entry);
+                    } else {
+                        const existing = mergedMap.get(key);
+                        const existingFroms = (existing.vod_play_from || '').split('$$$').filter(Boolean);
+                        validFroms.forEach((nf, idx) => {
+                            if (!existingFroms.includes(nf) && validUrls[idx]) {
+                                existingFroms.push(nf);
+                                existing.vod_play_from = (existing.vod_play_from ? existing.vod_play_from + '$$$' : '') + nf;
+                                existing.vod_play_url = (existing.vod_play_url ? existing.vod_play_url + '$$$' : '') + validUrls[idx];
+                            }
+                        });
+                        if (!existing.vod_pic && item.vod_pic) existing.vod_pic = item.vod_pic;
+                    }
+                });
+            });
+
+            const list = Array.from(mergedMap.values());
+            // 时间倒序优先（vod_time 为采集时间戳），空值沉底
+            list.sort((a, b) => {
+                const av = parseInt(a.vod_time || '0', 10) || 0;
+                const bv = parseInt(b.vod_time || '0', 10) || 0;
+                return bv - av;
+            });
+
+            return new Response(JSON.stringify({
+                code: 0,
+                msg: 'ok',
+                type: channel,
+                class: chip,
+                page: pg,
+                total: list.length,
+                list: list
+            }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' }
+            });
+        }
+
         if (url.pathname === '/api/video/search') {
             const wd = (url.searchParams.get('wd') || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
             const id = (url.searchParams.get('id') || '').trim();
@@ -1951,43 +2214,13 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 });
             }
 
-            // 第一梯队：源站点官方直连源（豆瓣1080P/暴风1080P/茅台1080P/全网原站直连，绝对优先）
-            // 第二梯队：全网高速聚合采集源（当原站资源未收录时作为丰富补充与备选）
-            const apis = [
-                'https://cj.lziapi.com/api.php/provide/vod/?ac=detail',                   // ★主力1: 量子蓝光 (CORS:*)
-                'https://cj.ffzyapi.com/api.php/provide/vod/?ac=detail',                  // ★主力2: 非凡超清
-                'https://bfzyapi.com/api.php/provide/vod/?ac=detail',                     // ★主力3: 暴风专线 (CORS:*)
-                'https://jszyapi.com/api.php/provide/vod/?ac=detail',                     // ★极速蓝光
-                'https://www.subocaiji.com/api.php/provide/vod/?ac=detail',               // ★速播蓝光
-                'https://jyzyapi.com/provide/vod/from/jinyingm3u8/?ac=detail',            // 备用2: 金鹰蓝光
-                'https://api.apibdzy.com/api.php/provide/vod/?ac=detail',                 // 备用3: 百度超清
-                'https://360zy.com/api.php/provide/vod/?ac=detail',                       // 备用4: 360超清
-                'https://cj.rycjapi.com/api.php/provide/vod/?ac=detail',                  // 备用5: 如意专线
-                'https://subocaiji.com/api.php/provide/vod/?ac=detail',                   // 备用6: 速播专线
-                'https://ikunzyapi.com/api.php/provide/vod/?ac=detail',                   // 备用7: iKun超清
-                'https://www.mdzyapi.com/api.php/provide/vod/?ac=detail',                 // 备用8: 魔都专线
-                'https://api.wujinapi.com/api.php/provide/vod/from/wjm3u8/?ac=detail',    // 备用9: 无尽专线
-                'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/?ac=detail'   // 备用10: 光速蓝光
-            ];
+            // 接入健康分系统：被熔断的源直接跳过，不让外网超时源拖慢整轮聚合
+            const apis = pickHealthyVodSources().map(b => b.url);
 
             const fetchOne = async (base) => {
                 if (!wd) return [];
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 2600);
-                try {
-                    const targetUrl = base + '&wd=' + encodeURIComponent(wd);
-                    const r = await fetch(targetUrl, {
-                        headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15' },
-                        signal: controller.signal
-                    });
-                    if (!r.ok) return [];
-                    const json = await r.json();
-                    return (json && Array.isArray(json.list)) ? json.list : [];
-                } catch(e) {
-                    return [];
-                } finally {
-                    clearTimeout(timer);
-                }
+                const json = await fetchVodJson(base, 'wd=' + encodeURIComponent(wd), 2600);
+                return (json && Array.isArray(json.list)) ? json.list : [];
             };
 
             const [originList, ...settled] = await Promise.all([

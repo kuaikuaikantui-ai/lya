@@ -7,6 +7,11 @@ on:
       - main
     paths:
       - 'ios/**'
+      - 'index.html'
+      - 'video.js'
+      - 'novel.js'
+      - 'manga.js'
+      - 'feed.js'
       - '.github/workflows/build-ipa.yml'
 
 permissions:
@@ -24,7 +29,7 @@ jobs:
       - name: Prepare Web Assets for Native App
         run: |
           mkdir -p ios/Lya/www
-          cp index.html video.js dplayer.min.js hls.min.js p2p-engine.min.js recommend_data.js sw.js ios/Lya/www/
+          cp index.html video.js novel.js manga.js feed.js dplayer.min.js hls.min.js p2p-engine.min.js recommend_data.js sw.js ios/Lya/www/
           echo "Web assets successfully copied into ios/Lya/www/"
 
       - name: Install XcodeGen

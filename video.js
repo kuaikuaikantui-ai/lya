@@ -911,8 +911,9 @@
         const allSecs = document.getElementById('videoAllSectionsContainer');
         const heroStage = document.getElementById('txHeroStage');
         if (searchBlock) searchBlock.style.display = 'none';
-        if (heroStage) heroStage.style.display = '';
-        if (allSecs) allSecs.style.display = 'block';
+        // 频道浏览模式下保持巨幕与板块隐藏，只展示频道网格
+        if (heroStage) heroStage.style.display = window._videoChannelMode ? 'none' : '';
+        if (allSecs) allSecs.style.display = window._videoChannelMode ? 'none' : 'block';
 
         // 1. 立即用内置的原站 8 大板块 (96部热播片单) 瞬间秒开渲染
         window.renderAllVideoSections(window.KANJU_ALL_SECTIONS);
@@ -931,6 +932,214 @@
 
         window.loadDynamicSuggestions();
     };
+
+    // ==================== 腾讯式频道浏览系统（频道条 + 分类芯片 + 地区年份筛选 + 无限滚动） ====================
+    window._videoChannelMode = false;
+    window._videoChannelState = { type: null, cls: '全部', area: '', year: '', page: 1, loading: false, done: false, chipsLoaded: {} };
+
+    const VIDEO_MAIN_CHANNELS = ['精选', '电影', '电视剧', '综艺', '动漫', '短剧'];
+    const VIDEO_CHANNEL_ICONS = { '精选': 'fa-fire', '电影': 'fa-film', '电视剧': 'fa-tv', '综艺': 'fa-masks-theater', '动漫': 'fa-ghost', '短剧': 'fa-bolt' };
+
+    // 渲染顶部频道条（在精选模式下也常驻，方便一键切频道）
+    window.renderVideoChannelBar = function() {
+        const bar = document.getElementById('videoChannelBar');
+        if (!bar) return;
+        const cur = window._videoChannelState.type;
+        bar.innerHTML = VIDEO_MAIN_CHANNELS.map(ch => {
+            const active = (ch === '精选' && !window._videoChannelMode) || (window._videoChannelMode && cur === ch);
+            return `<button type="button" class="video-channel-pill ${active ? 'active' : ''}" onclick="window.setVideoChannel('${ch}')"><i class="fas ${VIDEO_CHANNEL_ICONS[ch] || 'fa-tag'}"></i> ${ch}</button>`;
+        }).join('');
+    };
+
+    window.setVideoChannel = function(channel) {
+        if (channel === '精选' || !channel) {
+            window._videoChannelMode = false;
+            window._videoChannelState.type = null;
+            window.renderVideoChannelBar();
+            const browse = document.getElementById('videoChannelBrowse');
+            const heroStage = document.getElementById('txHeroStage');
+            const allSecs = document.getElementById('videoAllSectionsContainer');
+            if (browse) browse.style.display = 'none';
+            if (heroStage) heroStage.style.display = '';
+            if (allSecs) allSecs.style.display = 'block';
+            return;
+        }
+        window._videoChannelMode = true;
+        window._videoChannelState.type = channel;
+        window._videoChannelState.cls = '全部';
+        window._videoChannelState.area = '';
+        window._videoChannelState.year = '';
+        window._videoChannelState.page = 1;
+        window._videoChannelState.done = false;
+        window.renderVideoChannelBar();
+        window.renderChannelChips();
+        window.renderChannelFilters();
+        const grid = document.getElementById('channelGrid');
+        if (grid) grid.innerHTML = '';
+        const browse = document.getElementById('videoChannelBrowse');
+        const heroStage = document.getElementById('txHeroStage');
+        const allSecs = document.getElementById('videoAllSectionsContainer');
+        if (browse) browse.style.display = 'block';
+        if (heroStage) heroStage.style.display = 'none';
+        if (allSecs) allSecs.style.display = 'none';
+        window.loadChannelPage(true);
+    };
+
+    // 分类芯片：从 /api/video/classes 拉取该频道的全部分类（缓存）
+    window.renderChannelChips = async function() {
+        const row = document.getElementById('videoChannelChips');
+        const state = window._videoChannelState;
+        if (!row || !state.type) return;
+        if (!state.chipsLoaded[state.type]) {
+            try {
+                const res = await fetch('/api/video/classes');
+                if (res.ok) {
+                    const data = await res.json();
+                    window._videoChannelClasses = (data && data.channels) || {};
+                    state.chipsLoaded[state.type] = true;
+                }
+            } catch (e) {}
+        }
+        const chips = ['全部'].concat((window._videoChannelClasses && window._videoChannelClasses[state.type]) || []);
+        row.innerHTML = chips.map(chip => {
+            const active = chip === state.cls;
+            return `<button type="button" class="video-chip ${active ? 'active' : ''}" onclick="window.setChannelClass('${String(chip).replace(/'/g, "\\'")}')">${chip}</button>`;
+        }).join('');
+    };
+
+    window.setChannelClass = function(chip) {
+        const state = window._videoChannelState;
+        state.cls = chip || '全部';
+        state.page = 1;
+        state.done = false;
+        window.renderChannelChips();
+        window.renderChannelFilters();
+        const grid = document.getElementById('channelGrid');
+        if (grid) grid.innerHTML = '';
+        window.loadChannelPage(true);
+    };
+
+    // 地区 / 年份筛选行
+    window.renderChannelFilters = function() {
+        const wrap = document.getElementById('videoChannelFilters');
+        const state = window._videoChannelState;
+        if (!wrap || !state.type) return;
+        const areas = ['', '全部', '大陆', '香港', '台湾', '美国', '韩国', '日本', '泰国', '英国', '法国', '其他'];
+        const years = ['', '全部', '2026', '2025', '2024', '2023', '2022', '2021', '2020', '更早'];
+        const areaSel = `<select class="select-filter" id="channelAreaSelect" onchange="window.setChannelArea(this.value)">
+            ${areas.map(a => `<option value="${a}" ${((state.area || '') === (a === '全部' ? '' : a)) ? 'selected' : ''}>${a === '' ? '地区' : (a === '全部' ? '全部地区' : a)}</option>`).join('')}
+        </select>`;
+        const yearSel = `<select class="select-filter" id="channelYearSelect" onchange="window.setChannelYear(this.value)">
+            ${years.map(y => `<option value="${y === '更早' ? '更早' : y}" ${((state.year || '') === (y === '全部' ? '' : (y === '更早' ? '更早' : y))) ? 'selected' : ''}>${y === '' ? '年份' : (y === '全部' ? '全部年份' : y)}</option>`).join('')}
+        </select>`;
+        wrap.innerHTML = areaSel + yearSel;
+    };
+
+    window.setChannelArea = function(v) {
+        const state = window._videoChannelState;
+        state.area = (v === '全部') ? '' : v;
+        state.page = 1;
+        state.done = false;
+        const grid = document.getElementById('channelGrid');
+        if (grid) grid.innerHTML = '';
+        window.loadChannelPage(true);
+    };
+
+    window.setChannelYear = function(v) {
+        const state = window._videoChannelState;
+        state.year = (v === '全部') ? '' : v;
+        state.page = 1;
+        state.done = false;
+        const grid = document.getElementById('channelGrid');
+        if (grid) grid.innerHTML = '';
+        window.loadChannelPage(true);
+    };
+
+    // 频道分页加载：/api/video/channel?type=..&class=..&area=..&year=..&pg=..
+    window.loadChannelPage = async function(reset = false) {
+        const state = window._videoChannelState;
+        const grid = document.getElementById('channelGrid');
+        const loader = document.getElementById('channelLoader');
+        const endTip = document.getElementById('channelEndTip');
+        if (!grid || !state.type || state.loading) return;
+        if (state.done && !reset) return;
+        state.loading = true;
+        if (loader) loader.style.display = 'block';
+        if (endTip) endTip.style.display = 'none';
+        try {
+            let qs = 'type=' + encodeURIComponent(state.type) + '&class=' + encodeURIComponent(state.cls || '全部') + '&pg=' + state.page;
+            if (state.area) qs += '&area=' + encodeURIComponent(state.area);
+            if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+            const res = await fetch('/api/video/channel?' + qs);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const list = (data && Array.isArray(data.list)) ? data.list : [];
+            if (reset) grid.innerHTML = '';
+            if (list.length === 0) {
+                if (state.page === 1) {
+                    grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:30px; font-size:13px;"><i class="fas fa-inbox"></i> 「${state.type} · ${state.cls}」暂无收录内容，换个分类看看</div>`;
+                }
+                state.done = true;
+                if (endTip && !reset) endTip.style.display = 'block';
+            } else {
+                const html = list.map(item => window.renderChannelPosterCard(item)).join('');
+                grid.insertAdjacentHTML('beforeend', html);
+                state.page += 1;
+            }
+        } catch (e) {
+            if (grid && state.page === 1) {
+                grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:30px; font-size:13px;"><i class="fas fa-cloud-arrow-down"></i> 频道加载失败，请稍后重试</div>`;
+            }
+        } finally {
+            state.loading = false;
+            if (loader) loader.style.display = 'none';
+        }
+    };
+
+    // 频道卡片对象注册表（openVideoDetail 支持直接对象，注册表避免大 payload 塞进 onclick）
+    window._channelItemRegistry = window._channelItemRegistry || [];
+    window.renderChannelPosterCard = function(item) {
+        window._channelItemRegistry.push(item);
+        const idx = window._channelItemRegistry.length - 1;
+        const pic = item.vod_pic || '';
+        const name = item.vod_name || '';
+        const remark = item.vod_remarks || item.vod_class || '';
+        return `
+            <div class="kanju-poster-card" onclick="window.openVideoDetail(window._channelItemRegistry[${idx}])" title="${name}">
+                <div class="kanju-poster-wrap">
+                    <img src="${pic}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='https://api.iconify.design/lucide:film.svg?color=%23888'" />
+                    ${remark ? `<span class="kanju-poster-badge">${String(remark).slice(0, 10)}</span>` : ''}
+                </div>
+                <div class="kanju-poster-info">
+                    <div class="kanju-poster-title" title="${name}">${name}</div>
+                    <div class="kanju-poster-meta"><span>${item.type_name || '超清'}${item.vod_score && item.vod_score !== '0.0' ? ' · ★' + item.vod_score : ''}</span></div>
+                </div>
+            </div>
+        `;
+    };
+
+    // 频道网格无限滚动
+    window.initChannelInfiniteScroll = function() {
+        const sentinel = document.getElementById('channelLoader');
+        if (!sentinel || sentinel._lyaChannelObserver) return;
+        sentinel._lyaChannelObserver = new IntersectionObserver((entries) => {
+            entries.forEach(en => {
+                if (en.isIntersecting && window._videoChannelMode && !window._videoChannelState.done) {
+                    window.loadChannelPage(false);
+                }
+            });
+        }, { rootMargin: '600px' });
+        sentinel._lyaChannelObserver.observe(sentinel);
+    };
+
+    // 频道条初始化（loadVideoFeed 时同步渲染）
+    const _origLoadVideoFeed = window.loadVideoFeed;
+    window.loadVideoFeed = async function() {
+        window.renderVideoChannelBar();
+        window.initChannelInfiniteScroll();
+        return _origLoadVideoFeed.apply(this, arguments);
+    };
+
 
     // 动态换一批
     window.refreshVideoFeed = async function() {
@@ -1436,6 +1645,11 @@
 
     // 超时或断流自动切换至下一可用线路（平滑防抖，优先原站主源，其次备用源）
     window.triggerAutoSwitchRoute = function(epIdx, reason = '加载缓慢') {
+        // 长按倍速手势进行中禁止自动换线：整包销毁重建会打断手势，造成按下/松手瞬间的卡顿
+        if (window._lyaSpeedBoostActive) {
+            console.warn('[Video] 长按倍速进行中，跳过本次自动换线:', reason);
+            return;
+        }
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const groups = window.currentVideo.groups;
         const totalGroups = groups.length;
@@ -1553,6 +1767,8 @@
 
     // 切换播放线路（自由无缝切换：自动保留精确当前播放秒数，绝不重头开始）
     window.switchPlayGroup = function(groupIdx, targetEpIdx = 0, customPreserveTime = null) {
+        // 播放器整包重建前重置长按倍速状态，防止旧手势闭包误恢复新播放器的倍速
+        window._lyaSpeedBoostActive = false;
         if (window.currentVideo && window.currentVideo.groups && window.currentVideo.groups[groupIdx]) {
             const gName = window.currentVideo.groups[groupIdx].name;
             if (window._sessionSlowRouteNames) window._sessionSlowRouteNames.delete(gName);
@@ -1596,6 +1812,15 @@
     };
 
     // 播放指定集数 (全平台兼容：无缝换线秒级续播 + iOS原生硬解 + Android/PC自适应HLS + 超时看门狗与断线自动切源容灾)
+    // 屏幕常亮桥：仅在视频播放期间保持常亮（APP 原生壳处理，网页端为 no-op）
+    window.setNativeScreenSleep = function(on) {
+        try {
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeScreenSleep) {
+                window.webkit.messageHandlers.nativeScreenSleep.postMessage(on ? 'on' : 'off');
+            }
+        } catch (e) {}
+    };
+
     window.playVideoEpisode = async function(idx, preserveTime = null) {
         if (!window.currentVideo || !window.currentVideo.groups) return;
         const group = window.currentVideo.groups[window.currentGroupIdx] || window.currentVideo.groups[0];
@@ -2030,6 +2255,8 @@
             if (typeof window.injectBottomRightPlayerControls === 'function') {
                 window.injectBottomRightPlayerControls(container);
             }
+            // 播放开始：APP 端保持屏幕常亮
+            window.setNativeScreenSleep(true);
         } catch(e) {
             console.warn('[OpenHappy Video] 控件注入异常:', e);
         }
@@ -2161,7 +2388,27 @@
     };
 
     // 将独立弹幕开关、快捷控制与原先左上角的全套高级设置完整集成进播放器右下角控制栏与右侧设置弹窗
-        window.injectBottomRightPlayerControls = function(dpContainer) {
+        // 全屏统一调度出口（避坑红线四）：退出 Web/浏览器全屏并归正竖屏，供返回按钮与所有退出路径调用
+    window.toggleLyaFullscreen = function(action) {
+        const container = document.getElementById('dplayerContainer');
+        const isWebFull = container && container.classList.contains('dplayer-web-fullscreen');
+        const wantExit = (action === 'exit') || (action !== 'enter' && isWebFull);
+        if (window.dpInstance && window.dpInstance.fullScreen) {
+            try {
+                if (wantExit) {
+                    window.dpInstance.fullScreen.cancel('web');
+                    window.dpInstance.fullScreen.cancel('browser');
+                } else {
+                    window.dpInstance.fullScreen.request('web');
+                }
+            } catch (err) {}
+        }
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
+            window.webkit.messageHandlers.nativeOrientation.postMessage(wantExit ? 'portrait' : 'landscape');
+        }
+    };
+
+    window.injectBottomRightPlayerControls = function(dpContainer) {
         if (!dpContainer) return;
 
         // 1. 在底部右侧控制栏 (.dplayer-icons-right) 注入：独立弹幕开关胶囊、跳片头、P2P状态、下一集、画中画
@@ -2383,12 +2630,15 @@
             originPanel.appendChild(skipActionRow);
         }
 
-        // 3. 移动端/触屏长按 2.0X 极速播放（长按2倍速，松手立即恢复原速，解决长按无法取消的问题）
-        if (!dpContainer.querySelector('.dp-speed-hud')) {
+        // 3. 移动端/触屏长按 2.0X 极速播放（丝滑版：HUD 常驻 DOM 走合成器动画、260ms 快速激活、
+        //    长按期间抑制自动换线、松手屏蔽合成 click，杜绝按下/松手两头的掉帧与控制条闪跳）
+        if (!dpContainer.querySelector('.dp-speed-hud') && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0))) {
             const videoWrap = dpContainer.querySelector('.dplayer-video-wrap') || dpContainer;
             const speedHud = document.createElement('div');
             speedHud.className = 'dp-speed-hud';
-            speedHud.style.cssText = 'position:absolute;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#38bdf8;padding:8px 18px;border-radius:20px;font-size:13.5px;font-weight:700;display:none;align-items:center;gap:6px;z-index:99;border:1px solid rgba(56,189,248,0.5);pointer-events:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,0.5);';
+            // 常驻可见层：用 opacity/transform 过渡替代 display 切换与 backdrop-filter 首绘
+            // （backdrop-filter 在 WKWebView 首次合成时必须快照整层视频，是按下瞬间掉帧的主因之一）
+            speedHud.style.cssText = 'position:absolute;top:20px;left:50%;transform:translateX(-50%) scale(0.82);background:rgba(8,12,22,0.86);color:#38bdf8;padding:8px 18px;border-radius:20px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:6px;z-index:99;border:1px solid rgba(56,189,248,0.5);pointer-events:none;opacity:0;will-change:opacity,transform;transition:opacity 0.14s ease-out,transform 0.14s ease-out;box-shadow:0 4px 16px rgba(0,0,0,0.5);';
             speedHud.innerHTML = '<i class="fas fa-bolt" style="color:#38bdf8;"></i> <span>2.0X 极速播放中...</span>';
             videoWrap.appendChild(speedHud);
 
@@ -2397,44 +2647,71 @@
             let origSpeed = 1.0;
             let startTouchX = 0;
             let startTouchY = 0;
+            let suppressClickUntil = 0;
 
-            const cancelLongPress = function() {
+            const triggerHaptic = function() {
+                try {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeHaptic) {
+                        window.webkit.messageHandlers.nativeHaptic.postMessage('medium');
+                    } else if (navigator.vibrate) {
+                        navigator.vibrate(30);
+                    }
+                } catch (v) {}
+            };
+
+            const engageSpeedBoost = function() {
+                const video = (window.dpInstance && window.dpInstance.video) ? window.dpInstance.video : null;
+                if (!video || video.paused) return;
+                isLongPressing = true;
+                window._lyaSpeedBoostActive = true;
+                origSpeed = (video.playbackRate > 0) ? video.playbackRate : 1.0;
+                window._lyaBasePlaybackRate = origSpeed;
+                try { video.playbackRate = 2.0; } catch (err) {}
+                speedHud.style.opacity = '1';
+                speedHud.style.transform = 'translateX(-50%) scale(1)';
+                triggerHaptic();
+            };
+
+            window._lyaCancelSpeedBoost = function() {
                 if (longPressTimer) {
                     clearTimeout(longPressTimer);
-                    longPressTimer = null;
                 }
+                longPressTimer = null;
                 if (isLongPressing) {
                     isLongPressing = false;
-                    speedHud.style.display = 'none';
-                    if (window.dpInstance && window.dpInstance.video) {
-                        window.dpInstance.video.playbackRate = origSpeed;
-                    }
+                    window._lyaSpeedBoostActive = false;
+                    speedHud.style.opacity = '0';
+                    speedHud.style.transform = 'translateX(-50%) scale(0.82)';
+                    // 恢复原速放到 rAF 下一帧：避免倍速恢复、HUD 隐藏、控制条显示同帧抢主线程
+                    requestAnimationFrame(function() {
+                        const video = (window.dpInstance && window.dpInstance.video) ? window.dpInstance.video : null;
+                        if (video) {
+                            const target = (typeof window._lyaBasePlaybackRate === 'number' && window._lyaBasePlaybackRate > 0) ? window._lyaBasePlaybackRate : 1.0;
+                            try { video.playbackRate = target; } catch (err) {}
+                        }
+                    });
+                    // 长按结束后短暂屏蔽合成 click，防止 DPlayer 控制条 toggle 与误触
+                    suppressClickUntil = Date.now() + 400;
                 }
+            };
+            window._lyaOnPlayerRebuilt = function() {
+                window._lyaSpeedBoostActive = false;
+                if (typeof window._lyaCancelSpeedBoost === 'function') window._lyaCancelSpeedBoost();
             };
 
             videoWrap.addEventListener('touchstart', function(e) {
                 if (e.touches.length !== 1) {
-                    cancelLongPress();
+                    window._lyaCancelSpeedBoost();
                     return;
                 }
-                if (e.target.closest('.dplayer-controller') || e.target.closest('.dplayer-icons') || e.target.closest('button') || e.target.closest('.dplayer-setting-box')) {
+                if (e.target.closest('.dplayer-controller') || e.target.closest('.dplayer-icons') || e.target.closest('button') || e.target.closest('.dplayer-setting-box') || e.target.closest('.dplayer-comment-setting-box')) {
                     return;
                 }
                 startTouchX = e.touches[0].clientX;
                 startTouchY = e.touches[0].clientY;
-                cancelLongPress();
+                window._lyaCancelSpeedBoost();
 
-                longPressTimer = setTimeout(function() {
-                    if (window.dpInstance && window.dpInstance.video && !window.dpInstance.video.paused) {
-                        isLongPressing = true;
-                        origSpeed = window.dpInstance.video.playbackRate || 1.0;
-                        window.dpInstance.video.playbackRate = 2.0;
-                        speedHud.style.display = 'flex';
-                        if (navigator.vibrate) {
-                            try { navigator.vibrate(30); } catch(v){}
-                        }
-                    }
-                }, 380);
+                longPressTimer = setTimeout(engageSpeedBoost, 260);
             }, { passive: true });
 
             videoWrap.addEventListener('touchmove', function(e) {
@@ -2442,13 +2719,21 @@
                     const dx = Math.abs(e.touches[0].clientX - startTouchX);
                     const dy = Math.abs(e.touches[0].clientY - startTouchY);
                     if (dx > 12 || dy > 12) {
-                        cancelLongPress();
+                        window._lyaCancelSpeedBoost();
                     }
                 }
             }, { passive: true });
 
-            videoWrap.addEventListener('touchend', cancelLongPress, { passive: true });
-            videoWrap.addEventListener('touchcancel', cancelLongPress, { passive: true });
+            videoWrap.addEventListener('touchend', function() { window._lyaCancelSpeedBoost(); }, { passive: true });
+            videoWrap.addEventListener('touchcancel', function() { window._lyaCancelSpeedBoost(); }, { passive: true });
+
+            // 捕获阶段拦截长按结束后的合成 click（DPlayer 移动端 videoWrap click 会 toggle 控制条）
+            videoWrap.addEventListener('click', function(e) {
+                if (Date.now() < suppressClickUntil || window._lyaSpeedBoostActive) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            }, true);
         }
 
         // 4. 全屏状态下左上角一键退出全屏浮动返回按钮
@@ -2463,12 +2748,10 @@
                 e.preventDefault();
                 e.stopPropagation();
                 if (typeof window.toggleLyaFullscreen === 'function') {
-                    window.toggleLyaFullscreen();
-                } else {
-                    if (window.dpInstance && window.dpInstance.fullScreen) {
-                        try { window.dpInstance.fullScreen.cancel('web'); } catch(err){}
-                        try { window.dpInstance.fullScreen.cancel('browser'); } catch(err){}
-                    }
+                    window.toggleLyaFullscreen('exit');
+                } else if (window.dpInstance && window.dpInstance.fullScreen) {
+                    try { window.dpInstance.fullScreen.cancel('web'); } catch(err){}
+                    try { window.dpInstance.fullScreen.cancel('browser'); } catch(err){}
                     if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
                         window.webkit.messageHandlers.nativeOrientation.postMessage('portrait');
                     }
@@ -2703,6 +2986,8 @@
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeOrientation) {
             window.webkit.messageHandlers.nativeOrientation.postMessage('portrait');
         }
+        // 关闭播放器：解除屏幕常亮
+        window.setNativeScreenSleep(false);
         if (triggerPopstate && history.state && history.state.videoPlayer) {
             try { history.back(); } catch(e) {}
         }
