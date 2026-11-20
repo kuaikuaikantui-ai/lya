@@ -257,8 +257,9 @@ struct LyaWebView: UIViewRepresentable {
                 }
             } else {
                 DispatchQueue.main.async {
-                    if self.parent.loadError.wrappedValue == nil {
-                        self.parent.loadError.wrappedValue = "无法连接到服务器：\(error.localizedDescription)"
+                    // parent.loadError 经属性包装器投影后即为 String?（Binding 的 wrappedValue）
+                    if self.parent.loadError == nil {
+                        self.parent.loadError = "无法连接到服务器：\(error.localizedDescription)"
                     }
                 }
             }
