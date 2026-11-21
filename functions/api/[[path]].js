@@ -980,9 +980,126 @@ async function fetchDirectFromOrigin(decodedItem) {
 
 const KANJU_SECRET = '557d0e4ae929f438da6bd84412374e6086b8af09b3fed54bf22601d5bf8c54a0';
 
+// ==================== kanju 账号会话管理（官方线路解锁） ====================
+// 官方凭证线路（1080P-官方R/Z/B、专享4K-Y、腾讯视频等）需要登录态；
+// 账号凭证由站长在 APP/网页设置（/api/kanju/login），session 全站共享，401 自动重登。
+const KANJU_SESSION = { cookies: new Map(), loggedIn: false, lastLoginAt: 0, loggingIn: false };
+
+function kanjuCookieHeader() {
+    return [...KANJU_SESSION.cookies.entries()].map(([k, v]) => k + '=' + v).join('; ');
+}
+
+function kanjuCaptureCookies(res) {
+    const scs = res.headers.getSetCookie ? res.headers.getSetCookie() : [];
+    scs.forEach(sc => {
+        const [pair] = sc.split(';');
+        const idx = pair.indexOf('=');
+        if (idx > 0) KANJU_SESSION.cookies.set(pair.slice(0, idx).trim(), pair.slice(idx + 1).trim());
+    });
+}
+
+async function kanjuLogin(env, account, password) {
+    KANJU_SESSION.cookies = new Map();
+    KANJU_SESSION.loggedIn = false;
+    // 建立游客 session（kanju 登录前置要求）
+    try {
+        const home = await fetch('https://kanju.ai/', { headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' }, redirect: 'manual' });
+        kanjuCaptureCookies(home);
+    } catch (e) {}
+    // 登录（带签名头）
+    const timestamp = String(Date.now());
+    const nonceArr = new Uint8Array(16);
+    crypto.getRandomValues(nonceArr);
+    const nonce = Array.from(nonceArr, b => b.toString(16).padStart(2, '0')).join('');
+    const payload = `POST\n/v1/users/password/login\n${timestamp}\n${nonce}`;
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey('raw', encoder.encode(KANJU_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+    const signature = Array.from(new Uint8Array(sig), b => b.toString(16).padStart(2, '0')).join('');
+    const cookieHeader = kanjuCookieHeader();
+
+    let ok = false;
+    const errors = [];
+    for (const host of KANJU_HOSTS) {
+        try {
+            const res = await fetch(host + '/v1/users/password/login', {
+                method: 'POST',
+                headers: Object.assign({
+                    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Referer': host + '/',
+                    'x-ai-movie-client-name': 'dianyingtiantang-frontend',
+                    'x-ai-movie-client-version': '1.0.0',
+                    'x-ai-movie-timestamp': timestamp,
+                    'x-ai-movie-nonce': nonce,
+                    'x-ai-movie-signature': signature
+                }, cookieHeader ? { 'Cookie': cookieHeader } : {}),
+                body: JSON.stringify({ account, password }),
+                signal: AbortSignal.timeout(8000)
+            });
+            kanjuCaptureCookies(res);
+            if (!res.ok) { errors.push(`${host} HTTP ${res.status} ${(await res.clone().text()).slice(0, 60)}`); continue; }
+            ok = true;
+            break;
+        } catch (e) { errors.push(`${host} ${e.message.slice(0, 40)}`); }
+    }
+    if (!ok) throw new Error('kanju login failed: ' + errors.join(' | '));
+    KANJU_SESSION.loggedIn = true;
+    KANJU_SESSION.lastLoginAt = Date.now();
+    // session cookie 持久化（KV 可用时），全站 isolate 共享
+    if (((env && env.KV) || (globalThis.__LYA_ENV && globalThis.__LYA_ENV.KV)) && KANJU_SESSION.loggedIn) {
+        try {
+            await ((env && env.KV) || (globalThis.__LYA_ENV && globalThis.__LYA_ENV.KV)).put('kanju_session_cookies', JSON.stringify([...KANJU_SESSION.cookies.entries()]));
+            await ((env && env.KV) || (globalThis.__LYA_ENV && globalThis.__LYA_ENV.KV)).put('kanju_session_account', account);
+        } catch (e) {}
+    }
+    try {
+        KANJU_SESSION.lastMe = await fetchKanjuSigned('GET', '/v1/users/me');
+    } catch (e) { KANJU_SESSION.lastMe = null; }
+        return KANJU_SESSION.loggedIn;
+}
+
+async function ensureKanjuLogin(env, force) {
+    const kvEnv = env || globalThis.__LYA_ENV || null;
+    if (KANJU_SESSION.loggedIn && !force && (Date.now() - KANJU_SESSION.lastLoginAt < 86400000)) return true;
+    // 内存恢复（同 isolate）
+    if (!force && KANJU_SESSION.cookies.size && KANJU_SESSION.loggedIn) return true;
+    // 从 KV 恢复 session cookie（跨 isolate）
+    if (((env && env.KV) || (globalThis.__LYA_ENV && globalThis.__LYA_ENV.KV)) && !force) {
+        try {
+            const saved = await ((env && env.KV) || (globalThis.__LYA_ENV && globalThis.__LYA_ENV.KV)).get('kanju_session_cookies');
+            if (saved) {
+                const entries = JSON.parse(saved);
+                if (Array.isArray(entries) && entries.length > 0) {
+                    KANJU_SESSION.cookies = new Map(entries);
+                    KANJU_SESSION.loggedIn = true;
+                    return true;
+                }
+            }
+        } catch (e) {}
+    }
+    // 无 session：尝试用 KV 里的凭证自动登录
+    if (((env && env.KV) || (globalThis.__LYA_ENV && globalThis.__LYA_ENV.KV))) {
+        try {
+            const credStr = await ((env && env.KV) || (globalThis.__LYA_ENV && globalThis.__LYA_ENV.KV)).get('kanju_credentials');
+            if (credStr) {
+                const cred = JSON.parse(credStr);
+                if (cred && cred.account && cred.password) {
+                    return await kanjuLogin(env, cred.account, cred.password);
+                }
+            }
+        } catch (e) {}
+    }
+    return false;
+}
+
+
 // 影视原站 kanju.ai 深度解析直连 4K/1080P/蓝光 顶级原画播放源（智能严选真实可播流，杜绝失效票据）
 async function searchOriginKanju(keyword, originId = '') {
     try {
+        // 官方线路需要登录态：确保 kanju session（游客/账号）
+        try { await ensureKanjuLogin(globalThis.__LYA_ENV); } catch (e) {}
         const cleanKw = (keyword || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
         const targets = [];
         if (originId && originId.startsWith('av_')) {
@@ -1154,20 +1271,22 @@ async function fetchKanjuSigned(pathname, search = '') {
     );
     const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
     const signature = Array.from(new Uint8Array(sig), b => b.toString(16).padStart(2, '0')).join('');
+    const cookieHeader = kanjuCookieHeader();
 
     // 双通道并发赛跑：kanju.ai (最新官方源) 与 kanju3.com 实时容灾切源
     const fetchPromises = KANJU_HOSTS.map(async host => {
         const res = await fetch(host + pathname + search, {
-            headers: {
+            headers: Object.assign({
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
                 'Accept': 'application/json',
                 'Referer': host + '/',
                 'x-ai-movie-timestamp': timestamp,
                 'x-ai-movie-nonce': nonce,
                 'x-ai-movie-signature': signature
-            },
+            }, cookieHeader ? { 'Cookie': cookieHeader } : {}),
             signal: AbortSignal.timeout(4500)
         });
+        kanjuCaptureCookies(res);
         if (!res.ok) throw new Error(`${host} HTTP ${res.status}`);
         return await res.json();
     });
@@ -1193,11 +1312,12 @@ async function fetchKanjuSignedPost(pathname, bodyObj) {
     const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
     const signature = Array.from(new Uint8Array(sig), b => b.toString(16).padStart(2, '0')).join('');
     const bodyStr = JSON.stringify(bodyObj);
+    const cookieHeader = kanjuCookieHeader();
 
     const fetchPromises = KANJU_HOSTS.map(async host => {
         const res = await fetch(host + pathname, {
             method: 'POST',
-            headers: {
+            headers: Object.assign({
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
@@ -1205,10 +1325,11 @@ async function fetchKanjuSignedPost(pathname, bodyObj) {
                 'x-ai-movie-timestamp': timestamp,
                 'x-ai-movie-nonce': nonce,
                 'x-ai-movie-signature': signature
-            },
+            }, cookieHeader ? { 'Cookie': cookieHeader } : {}),
             body: bodyStr,
             signal: AbortSignal.timeout(4500)
         });
+        kanjuCaptureCookies(res);
         if (!res.ok) throw new Error(`${host} HTTP ${res.status}`);
         return await res.json();
     });
@@ -1913,6 +2034,46 @@ if (source === '轻小说文库' || source === 'Wenku8') {
         }
 
         // 🎬 影视原站 4K / 官方 Ticket 毫秒级动态直连解析
+        // ==================== 原站账号登录（官方线路解锁） ====================
+        // POST /api/kanju/login {account, password}：登录 kanju 并持久化 session（全站共享）
+        if (url.pathname === '/api/kanju/login' && request.method === 'POST') {
+            try {
+                const body = await request.json();
+                const account = String(body.account || '').trim();
+                const password = String(body.password || '');
+                if (!account || !password) {
+                    return new Response(JSON.stringify({ code: -1, msg: '请填写原站账号与密码' }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    });
+                }
+                const ok = await kanjuLogin(env, account, password);
+                // 凭证持久化到 KV：session 过期时后端自动用凭证重登（仅站长环境使用）
+                if (ok && ((env && env.KV) || (globalThis.__LYA_ENV && globalThis.__LYA_ENV.KV))) {
+                    try { await env.KV.put('kanju_credentials', JSON.stringify({ account, password })); } catch (e) {}
+                }
+                const me = ok ? (KANJU_SESSION.lastMe || null) : null;
+                return new Response(JSON.stringify({
+                    code: ok ? 0 : -1,
+                    msg: ok ? ('登录成功：' + (me && (me.display_name || me.account) || account)) : '登录失败，请检查账号密码',
+                    authenticated: ok,
+                    user: me ? { name: me.display_name || account, account: me.account || account } : null
+                }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            } catch (e) {
+                return new Response(JSON.stringify({ code: -1, msg: '登录异常: ' + e.message }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+        }
+
+        if (url.pathname === '/api/kanju/session') {
+            const ok = await ensureKanjuLogin(env).catch(() => false);
+            return new Response(JSON.stringify({ code: 0, sessionReady: ok, loggedIn: KANJU_SESSION.loggedIn }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        }
+
         if (url.pathname === '/api/video/resolve-line') {
             let ticket = url.searchParams.get('ticket') || '';
             if (!ticket && request.method === 'POST') {
@@ -1929,6 +2090,8 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
             }
+            // 官方凭证线路需要登录态：确保 kanju session（已登录快速返回，未配置凭证则静默跳过）
+            try { await ensureKanjuLogin(env); } catch (e) {}
             try {
                 const res = await fetchKanjuSignedPost('/v1/playback/resolve-line?view=compact', { ticket });
                 if (res && res.line && res.line.url) {
@@ -1951,6 +2114,21 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
             } catch(e) {
+                // 401 = session 过期：强制重登后重试一次（官方线路需要登录态）
+                if (String(e.message).includes('401') && ((env && env.KV) || (globalThis.__LYA_ENV && globalThis.__LYA_ENV.KV))) {
+                    try {
+                        const relog = await ensureKanjuLogin(env, true);
+                        if (relog) {
+                            const res = await fetchKanjuSignedPost('/v1/playback/resolve-line?view=compact', { ticket });
+                            if (res && res.line && res.line.url) {
+                                const lines = (Array.isArray(res.lines) && res.lines.length > 0) ? res.lines : undefined;
+                                return new Response(JSON.stringify({ code: 0, url: res.line.url, line: res.line, lines }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache, no-store' }
+                                });
+                            }
+                        }
+                    } catch (retryErr) {}
+                }
                 return new Response(JSON.stringify({ code: -1, msg: e.message }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
@@ -4055,6 +4233,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
 
 
 export async function onRequest(context) {
+    globalThis.__LYA_ENV = context.env;
     const { request, env } = context;
     return await workerHandler.fetch(request, env, context);
 }

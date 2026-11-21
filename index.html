@@ -4970,6 +4970,28 @@
                         <i class="fas fa-fire-flame-curved"></i> <span id="myChiguaCardLabel">吃瓜频道: 开</span>
                     </button>
                 </div>
+                <!-- 原站账号登录（官方线路解锁：1080P-官方R/Z/B、专享4K-Y、腾讯视频等） -->
+                <div class="my-cloud-card" id="myKanjuAccountCard" onclick="toggleKanjuLoginForm()" style="cursor:pointer;">
+                    <div style="display:flex; align-items:center; gap:9px; min-width:0;">
+                        <div style="width:32px; height:32px; border-radius:10px; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.28); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fas fa-crown" style="color:#38bdf8; font-size:14px;"></i>
+                        </div>
+                        <div style="min-width:0;">
+                            <div style="font-size:12.5px; font-weight:700; color:var(--text-main);">原站官方线路 · 账号</div>
+                            <div id="myKanjuCardSub" style="font-size:10.5px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                登录原站账号，解锁官方快线与 4K
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="kanjuLoginFormWrap" style="display:none; margin: 10px 0 12px 0;">
+                    <input type="text" id="kanjuAccInput" placeholder="原站账号 / 邮箱" autocomplete="off" style="width:100%; padding:9px 12px; margin-bottom:8px; border-radius:10px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.05); color:var(--text-main); font-size:12.5px;" />
+                    <input type="password" id="kanjuPwdInput" placeholder="原站密码" autocomplete="off" style="width:100%; padding:9px 12px; margin-bottom:8px; border-radius:10px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.05); color:var(--text-main); font-size:12.5px;" />
+                    <button type="button" class="btn" id="kanjuLoginBtn" onclick="window.doKanjuLogin()" style="width:100%; justify-content:center; gap:8px; padding:8px 12px; font-size:12.5px; background:linear-gradient(135deg, rgba(56,189,248,0.9), rgba(14,165,233,0.85)); color:#fff; border:none; border-radius:10px; font-weight:700;">
+                        <i class="fas fa-right-to-bracket"></i> 登录并解锁官方线路
+                    </button>
+                    <div style="font-size:10px; color:var(--text-muted); margin-top:6px;">登录一次全站生效（影视搜索/播放自动接入官方快线与 4K），凭证仅存于本站服务器</div>
+                </div>
                 <!-- 观看记录隐私开关（danbo 模式：关闭后新播放不记录、不自动续播） -->
                 <div style="margin: 0 0 12px 0;">
                     <button type="button" class="btn" id="videoHistoryToggleBtn" onclick="window.toggleVideoHistory()" style="width:100%; justify-content:center; gap:8px; padding:7px 12px; font-size:12px; background:rgba(148,163,184,0.06); border:1px solid rgba(148,163,184,0.22); color:var(--text-muted); border-radius:10px;">
@@ -8822,6 +8844,50 @@
     }
 
     // 核心独立页面切换 (1.我的 2.小说 3.漫画 4.影视 5.隐藏吃瓜)
+    // 原站账号登录（官方线路解锁）：调后端 /api/kanju/login，session 全站共享
+    window.toggleKanjuLoginForm = function() {
+        const wrap = document.getElementById('kanjuLoginFormWrap');
+        if (wrap) wrap.style.display = (wrap.style.display === 'none' || !wrap.style.display) ? 'block' : 'none';
+        const sub = document.getElementById('myKanjuCardSub');
+        if (sub && localStorage.getItem('lya_kanju_logged_in') === '1') {
+            sub.textContent = '已登录：' + (localStorage.getItem('lya_kanju_account') || '') + ' · 官方线路已解锁';
+        }
+    };
+
+    window.doKanjuLogin = async function() {
+        const accInput = document.getElementById('kanjuAccInput');
+        const pwdInput = document.getElementById('kanjuPwdInput');
+        const btn = document.getElementById('kanjuLoginBtn');
+        const account = (accInput ? accInput.value : '').trim();
+        const password = (pwdInput ? pwdInput.value : '').trim();
+        if (!account || !password) {
+            if (typeof showCloudToast === 'function') showCloudToast('请填写原站账号与密码', 'fa-circle-exclamation', '#f59e0b');
+            return;
+        }
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...'; }
+        try {
+            const res = await fetch('/api/kanju/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account, password })
+            });
+            const j = await res.json();
+            if (j.code === 0) {
+                localStorage.setItem('lya_kanju_logged_in', '1');
+                localStorage.setItem('lya_kanju_account', account);
+                const sub = document.getElementById('myKanjuCardSub');
+                if (sub) sub.textContent = '已登录：' + account + ' · 官方线路已解锁';
+                if (typeof showCloudToast === 'function') showCloudToast('原站登录成功，官方快线与 4K 已解锁', 'fa-crown', '#38bdf8');
+            } else {
+                if (typeof showCloudToast === 'function') showCloudToast(j.msg || '登录失败，请检查账号密码', 'fa-circle-exclamation', '#ef4444');
+            }
+        } catch (e) {
+            if (typeof showCloudToast === 'function') showCloudToast('登录请求异常: ' + e.message, 'fa-circle-exclamation', '#ef4444');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> 登录并解锁官方线路'; }
+        }
+    };
+
     // 书城/阅读器独立框架懒加载（novel.js 小说框架 + manga.js 漫画框架，首次进入书城时注入，幂等）
     window.ensureReaderFrameworks = function() {
         ['novel', 'manga'].forEach(function(name) {
