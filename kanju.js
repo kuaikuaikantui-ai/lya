@@ -191,7 +191,6 @@
                     _lyaKanjuTokens: cat.episodes.map(function(ep) { return ep.token || ''; }),
                     _lyaKanjuOptions: options,
                     _lyaKanjuLabel: rawLabel,
-                    _lyaManualOnly: true // 仅抽屉手动可选：不参与自动选源与看门狗换线（未真机验证前防止黑屏循环）
                 });
                 added += 1;
             });
@@ -200,6 +199,22 @@
                 // 官方组追加到列表【末尾】且不参与自动选择（IP锁定的CF解析地址黑屏教训）：
                 // 仅作为抽屉里的手动可选项，用户自己点选尝试
                 console.log(TAG + '已追加 ' + added + ' 条原站官方线路（用户IP解析，手动可选），耗时 ' + (Date.now() - t0) + 'ms');
+
+                // 原站同款策略：官方线路（用户IP就近解析）可用即自动优先；若播放失败由看门狗自动降级第三方
+                try {
+                    var v = window.dpInstance && window.dpInstance.video;
+                    var curG = window.currentVideo && window.currentVideo.groups[window.currentGroupIdx];
+                    var onNonOfficial = curG && String(curG.name).indexOf('原站官方·') !== 0;
+                    if (v && onNonOfficial && v.currentTime < 3) {
+                        var officialIdx = window.currentVideo.groups.findIndex(function(g) { return String(g.name).indexOf('原站官方·') === 0; });
+                        if (officialIdx !== -1) {
+                            if (window.dpInstance.notice) {
+                                window.dpInstance.notice('已接入原站官方快线，自动切换...', 2000);
+                            }
+                            window.switchPlayGroup(officialIdx, window.currentEpisodeIdx || 0, Math.round(v.currentTime || 0));
+                        }
+                    }
+                } catch (e) {}
             }
             return added;
         },

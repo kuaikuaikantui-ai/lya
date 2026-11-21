@@ -1625,7 +1625,6 @@
         for (let i = 0; i < groups.length; i++) {
             const g = groups[i];
             if (failedSet.has(i) || bannedNames.has(g.name)) continue;
-            if (g._lyaManualOnly) continue; // kanju 官方组仅手动可选
             if (!g.episodes || !g.episodes[targetEpIdx]) continue;
             const ep = g.episodes[targetEpIdx];
             if (!ep.url || (!ep.url.includes('.m3u8') && !ep.url.includes('.mp4') && !ep.url.startsWith('resolve://'))) continue;
@@ -1782,7 +1781,6 @@
         let bestScore = -1;
         for (let i = 0; i < totalGroups; i++) {
             if (window._failedRouteSet.has(i)) continue;
-            if (groups[i] && groups[i]._lyaManualOnly) continue; // kanju 官方组不参与自动换线
             const g = groups[i];
             if (!g.episodes || !g.episodes[epIdx]) continue;
             const score = getRoutePriorityScore(g.name, g.episodes[epIdx]?.url);
