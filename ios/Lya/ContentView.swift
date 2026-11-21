@@ -265,6 +265,18 @@ struct LyaWebView: UIViewRepresentable {
             }
         }
 
+        func webView(_ webView: WKWebView, didFailNavigation navigation: WKNavigation!, withError error: Error) {
+            // 导航中途失败（重定向被断、内容进程崩溃等）同样给出重试面板
+            let hasOfflineBundle = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "www") != nil
+            if !hasOfflineBundle {
+                DispatchQueue.main.async {
+                    if self.parent.loadError == nil {
+                        self.parent.loadError = "页面加载中断：(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+
         // 处理原生消息：横竖屏 / 触感反馈 / 屏幕常亮
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             switch message.name {
