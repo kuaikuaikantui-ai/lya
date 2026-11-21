@@ -202,6 +202,22 @@
                 video.groups = officialGroups.concat(rest);
                 window.renderVideoSourceTabs(video.groups);
                 console.log(TAG + '已追加 ' + added + ' 条原站官方线路（用户IP就近CDN），耗时 ' + (Date.now() - t0) + 'ms');
+
+                // 官方线路接入后：若当前第三方线路尚未起播（黑屏/加载缓慢中），自动切换到官方快线
+                try {
+                    var v = window.dpInstance && window.dpInstance.video;
+                    var curG = window.currentVideo && window.currentVideo.groups[window.currentGroupIdx];
+                    var onThirdParty = curG && String(curG.name).indexOf('原站官方·') !== 0;
+                    if (v && onThirdParty && v.currentTime < 3) {
+                        var officialIdx = window.currentVideo.groups.findIndex(function(g) { return String(g.name).indexOf('原站官方·') === 0; });
+                        if (officialIdx !== -1) {
+                            if (window.dpInstance.notice) {
+                                window.dpInstance.notice('已接入原站官方快线，自动切换...', 2000);
+                            }
+                            window.switchPlayGroup(officialIdx, window.currentEpisodeIdx || 0, Math.round(v.currentTime || 0));
+                        }
+                    }
+                } catch (e) {}
             }
             return added;
         },
