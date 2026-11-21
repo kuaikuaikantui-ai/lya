@@ -25,7 +25,9 @@
 
     function applyTransform() {
         if (!streamEl) return;
-        streamEl.style.transformOrigin = 'top center';
+        // 原点取 0 0：屏幕坐标 = T + s·p（p 为元素坐标），
+        // 焦点保持公式 T_new = f − k(f − T_old)（k = s_new/s_old）在此原点下精确成立
+        streamEl.style.transformOrigin = '0 0';
         streamEl.style.transform = 'scale(' + pinch.scale + ') translate(' + (pinch.tx / pinch.scale) + 'px,' + (pinch.ty / pinch.scale) + 'px)';
     }
 
@@ -112,8 +114,14 @@
         function releasePointer(e) {
             pointers.delete(e.pointerId);
             if (pointers.size < 2 && pinch.active) {
+                // 双指捏合结束、剩余单指：无缝转为拖拽平移（抬起一根手指继续拖是自然手势）
                 pinch.active = false;
-                el.style.touchAction = pinch.scale > 1.01 ? 'none' : 'pan-y';
+                var rest = Array.from(pointers.values())[0];
+                if (rest && pinch.scale > 1.01) {
+                    pinch.panning = true;
+                    pinch.lastX = rest.x;
+                    pinch.lastY = rest.y;
+                }
             }
             if (pointers.size === 0) {
                 pinch.panning = false;
@@ -211,6 +219,7 @@
         if (!container || container._mangaFwWatch) return;
         container._mangaFwWatch = true;
         streamMo.observe(container, { childList: true, subtree: false });
+        hookStream(); // 框架加载时若 .img-stream 已存在（懒加载晚于章节渲染），立即挂接
     }
 
     // 主脚本进入漫画阅读器后启动监听（轮询兜底，幂等）

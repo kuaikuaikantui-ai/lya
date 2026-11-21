@@ -1100,7 +1100,9 @@ async function searchOriginKanju(keyword, originId = '') {
     }
 }
 
-const KANJU_HOSTS = ['https://kanju.ai', 'https://kanju3.com'];
+// 多镜像自发现池（danbo 同款思路）：竞速出最快可用镜像，单点故障不再致命
+// （kanju1/souju7 为竞品包内实测同族域名，签名协议一致）
+const KANJU_HOSTS = ['https://kanju.ai', 'https://kanju3.com', 'https://souju.ai', 'https://kanju1.com', 'https://souju7.com'];
 
 async function fetchKanjuSigned(pathname, search = '') {
     const timestamp = String(Date.now());
@@ -1215,7 +1217,10 @@ const VOD_API_BASES = [
 const VOD_SOURCE_HEALTH = new Map();
 
 function vodHealthKey(u) {
-    try { return new URL(u).host; } catch (e) { return String(u); }
+    try {
+        // www. 前缀归一：同一站点不因带不带 www 被当成两个源（重复查询/重复熔断计数）
+        return new URL(u).host.replace(/^www\./i, '');
+    } catch (e) { return String(u); }
 }
 
 function recordVodSourceHealth(u, ok, ms) {
@@ -1238,9 +1243,18 @@ function isVodSourceBlocked(u) {
 }
 
 function pickHealthyVodSources() {
-    const healthy = VOD_API_BASES.filter(b => !isVodSourceBlocked(b.url));
+    // www. 归一后去重（subocaiji.com 与 www.subocaiji.com 是同一站点，只查一次）
+    const seen = new Set();
+    const deduped = [];
+    for (const b of VOD_API_BASES) {
+        const k = vodHealthKey(b.url);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        deduped.push(b);
+    }
+    const healthy = deduped.filter(b => !isVodSourceBlocked(b.url));
     // 极端情况全部熔断时放行前 3 个主力源兜底，避免整站无结果
-    if (healthy.length === 0) return VOD_API_BASES.slice(0, 3);
+    if (healthy.length === 0) return deduped.slice(0, 3);
     return healthy;
 }
 
@@ -1274,18 +1288,22 @@ async function fetchVodJson(apiUrl, extraParams, timeoutMs) {
 
 // ==================== 频道分类系统（腾讯式频道页数据层） ====================
 // 把各源 ac=list 返回的 type_id/type_name 归一化为统一频道：电影/电视剧/综艺/动漫/短剧
+// 注意判定顺序：'剧场版' 属动漫电影（先于'片'判定）；'解说/资讯'等伪影视类直接丢弃
 function classifyVodTypeName(name) {
     const n = String(name || '');
+    if (n.includes('解说') || n.includes('资讯') || n.includes('预告') || n.includes('片花')) return null;
     if (n.includes('短剧')) return '短剧';
-    if (n.endsWith('片') || n.includes('电影') || n.includes('院线') || n.includes('剧场版')) return '电影';
+    if (n.includes('剧场版') || n.includes('动漫电影') || n.includes('动画电影')) return '动漫';
+    if (n.includes('纪录') || n.includes('纪实')) return '电影';
     if (n.includes('综艺')) return '综艺';
-    if (n.includes('剧') || n.includes('连续') || n.includes('电视')) return '电视剧';
+    if (n.endsWith('片') || n.includes('电影') || n.includes('院线')) return '电影';
     if (n.includes('动漫') || n.includes('动画') || n.includes('番剧') || n.includes('漫画')) return '动漫';
+    if (n.includes('剧') || n.includes('连续') || n.includes('电视')) return '电视剧';
     return null;
 }
 
 // 归一化芯片的噪音黑名单（后缀剥离产物如 '电视'/'连续'、单字芯片、其他）不作为分类芯片展示
-const VOD_CHIP_NOISE = new Set(['电视', '连续', '其他', '电影', '剧场', '全部', '漫', '短', '预告', '预告片', '抢先', '片花', 'AI漫', '舞臺', '舞台']);
+const VOD_CHIP_NOISE = new Set(['电视', '连续', '其他', '电影', '剧场', '全部', '漫', '短', '预告', '预告片', '抢先', '片花', 'AI漫', '舞臺', '舞台', '理论', '解说', '综合', '资讯', '时评']);
 
 function normalizeVodClassChip(typeName) {
     const n = String(typeName || '').trim();
@@ -1347,25 +1365,110 @@ async function getVodClassMap() {
 }
 
 // 按频道+分类芯片挑选各源命中的 type_id（每个源最多 2 个，总任务数上限 18，控制聚合成本）
+// 同一源（www. 归一后同 host）只发一个任务，避免 subocaiji.com 与 www.subocaiji.com 重复查询
 function pickChannelTypeTasks(classMap, channel, chip) {
     const tasks = [];
     if (!classMap || !classMap.sources) return tasks;
     const wantAll = !chip || chip === '全部';
+    const seenHosts = new Set();
     Object.values(classMap.sources).forEach(src => {
+        const host = vodHealthKey(src.url);
+        if (seenHosts.has(host)) return;
         const matched = src.items.filter(it => {
             if (classifyVodTypeName(it.name) !== channel) return false;
             if (wantAll) return true;
             const norm = normalizeVodClassChip(it.name);
+            // 空 norm（噪音类名）不可命中任何芯片，否则污染筛选结果
+            if (!norm) return false;
             return norm === chip || it.name.includes(chip) || chip.includes(norm);
         });
         matched.slice(0, wantAll ? 2 : 1).forEach(m => tasks.push({ url: src.url, id: m.id }));
+        seenHosts.add(host);
         if (tasks.length >= 18) return;
     });
     return tasks.slice(0, 18);
 }
 
-const workerHandler = {
-    async fetch(request, env, ctx) {
+// ==================== 边缘两级缓存（Cache API per-POP → 源站） ====================
+// Pages Function 的动态响应默认不进 Cloudflare 边缘缓存（Cache-Control 头只对浏览器生效）。
+// 这里显式走 caches.default：命中直接回边缘副本；未命中回源后用 ctx.waitUntil 异步写缓存，
+// 参数排序合成稳定键以最大化命中率。缓存不可用（本地 Node 测试/旧运行时）时静默直连。
+function edgeCacheKey(request, routePath) {
+    try {
+        const u = new URL(request.url);
+        const params = [...u.searchParams.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(p => p[0] + '=' + p[1])
+            .join('&');
+        return new Request(u.origin + routePath + (params ? '?' + params : ''));
+    } catch (e) {
+        return null;
+    }
+}
+
+async function edgeCacheMatch(request, routePath) {
+    const cache = (typeof caches !== 'undefined' && caches.default) ? caches.default : null;
+    if (!cache) return null;
+    try {
+        const key = edgeCacheKey(request, routePath);
+        if (!key) return null;
+        const hit = await cache.match(key);
+        return hit || null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function edgeCachePut(ctx, request, routePath, response, ttlSeconds) {
+    const cache = (typeof caches !== 'undefined' && caches.default) ? caches.default : null;
+    if (!cache || !response || !response.ok) return;
+    try {
+        const key = edgeCacheKey(request, routePath);
+        if (!key) return;
+        const headers = new Headers(response.headers);
+        headers.set('Cache-Control', 'public, max-age=' + ttlSeconds);
+        const body = response.clone();
+        const cachedRes = new Response(body.body, { status: response.status, statusText: response.statusText, headers });
+        if (ctx && typeof ctx.waitUntil === 'function') {
+            ctx.waitUntil(cache.put(key, cachedRes).catch(() => {}));
+        }
+    } catch (e) {}
+}
+
+// ==================== 豆瓣热门联动（静默降级） ====================
+// danbo 验证过的模式：请求带 referer 头绕过基础校验；内存缓存 30 分钟；
+// 豆瓣限频/超时/反爬页一律返回 null，绝不阻塞主联想流程
+const DOUBAN_HOT_CACHE = { data: null, at: 0 };
+
+async function getDoubanHotSubjects() {
+    const now = Date.now();
+    if (DOUBAN_HOT_CACHE.data && (now - DOUBAN_HOT_CACHE.at < 1800000)) return DOUBAN_HOT_CACHE.data;
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4500);
+        const r = await fetch('https://movie.douban.com/j/search_subjects?type=movie&tag=%E7%83%AD%E9%97%A8&page_limit=12&page=1', {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15',
+                'Referer': 'https://movie.douban.com/',
+                'Accept': 'application/json'
+            },
+            signal: controller.signal
+        });
+        clearTimeout(timer);
+        if (!r.ok) return null;
+        const json = await r.json();
+        const subjects = (json && Array.isArray(json.subjects)) ? json.subjects : [];
+        const titles = subjects.map(s => String(s.title || '').trim()).filter(t => t && t.length >= 2);
+        if (titles.length === 0) return null;
+        DOUBAN_HOT_CACHE.data = titles;
+        DOUBAN_HOT_CACHE.at = now;
+        return titles;
+    } catch (e) {
+        return null;
+    }
+}
+
+const workerHandler = {    async fetch(request, env, ctx) {
         const url = new URL(request.url);
 
         const corsHeaders = {
@@ -1587,35 +1690,51 @@ if (source === '轻小说文库' || source === 'Wenku8') {
         
         // 🎬 影视动态推荐芯片接口 (实时对接 kanju3 AI 建议)
         if (url.pathname === '/api/video/suggest') {
-            try {
-                const data = await fetchKanjuSigned('/v1/suggest', '?q=&limit=16&mode=home&scope=public');
-                const suggestions = (data.suggestions || []).map(s => ({
+            // 豆瓣热门联动（danbo 降级模式：referer 头 + 内存缓存 30 分钟 + 任何失败静默丢弃）
+            const [kanjuRes, doubanRes] = await Promise.allSettled([
+                fetchKanjuSigned('/v1/suggest', '?q=&limit=16&mode=home&scope=public'),
+                getDoubanHotSubjects()
+            ]);
+            let suggestions = [];
+            if (kanjuRes.status === 'fulfilled' && kanjuRes.value) {
+                const data = kanjuRes.value;
+                suggestions = (data.suggestions || []).map(s => ({
                     label: s.label || s.prompt,
                     prompt: s.prompt || s.label,
                     type: s.subtitle || s.type
                 }));
+            }
+            if (doubanRes.status === 'fulfilled' && Array.isArray(doubanRes.value)) {
+                const existing = new Set(suggestions.map(s => (s.prompt || '').replace(/\s+/g, '').toLowerCase()));
+                doubanRes.value.forEach(t => {
+                    const key = t.replace(/\s+/g, '').toLowerCase();
+                    if (existing.has(key) || suggestions.length >= 16) return;
+                    suggestions.push({ label: t, prompt: t, type: '豆瓣热门' });
+                });
+            }
+            if (suggestions.length === 0) suggestions = null; // 落入静态兜底
+            if (suggestions) {
                 return new Response(JSON.stringify({ code: 0, suggestions }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
-            } catch(e) {
-                return new Response(JSON.stringify({
-                    code: 0,
-                    suggestions: [
-                        { label: '庆余年2', prompt: '庆余年' },
-                        { label: '繁花', prompt: '繁花' },
-                        { label: '狂飙', prompt: '狂飙' },
-                        { label: '抓娃娃', prompt: '抓娃娃' },
-                        { label: '周处除三害', prompt: '周处除三害' },
-                        { label: '边水往事', prompt: '边水往事' },
-                        { label: '玫瑰的故事', prompt: '玫瑰的故事' },
-                        { label: '墨雨云间', prompt: '墨雨云间' },
-                        { label: '凡人修仙传', prompt: '凡人修仙传' },
-                        { label: '飞驰人生2', prompt: '飞驰人生2' }
-                    ]
-                }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
             }
+            return new Response(JSON.stringify({
+                code: 0,
+                suggestions: [
+                    { label: '庆余年2', prompt: '庆余年' },
+                    { label: '繁花', prompt: '繁花' },
+                    { label: '狂飙', prompt: '狂飙' },
+                    { label: '抓娃娃', prompt: '抓娃娃' },
+                    { label: '周处除三害', prompt: '周处除三害' },
+                    { label: '边水往事', prompt: '边水往事' },
+                    { label: '玫瑰的故事', prompt: '玫瑰的故事' },
+                    { label: '墨雨云间', prompt: '墨雨云间' },
+                    { label: '凡人修仙传', prompt: '凡人修仙传' },
+                    { label: '飞驰人生2', prompt: '飞驰人生2' }
+                ]
+            }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+            });
         }
 
         // 🎬 影视动态多板块热播流 (实时在线刷新 + 8大板块换一批)
@@ -2119,15 +2238,23 @@ if (source === '轻小说文库' || source === 'Wenku8') {
 
         // 🎬 影视聚合检索接口 (原站主力源优先 + 10条高速备用源并发容灾)
         if (url.pathname === '/api/video/classes') {
+            // 边缘缓存命中直接回（per-POP 副本，1 小时 TTL）
+            const hit = await edgeCacheMatch(request, '/api/video/classes');
+            if (hit) return hit;
             const classMap = await getVodClassMap();
-            return new Response(JSON.stringify({ code: 0, channels: classMap.channels || {} }), {
+            const response = new Response(JSON.stringify({ code: 0, channels: classMap.channels || {} }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }
             });
+            edgeCachePut(ctx, request, '/api/video/classes', response, 3600);
+            return response;
         }
 
         // 腾讯式频道页：/api/video/channel?type=电影&class=动作&area=&year=&pg=1
         // 各源按自身 type_id 查询，聚合去重后合并返回
         if (url.pathname === '/api/video/channel') {
+            // 边缘缓存命中直接回（5 分钟 TTL：新鲜度与聚合成本平衡）
+            const chHit = await edgeCacheMatch(request, '/api/video/channel');
+            if (chHit) return chHit;
             const channel = (url.searchParams.get('type') || '电影').trim();
             const chip = (url.searchParams.get('class') || '全部').trim();
             const area = (url.searchParams.get('area') || '').trim();
@@ -2192,7 +2319,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 return bv - av;
             });
 
-            return new Response(JSON.stringify({
+            const chResponse = new Response(JSON.stringify({
                 code: 0,
                 msg: 'ok',
                 type: channel,
@@ -2203,6 +2330,8 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' }
             });
+            edgeCachePut(ctx, request, '/api/video/channel', chResponse, 300);
+            return chResponse;
         }
 
         if (url.pathname === '/api/video/search') {
@@ -2213,6 +2342,10 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
             }
+
+            // 边缘缓存命中直接回（2 分钟 TTL：搜索结果新鲜度与聚合成本平衡）
+            const sHit = await edgeCacheMatch(request, '/api/video/search');
+            if (sHit) return sHit;
 
             // 接入健康分系统：被熔断的源直接跳过，不让外网超时源拖慢整轮聚合
             const apis = pickHealthyVodSources().map(b => b.url);
@@ -2286,7 +2419,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 return 0;
             });
 
-            return new Response(JSON.stringify({
+            const sResponse = new Response(JSON.stringify({
                 code: 0,
                 msg: 'ok',
                 total: combinedList.length,
@@ -2294,6 +2427,8 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
             });
+            edgeCachePut(ctx, request, '/api/video/search', sResponse, 120);
+            return sResponse;
         }
 
         if (url.pathname === '/api/detail') {

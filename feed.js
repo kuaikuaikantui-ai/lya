@@ -75,7 +75,18 @@
 
     // ==================== 1. 全屏图集查看器 ====================
     var galleryOv = null;
-    var galleryBlobCache = new Map(); // url -> blobURL
+    var galleryBlobCache = new Map(); // url -> blobURL（上限 80 条，超出淘汰最早条目并回收 blob）
+
+    function cacheGalleryBlob(url, objUrl) {
+        if (galleryBlobCache.has(url)) return;
+        galleryBlobCache.set(url, objUrl);
+        if (galleryBlobCache.size > 80) {
+            var oldest = galleryBlobCache.keys().next().value;
+            var oldBlob = galleryBlobCache.get(oldest);
+            galleryBlobCache.delete(oldest);
+            try { if (oldBlob && oldBlob.startsWith('blob:')) URL.revokeObjectURL(oldBlob); } catch (e) {}
+        }
+    }
 
     function getGalleryImageSrc(url) {
         if (!url) return Promise.resolve('');
@@ -88,7 +99,7 @@
             p = Promise.resolve(url);
         }
         return p.then(function(src) {
-            galleryBlobCache.set(url, src);
+            cacheGalleryBlob(url, src);
             return src;
         });
     }
@@ -144,12 +155,13 @@
             });
 
             var uiVisible = true;
-            galleryOv.addEventListener('click', function(e) {
+            // 用 onclick 覆盖式赋值（而非 addEventListener），避免重复打开时监听器累积
+            galleryOv.onclick = function(e) {
                 if (e.target === closeBtn) return;
                 uiVisible = !uiVisible;
                 counter.style.display = uiVisible ? 'block' : 'none';
                 closeBtn.style.display = uiVisible ? 'flex' : 'none';
-            });
+            };
 
             // 计数跟随滚动
             track.addEventListener('scroll', function() {
@@ -188,14 +200,16 @@
     var feedOv = null;
 
     // 吃瓜文章视频提取器（feed.js 自带独立解析，不依赖详情页内部逻辑）
+    // 返回：视频数组；[] = 文章确实无视频；null = 提取失败（网络异常，允许稍后重试）
     async function extractArticleVideos(articleUrl) {
         var videos = [];
+        var failed = false;
         try {
             var rawHtml = '';
             if (typeof window.fetchTextWithCorsFallback === 'function') {
                 rawHtml = await window.fetchTextWithCorsFallback(articleUrl);
             }
-            if (!rawHtml) return videos;
+            if (!rawHtml) return null;
             var seen = new Set();
             var cfgMatches = rawHtml.matchAll(/data-config=(['"])([\s\S]*?)\1/gi);
             for (var m of cfgMatches) {
@@ -221,8 +235,9 @@
             }
         } catch (e) {
             console.warn(TAG + '文章视频提取失败:', e);
+            failed = true;
         }
-        return videos;
+        return failed ? null : videos;
     }
 
     function attachHls(video, url) {
@@ -245,16 +260,48 @@
     function buildVideoSlide(item) {
         var slide = document.createElement('div');
         slide.className = 'lya-feed-slide';
-        slide.innerHTML = '<div class="lya-fs-spinner"><i class="fas fa-circle-notch"></i><span>正在装载视频...</span></div>';
+        // 独立媒体容器：重挂载时只重建 video，保留进度条/提示等外层元素
+        var media = document.createElement('div');
+        media.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+        media.innerHTML = '<div class="lya-fs-spinner"><i class="fas fa-circle-notch"></i><span>正在装载视频...</span></div>';
+        slide.appendChild(media);
+        slide._media = media;
         slide._item = item;
+        bindSlideInteractions(slide);
         return slide;
+    }
+
+    // 滑块交互只绑定一次（单击暂停/继续；双击静音切换），重挂载不重复累积监听
+    function bindSlideInteractions(slide) {
+        if (slide._interactionsBound) return;
+        slide._interactionsBound = true;
+        var lastTap = 0;
+        slide.addEventListener('click', function() {
+            var v = slide._video;
+            if (!v) return;
+            var now = Date.now();
+            if (now - lastTap < 280) {
+                v.muted = !v.muted;
+                lastTap = 0;
+                return;
+            }
+            lastTap = now;
+            setTimeout(function() {
+                if (lastTap && Date.now() - lastTap >= 260) {
+                    if (v.paused) v.play().catch(function() {});
+                    else v.pause();
+                }
+            }, 290);
+        });
     }
 
     function mountVideo(slide, autoplay) {
         if (slide._mounted) return;
         slide._mounted = true;
         var item = slide._item;
-        slide.innerHTML = '';
+        var media = slide._media;
+        if (!media) return;
+        media.innerHTML = '';
         var video = document.createElement('video');
         video.setAttribute('playsinline', '');
         video.setAttribute('webkit-playsinline', '');
@@ -263,29 +310,11 @@
         video.preload = 'auto';
         video.playsInline = true;
         video.muted = autoplay === 'muted';
-        slide.appendChild(video);
+        media.appendChild(video);
         slide._video = video;
 
         var hls = attachHls(video, item.url);
         slide._hls = hls;
-
-        // 单击暂停/继续；双击静音切换
-        var lastTap = 0;
-        slide.addEventListener('click', function() {
-            var now = Date.now();
-            if (now - lastTap < 280) {
-                video.muted = !video.muted;
-                lastTap = 0;
-                return;
-            }
-            lastTap = now;
-            setTimeout(function() {
-                if (lastTap && Date.now() - lastTap >= 260) {
-                    if (video.paused) video.play().catch(function() {});
-                    else video.pause();
-                }
-            }, 290);
-        });
 
         video.addEventListener('timeupdate', function() {
             if (slide._bar && video.duration) {
@@ -305,15 +334,22 @@
         }
     }
 
+    // 完全卸载：hls 销毁 + video 摘除 src 并触发 load() 释放解码器/缓冲
+    // （iOS 原生 HLS video 元素内存开销大，窗口外不释放连续刷 20 卡会被系统杀掉）
     function unmountPlayback(slide) {
         if (!slide) return;
+        slide._mounted = false;
         if (slide._video) {
             try { slide._video.pause(); } catch (e) {}
-            slide._video.preload = 'none';
+            try { slide._video.removeAttribute('src'); slide._video.load(); } catch (e) {}
+            slide._video = null;
         }
         if (slide._hls) {
             try { slide._hls.destroy(); } catch (e) {}
             slide._hls = null;
+        }
+        if (slide._media) {
+            slide._media.innerHTML = '<div class="lya-fs-spinner"><i class="fas fa-circle-notch"></i><span>正在装载视频...</span></div>';
         }
     }
 
@@ -344,8 +380,7 @@
             progress.className = 'lya-feed-progress';
             feedOv.appendChild(progress);
 
-            var slideMeta = []; // { slide, item, ready }
-            var slideIndex = 0;
+            var slideMeta = []; // { slide, item, articleIdx }
 
             function setTitle(item) {
                 var t = document.getElementById('lyaFeedTitle');
@@ -354,9 +389,50 @@
                 if (s) s.textContent = (item.vod_class || '') + (item.vod_remarks ? ' · ' + item.vod_remarks : '');
             }
 
-            function appendArticleSlides(articleItem, isFirst) {
+            // 网络感知预取（danbo"仅 Wi-Fi 预载"模式）：省流模式/2G 直接跳过预取
+            function prefetchAllowed() {
+                try {
+                    var conn = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+                    if (conn) {
+                        if (conn.saveData) return false;
+                        if (conn.effectiveType && /(^|-)2g$/.test(conn.effectiveType)) return false;
+                    }
+                } catch (e) {}
+                return true;
+            }
+
+            // IntersectionObserver：进入视口自动播放、离开卸载释放、±1 窗口管理
+            // 注意必须先于 appendArticleSlides 定义（后者会立即调用 io.observe）
+            var io = new IntersectionObserver(function(entries) {
+                entries.forEach(function(en) {
+                    var slide = en.target;
+                    var metaIdx = slideMeta.findIndex(function(m) { return m.slide === slide; });
+                    if (en.isIntersecting && en.intersectionRatio > 0.6) {
+                        mountVideo(slide, true);
+                        if (slide._video) {
+                            var pr = slide._video.play();
+                            if (pr && pr.catch) pr.catch(function() {
+                                slide._video.muted = true;
+                                slide._video.play().catch(function() {});
+                            });
+                        }
+                        setTitle({ vod_name: slide._articleTitle, vod_class: '', vod_remarks: '' });
+                        var meta = slideMeta[metaIdx];
+                        if (meta) prefetchAround(meta.articleIdx);
+                        // 窗口外卸载：只保留当前 ±1 的真实加载
+                        slideMeta.forEach(function(m, i) {
+                            if (Math.abs(i - metaIdx) > 1) unmountPlayback(m.slide);
+                        });
+                    } else if (en.intersectionRatio <= 0.05) {
+                        unmountPlayback(slide);
+                    }
+                });
+            }, { root: scroll, threshold: [0, 0.6] });
+
+            function appendArticleSlides(articleItem, articleIdx, isFirst) {
                 return extractArticleVideos(articleItem.article_url).then(function(videos) {
-                    if (!videos.length) return 0;
+                    if (videos === null) return -1; // 提取失败：允许重试
+                    if (!videos.length) return 0;   // 文章确实无视频
                     videos.forEach(function(v, vi) {
                         v.title = articleItem.vod_name + (videos.length > 1 ? (' · 第' + (vi + 1) + '段') : '');
                         v.pic = v.pic || articleItem.vod_pic || '';
@@ -372,10 +448,10 @@
                         slide._hint = hint;
                         slide._articleTitle = articleItem.vod_name;
                         scroll.appendChild(slide);
-                        slideMeta.push({ slide: slide, item: v });
+                        slideMeta.push({ slide: slide, item: v, articleIdx: articleIdx });
+                        io.observe(slide); // 关键：预取卡也必须被观察，否则永远是死转圈
                     });
-                    // 立即装载当前首个 slide
-                    if (isFirst && videos.length > 0) {
+                    if (isFirst) {
                         mountVideo(slideMeta[0].slide, true);
                         setTitle(articleItem);
                     }
@@ -383,41 +459,26 @@
                 });
             }
 
-            // 预取窗口：当前文章 ±3，后台接力
-            function prefetchAround(centerIdx) {
+            // 预取窗口：跟随当前文章位置向后 3 篇接力；失败的文章允许下次重试
+            function prefetchAround(centerArticleIdx) {
+                if (!prefetchAllowed()) return;
                 var jobs = [];
                 for (var off = 1; off <= 3; off++) {
-                    var nextIdx = centerIdx + off;
+                    var nextIdx = centerArticleIdx + off;
                     if (nextIdx < items.length && !items[nextIdx]._feedParsed) {
                         items[nextIdx]._feedParsed = true;
-                        jobs.push(appendArticleSlides(items[nextIdx], false));
+                        jobs.push(
+                            appendArticleSlides(items[nextIdx], nextIdx, false).then(function(count) {
+                                if (count === -1) {
+                                    // 网络失败：回滚标记，下次滑近时重试
+                                    items[nextIdx]._feedParsed = false;
+                                }
+                            })
+                        );
                     }
                 }
                 return Promise.all(jobs);
             }
-
-            // IntersectionObserver：进入视口自动播放、离开暂停、±1 预载
-            var io = new IntersectionObserver(function(entries) {
-                entries.forEach(function(en) {
-                    var slide = en.target;
-                    if (en.isIntersecting && en.intersectionRatio > 0.6) {
-                        mountVideo(slide, true);
-                        if (slide._video) {
-                            var pr = slide._video.play();
-                            if (pr && pr.catch) pr.catch(function() {
-                                slide._video.muted = true;
-                                slide._video.play().catch(function() {});
-                            });
-                        }
-                        setTitle({ vod_name: slide._articleTitle, vod_class: '', vod_remarks: '' });
-                        var metaIdx = slideMeta.findIndex(function(m) { return m.slide === slide; });
-                        var itemIdx = idx + Math.floor(metaIdx / 1);
-                        prefetchAround(idx);
-                    } else {
-                        unmountPlayback(slide);
-                    }
-                });
-            }, { root: scroll, threshold: [0, 0.6] });
 
             document.getElementById('lyaFeedClose').onclick = function() { window.LyaCloseFullScreen(); };
             var muteBtn = document.getElementById('lyaFeedMute');
@@ -437,9 +498,10 @@
 
             // 装载起始文章的视频
             items[idx]._feedParsed = true;
-            await appendArticleSlides(items[idx], true);
-            if (slideMeta.length === 0) {
-                feedOv.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;flex-direction:column;gap:14px;"><i class="fas fa-face-frown" style="font-size:30px;color:#f43f5e;"></i><div style="font-size:14px;">该篇没有可提取的视频，直接看详情页图集吧</div></div>';
+            var firstCount = await appendArticleSlides(items[idx], idx, true);
+            if (firstCount === -1 || slideMeta.length === 0) {
+                items[idx]._feedParsed = false; // 失败可重试
+                feedOv.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;flex-direction:column;gap:14px;"><i class="fas fa-face-frown" style="font-size:30px;color:#f43f5e;"></i><div style="font-size:14px;">' + (firstCount === -1 ? '网络异常，暂时无法提取视频，稍后再试' : '该篇没有可提取的视频，直接看详情页图集吧') + '</div></div>';
                 var backBtn = document.createElement('button');
                 backBtn.className = 'lya-feed-close-btn';
                 backBtn.innerHTML = '<i class="fas fa-xmark"></i>';
@@ -448,7 +510,6 @@
                 feedOv.appendChild(backBtn);
                 return;
             }
-            slideMeta.forEach(function(m) { io.observe(m.slide); });
             prefetchAround(idx);
         }
     };

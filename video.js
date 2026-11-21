@@ -356,8 +356,34 @@
     };
 
     // 保存观看历史 (支持集数与集内秒数进度 + 自动触发多端云同步)
+    // 隐私开关（danbo 模式）：关闭后新播放不记录也不自动续播；上限 1000 条 LRU
+    window.isVideoHistoryEnabled = true;
+    try { window.isVideoHistoryEnabled = localStorage.getItem('lya_video_history_enabled') !== '0'; } catch (e) {}
+
+    window.toggleVideoHistory = function() {
+        window.isVideoHistoryEnabled = !window.isVideoHistoryEnabled;
+        try { localStorage.setItem('lya_video_history_enabled', window.isVideoHistoryEnabled ? '1' : '0'); } catch (e) {}
+        const lbl = document.getElementById('videoHistoryToggleLabel');
+        if (lbl) lbl.textContent = '观看记录: ' + (window.isVideoHistoryEnabled ? '开' : '关');
+        const btn = document.getElementById('videoHistoryToggleBtn');
+        if (btn) {
+            btn.style.color = window.isVideoHistoryEnabled ? 'var(--text-muted)' : '#fb7185';
+        }
+        if (typeof window.showToast === 'function') {
+            window.showToast(window.isVideoHistoryEnabled
+                ? '观看记录已开启：新的播放会记录并支持续播'
+                : '观看记录已关闭：新的播放不记录、不自动续播', 2600);
+        }
+    };
+    // 初始化开关文案
+    document.addEventListener('DOMContentLoaded', function() {
+        const lbl = document.getElementById('videoHistoryToggleLabel');
+        if (lbl) lbl.textContent = '观看记录: ' + (window.isVideoHistoryEnabled ? '开' : '关');
+    });
+
     window.saveVideoHistory = function(video, groupName, epTitle, epIdx, playSeconds = null, silentSync = false) {
         if (!video) return;
+        if (!window.isVideoHistoryEnabled) return; // 用户已关闭观看记录
         try {
             let history = window.getVideoHistory();
             const vid = video.vod_id || video.id || video.vod_name;
@@ -401,7 +427,9 @@
                 raw_video: compactRaw
             };
             history.unshift(record);
-            if (history.length > 30) history = history.slice(0, 30);
+            // 上限 200 条 LRU（danbo 为原生数据库故可存 1000；localStorage 含 vod_play_url 大字段，
+            // 1000 条约 3MB 有爆仓风险，200 条足够继续观看使用）
+            if (history.length > 200) history = history.slice(0, 200);
             localStorage.setItem(VIDEO_HISTORY_KEY, JSON.stringify(history));
             window.renderRecentWatchBar();
             if (!silentSync && typeof window.scheduleCloudSyncPush === 'function') {
@@ -898,9 +926,10 @@
         const input = document.getElementById('videoSearchInput');
         if (input) input.value = '';
         if (searchBlock) searchBlock.style.display = 'none';
-        if (heroStage) heroStage.style.display = '';
-        if (allSecs) allSecs.style.display = 'block';
-        window.renderAllVideoSections(window.KANJU_ALL_SECTIONS);
+        // 频道浏览模式下不强行展开巨幕与板块（避免区块堆叠）
+        if (heroStage) heroStage.style.display = window._videoChannelMode ? 'none' : '';
+        if (allSecs) allSecs.style.display = window._videoChannelMode ? 'none' : 'block';
+        if (!window._videoChannelMode) window.renderAllVideoSections(window.KANJU_ALL_SECTIONS);
     };
 
     // 动态拉取与渲染原站全量 8 大影视板块
@@ -976,12 +1005,16 @@
         window.renderChannelFilters();
         const grid = document.getElementById('channelGrid');
         if (grid) grid.innerHTML = '';
+        // 注册表随频道重置（避免整场会话无界增长）
+        window._channelItemRegistry.length = 0;
         const browse = document.getElementById('videoChannelBrowse');
         const heroStage = document.getElementById('txHeroStage');
         const allSecs = document.getElementById('videoAllSectionsContainer');
+        const searchBlock = document.getElementById('videoSearchResultBlock');
         if (browse) browse.style.display = 'block';
         if (heroStage) heroStage.style.display = 'none';
         if (allSecs) allSecs.style.display = 'none';
+        if (searchBlock) searchBlock.style.display = 'none'; // 与搜索模式互斥
         window.loadChannelPage(true);
     };
 
@@ -1025,12 +1058,13 @@
         const state = window._videoChannelState;
         if (!wrap || !state.type) return;
         const areas = ['', '全部', '大陆', '香港', '台湾', '美国', '韩国', '日本', '泰国', '英国', '法国', '其他'];
-        const years = ['', '全部', '2026', '2025', '2024', '2023', '2022', '2021', '2020', '更早'];
+        // CMS year 参数为精确匹配，"更早"无法表达，不提供该选项
+        const years = ['', '全部', '2026', '2025', '2024', '2023', '2022', '2021', '2020'];
         const areaSel = `<select class="select-filter" id="channelAreaSelect" onchange="window.setChannelArea(this.value)">
             ${areas.map(a => `<option value="${a}" ${((state.area || '') === (a === '全部' ? '' : a)) ? 'selected' : ''}>${a === '' ? '地区' : (a === '全部' ? '全部地区' : a)}</option>`).join('')}
         </select>`;
         const yearSel = `<select class="select-filter" id="channelYearSelect" onchange="window.setChannelYear(this.value)">
-            ${years.map(y => `<option value="${y === '更早' ? '更早' : y}" ${((state.year || '') === (y === '全部' ? '' : (y === '更早' ? '更早' : y))) ? 'selected' : ''}>${y === '' ? '年份' : (y === '全部' ? '全部年份' : y)}</option>`).join('')}
+            ${years.map(y => `<option value="${y}" ${((state.year || '') === (y === '全部' ? '' : y)) ? 'selected' : ''}>${y === '' ? '年份' : (y === '全部' ? '全部年份' : y)}</option>`).join('')}
         </select>`;
         wrap.innerHTML = areaSel + yearSel;
     };
@@ -1056,6 +1090,8 @@
     };
 
     // 频道分页加载：/api/video/channel?type=..&class=..&area=..&year=..&pg=..
+    // epoch 令牌：筛选条件变更后，旧条件的在途响应作废，防止污染新网格
+    window._channelEpoch = 0;
     window.loadChannelPage = async function(reset = false) {
         const state = window._videoChannelState;
         const grid = document.getElementById('channelGrid');
@@ -1064,6 +1100,7 @@
         if (!grid || !state.type || state.loading) return;
         if (state.done && !reset) return;
         state.loading = true;
+        const myEpoch = ++window._channelEpoch;
         if (loader) loader.style.display = 'block';
         if (endTip) endTip.style.display = 'none';
         try {
@@ -1071,6 +1108,13 @@
             if (state.area) qs += '&area=' + encodeURIComponent(state.area);
             if (state.year) qs += '&year=' + encodeURIComponent(state.year);
             const res = await fetch('/api/video/channel?' + qs);
+            // 响应返回时筛选条件已变：丢弃本次结果并补发最新条件的请求
+            if (myEpoch !== window._channelEpoch) {
+                state.loading = false;
+                if (loader) loader.style.display = 'none';
+                window.loadChannelPage(reset);
+                return;
+            }
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
             const list = (data && Array.isArray(data.list)) ? data.list : [];
@@ -1087,11 +1131,11 @@
                 state.page += 1;
             }
         } catch (e) {
-            if (grid && state.page === 1) {
+            if (grid && state.page === 1 && myEpoch === window._channelEpoch) {
                 grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:30px; font-size:13px;"><i class="fas fa-cloud-arrow-down"></i> 频道加载失败，请稍后重试</div>`;
             }
         } finally {
-            state.loading = false;
+            if (myEpoch === window._channelEpoch) state.loading = false;
             if (loader) loader.style.display = 'none';
         }
     };
@@ -1178,14 +1222,27 @@
         if (!wd) return;
         if (window.checkSecretUnlockKeyword && window.checkSecretUnlockKeyword(wd, input)) return;
 
+        // 搜索与频道浏览互斥：退出频道模式，隐藏频道网格
+        window._videoChannelMode = false;
+        window._videoChannelState.type = null;
+        const browseEl = document.getElementById('videoChannelBrowse');
+        if (browseEl) browseEl.style.display = 'none';
+        window.renderVideoChannelBar();
+
         const heroStage = document.getElementById('txHeroStage');
         if (heroStage) heroStage.style.display = 'none';
+        const allSecsEl = document.getElementById('videoAllSectionsContainer');
+        if (allSecsEl) allSecsEl.style.display = 'none';
         const searchBlock = document.getElementById('videoSearchResultBlock');
         if (searchBlock) searchBlock.style.display = 'block';
         const grid = document.getElementById('videoGrid');
         const countBadge = document.getElementById('videoCountBadge');
         const titleBadge = document.getElementById('videoFeedTitle');
-        if (titleBadge) titleBadge.innerHTML = '<i class="fas fa-search" style="color:var(--accent);"></i> 搜索《' + wd + '》结果';
+        if (titleBadge) {
+            // 关键词转义后再进 innerHTML（自 XSS 防御）
+            const escWd = wd.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            titleBadge.innerHTML = '<i class="fas fa-search" style="color:var(--accent);"></i> 搜索《' + escWd + '》结果 <span style="font-size:10.5px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.4); border-radius:10px; padding:2px 8px; margin-left:6px;">⚡聚合全网源</span>';
+        }
         if (grid && typeof window.renderSkeletonGrid === 'function') {
             window.renderSkeletonGrid(grid, 8, true);
         } else if (grid) {
@@ -1354,6 +1411,13 @@
         // 3. 立即切至播放视图并更新标题
         const vSection = document.getElementById("videoSection");
         if (vSection) vSection.style.display = "none";
+        // 聚合首页/书城壳也要隐藏（支持从首页直接点开视频，返回时经 previousView 还原）
+        const homeSec = document.getElementById("homeSection");
+        if (homeSec) homeSec.style.display = "none";
+        const bookShellEl = document.getElementById("bookShell");
+        if (bookShellEl) bookShellEl.style.display = "none";
+        const historySecEl = document.getElementById("historySection");
+        if (historySecEl) historySecEl.style.display = "none";
         const vPlayerView = document.getElementById("videoPlayerView");
         if (vPlayerView) vPlayerView.style.display = "block";
 
@@ -1856,6 +1920,10 @@
         const container = document.getElementById('dplayerContainer');
         if (!container) return;
 
+        // 清理上一集的清晰度面板（iOS 原生 HLS 路径不重建面板，防止旧面板残留）
+        const oldQualityBar = document.getElementById('videoQualityBar');
+        if (oldQualityBar) oldQualityBar.remove();
+
         if (window.currentP2pEngine) {
             try { window.currentP2pEngine.destroy(); } catch(e){}
             window.currentP2pEngine = null;
@@ -2145,6 +2213,11 @@
                                 // 开启智能 ABR 码率自适应：弱网不卡顿，强网保高清
                                 hls.currentLevel = -1;
                                 video.play().catch(function () {});
+                                // 清晰度面板（xgplayer definition 模式：levels 热切零重载）
+                                try { window.renderQualityPanel(hls); } catch (e) {}
+                            });
+                            hls.on(window.Hls.Events.LEVEL_SWITCHED, function (event, data) {
+                                try { window.markQualityActive(data.level); } catch (e) {}
                             });
 
                             // 错误深度自愈与网络抖动平滑重试 (绝不轻易粗暴切源中断播放)
@@ -2257,6 +2330,18 @@
             }
             // 播放开始：APP 端保持屏幕常亮
             window.setNativeScreenSleep(true);
+            // 记忆倍速（danbo 同款）：跨集/换线保持用户倍速偏好
+            // 注意：持久化挂在倍速菜单点击时（video.js 不监听 ratechange——播放器销毁时
+            // WebKit 会把速率重置为 1 触发 ratechange，会把 '1' 误写进偏好）
+            const v0 = window.dpInstance && window.dpInstance.video;
+            if (v0) {
+                const savedRate = parseFloat(localStorage.getItem('lya_playback_rate') || '1');
+                if (savedRate > 0 && Math.abs(savedRate - 1) > 0.01) {
+                    try { v0.playbackRate = savedRate; } catch (e) {}
+                    const lbl = document.getElementById('dpCurSpeedLabel');
+                    if (lbl) lbl.innerText = savedRate + 'x';
+                }
+            }
         } catch(e) {
             console.warn('[OpenHappy Video] 控件注入异常:', e);
         }
@@ -2539,6 +2624,8 @@
                     const sp = this.getAttribute('data-speed') || '1';
                     const lbl = document.getElementById('dpCurSpeedLabel');
                     if (lbl) lbl.innerText = (sp === '1' ? '1.0' : sp) + 'x';
+                    // 记忆倍速：用户主动选档时持久化（跨集/换线自动恢复）
+                    try { localStorage.setItem('lya_playback_rate', sp === '1' ? '1' : String(parseFloat(sp))); } catch (e) {}
                 });
             });
 
@@ -2613,7 +2700,17 @@
                 () => window.toggleAutoNext()
             ));
 
-            // (6) 快捷手动跳过片头 (+85秒)
+            // (6) 长按倍速松手锁定（danbo 双模式）
+            originPanel.appendChild(makeRichCardRow(
+                'lockBoostSwitch',
+                '<i class="fas fa-gauge-high" style="color:#f97316;"></i>',
+                '长按倍速松手锁定',
+                '长按加速后松手保持 2x，点画面恢复（追剧快进必备）',
+                window.isLockBoostEnabled === true,
+                () => window.toggleLockBoost()
+            ));
+
+            // (7) 快捷手动跳过片头 (+85秒)
             const skipActionRow = document.createElement('div');
             skipActionRow.className = 'dplayer-setting-item dp-custom-setting-row dp-custom-action-row';
             skipActionRow.innerHTML = `
@@ -2680,6 +2777,21 @@
                 if (isLongPressing) {
                     isLongPressing = false;
                     window._lyaSpeedBoostActive = false;
+                    // 松手锁定模式（设置面板可开关）：保持 2x，下一次点画面恢复
+                    let lockMode = false;
+                    try { lockMode = localStorage.getItem('lya_longpress_lock') === '1'; } catch (e) {}
+                    if (lockMode) {
+                        window._lyaLockedBoost = true;
+                        const lockSpan = speedHud.querySelector('span');
+                        if (lockSpan) lockSpan.textContent = '2.0X 已锁定 · 点画面恢复';
+                        setTimeout(function() {
+                            speedHud.style.opacity = '0';
+                            speedHud.style.transform = 'translateX(-50%) scale(0.82)';
+                            if (lockSpan) lockSpan.textContent = '2.0X 极速播放中...';
+                        }, 1500);
+                        suppressClickUntil = 0; // 锁定模式不屏蔽下一次点击（那是解除指令）
+                        return;
+                    }
                     speedHud.style.opacity = '0';
                     speedHud.style.transform = 'translateX(-50%) scale(0.82)';
                     // 恢复原速放到 rAF 下一帧：避免倍速恢复、HUD 隐藏、控制条显示同帧抢主线程
@@ -2696,6 +2808,7 @@
             };
             window._lyaOnPlayerRebuilt = function() {
                 window._lyaSpeedBoostActive = false;
+                window._lyaLockedBoost = false;
                 if (typeof window._lyaCancelSpeedBoost === 'function') window._lyaCancelSpeedBoost();
             };
 
@@ -2727,8 +2840,28 @@
             videoWrap.addEventListener('touchend', function() { window._lyaCancelSpeedBoost(); }, { passive: true });
             videoWrap.addEventListener('touchcancel', function() { window._lyaCancelSpeedBoost(); }, { passive: true });
 
-            // 捕获阶段拦截长按结束后的合成 click（DPlayer 移动端 videoWrap click 会 toggle 控制条）
+            // 捕获阶段拦截长按结束后的合成 click——只拦截视频画面/遮罩上的点击
+            // （控制条、按钮等 UI 不在拦截范围，避免吞掉松手后立即点暂停等合法操作）
             videoWrap.addEventListener('click', function(e) {
+                const isVideoArea = e.target.closest('.dplayer-video, .dplayer-mask, .dplayer-bezel, .dplayer-danmaku');
+                if (!isVideoArea) return;
+                // 松手锁定模式：点画面 = 解除锁定恢复原速
+                if (window._lyaLockedBoost) {
+                    window._lyaLockedBoost = false;
+                    e.stopPropagation();
+                    e.preventDefault();
+                    requestAnimationFrame(function() {
+                        const v = (window.dpInstance && window.dpInstance.video) ? window.dpInstance.video : null;
+                        if (v) {
+                            const target = (typeof window._lyaBasePlaybackRate === 'number' && window._lyaBasePlaybackRate > 0) ? window._lyaBasePlaybackRate : 1.0;
+                            try { v.playbackRate = target; } catch (err) {}
+                        }
+                    });
+                    if (window.dpInstance && window.dpInstance.notice) {
+                        window.dpInstance.notice('已恢复原速', 1200);
+                    }
+                    return;
+                }
                 if (Date.now() < suppressClickUntil || window._lyaSpeedBoostActive) {
                     e.stopPropagation();
                     e.preventDefault();
@@ -2948,6 +3081,83 @@
         }
     };
 
+    // ==================== 清晰度切换面板（xgplayer definition 模式：hls.levels 热切零重载） ====================
+    // Android/PC 生效；iOS 原生 HLS 无 levels API，本面板不会被创建（显示"智能自适应"语义由 ABR 承担）
+    window.renderQualityPanel = function(hls) {
+        const tabs = document.getElementById('videoPlaySourceTabs');
+        if (!tabs || !hls || !Array.isArray(hls.levels) || hls.levels.length < 2) {
+            const old = document.getElementById('videoQualityBar');
+            if (old) old.remove();
+            return;
+        }
+        let bar = document.getElementById('videoQualityBar');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'videoQualityBar';
+            bar.style.cssText = 'display:flex; gap:8px; align-items:center; overflow-x:auto; padding:8px 2px 2px; scrollbar-width:none;';
+            tabs.parentNode.insertBefore(bar, tabs.nextSibling);
+        }
+        // 同高度去重取最高码率，降序展示
+        const byHeight = new Map();
+        hls.levels.forEach((l, i) => {
+            const h = l.height || Math.round(Math.sqrt((l.width || 0) * (l.height || 0))) || 0;
+            const prev = byHeight.get(h);
+            if (!prev || (l.bitrate || 0) > (prev.bitrate || 0)) byHeight.set(h, { index: i, bitrate: l.bitrate || 0 });
+        });
+        const heights = [...byHeight.keys()].filter(h => h > 0).sort((a, b) => b - a);
+        const esc = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+        let html = '<span style="font-size:11px; color:var(--text-muted); flex-shrink:0;"><i class="fas fa-film" style="color:#38bdf8;"></i> 清晰度</span>';
+        html += `<button type="button" class="video-chip" data-qi="-1" onclick="window.setQualityLevel(-1)">自动</button>`;
+        heights.forEach(h => {
+            html += `<button type="button" class="video-chip" data-qi="${byHeight.get(h).index}" onclick="window.setQualityLevel(${byHeight.get(h).index})">${h}P</button>`;
+        });
+        bar.innerHTML = html;
+        window.markQualityActive(hls.autoLevelEnabled ? -1 : hls.currentLevel);
+    };
+
+    window.markQualityActive = function(levelIndex) {
+        const bar = document.getElementById('videoQualityBar');
+        if (!bar) return;
+        bar.querySelectorAll('.video-chip').forEach(b => {
+            const qi = parseInt(b.getAttribute('data-qi'), 10);
+            const active = (levelIndex === -1) ? (qi === -1) : (qi === levelIndex);
+            b.classList.toggle('active', active);
+            if (levelIndex >= 0 && qi === levelIndex) {
+                // 自动档时展示实际播放档位标签
+                b.textContent = b.textContent;
+            }
+        });
+    };
+
+    window.setQualityLevel = function(levelIndex) {
+        const hls = window.currentHlsInstance;
+        if (!hls) return;
+        try {
+            hls.currentLevel = levelIndex; // 热切换，不重载 src
+            window.markQualityActive(levelIndex);
+            if (window.dpInstance && window.dpInstance.notice) {
+                window.dpInstance.notice(levelIndex === -1 ? '已切换为智能自适应' : '已切换清晰度，画面即将自动续播', 1600);
+            }
+        } catch (e) {
+            if (window.dpInstance && window.dpInstance.notice) {
+                window.dpInstance.notice('清晰度切换失败，已保持当前档位', 1800);
+            }
+        }
+    };
+
+    // 长按倍速松手锁定（danbo 双模式）：开启后长按加速松手保持 2x，点画面恢复
+    window.isLockBoostEnabled = false;
+    try { window.isLockBoostEnabled = localStorage.getItem('lya_longpress_lock') === '1'; } catch (e) {}
+    window.toggleLockBoost = function() {
+        window.isLockBoostEnabled = !window.isLockBoostEnabled;
+        try { localStorage.setItem('lya_longpress_lock', window.isLockBoostEnabled ? '1' : '0'); } catch (e) {}
+        const sw = document.getElementById('lockBoostSwitch');
+        if (sw) sw.classList.toggle('active', window.isLockBoostEnabled);
+        if (window.dpInstance && window.dpInstance.notice) {
+            window.dpInstance.notice('松手锁定已' + (window.isLockBoostEnabled ? '开启：长按加速后保持 2x，点画面恢复' : '关闭：松手即恢复原速'), 2600);
+        }
+    };
+
     // 原站高频特性：画中画 (Picture-in-Picture)
     window.togglePip = function() {
         if (!window.dpInstance || !window.dpInstance.video) return;
@@ -3038,7 +3248,13 @@
         window._sessionSlowRouteNames = new Set();
 
         document.getElementById('videoPlayerView').style.display = 'none';
-        document.getElementById('videoSection').style.display = 'block';
+        // 经 switchNav 还原来源页：导航高亮、聚合首页/书城壳/搜索区块等状态一并正确复位
+        // （previousView 由 switchNav 维护在 window 上；无记录时回影视 Tab）
+        if (typeof window.switchNav === 'function') {
+            window.switchNav(window.previousView || 'video');
+        } else {
+            document.getElementById('videoSection').style.display = 'block';
+        }
         window.renderRecentWatchBar();
     };
 

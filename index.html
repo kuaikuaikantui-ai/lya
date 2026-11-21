@@ -4681,7 +4681,7 @@
     <script src="hls.min.js"></script>
     <script src="dplayer.min.js"></script>
     <script src="recommend_data.js"></script>
-    <script src="video.js?v=20261110_seamless"></script>
+    <script src="video.js?v=20261121b"></script>
 </head>
 <body class="nav-home">
 <header>
@@ -4838,6 +4838,12 @@
                 <div id="myChiguaToggleRow" style="display:none; margin: 8px 0 12px 0;">
                     <button type="button" class="btn" id="myChiguaCardBtn" onclick="toggleChiguaMode()" style="width:100%; justify-content:center; gap:8px; padding:7px 12px; font-size:12px; background:rgba(244,63,94,0.08); border:1px solid rgba(244,63,94,0.22); color:#fb7185; border-radius:10px;">
                         <i class="fas fa-fire-flame-curved"></i> <span id="myChiguaCardLabel">吃瓜频道: 开</span>
+                    </button>
+                </div>
+                <!-- 观看记录隐私开关（danbo 模式：关闭后新播放不记录、不自动续播） -->
+                <div style="margin: 0 0 12px 0;">
+                    <button type="button" class="btn" id="videoHistoryToggleBtn" onclick="window.toggleVideoHistory()" style="width:100%; justify-content:center; gap:8px; padding:7px 12px; font-size:12px; background:rgba(148,163,184,0.06); border:1px solid rgba(148,163,184,0.22); color:var(--text-muted); border-radius:10px;">
+                        <i class="fas fa-clock-rotate-left"></i> <span id="videoHistoryToggleLabel">观看记录: 开</span>
                     </button>
                 </div>
                 <div class="history-subnav" id="historySubNav">
@@ -5706,7 +5712,12 @@
 </nav>
 
 <script>
-    if ('serviceWorker' in navigator) {
+    // 应用壳缓存注册（sw.js：静态资源 SWR 秒回 + 页面 network-first）
+    // 只在安全上下文（https/localhost）注册；file:// 离线包与旧 SW 自动清理
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+        navigator.serviceWorker.register('sw.js?v=20261121').catch(() => {});
+    } else if ('serviceWorker' in navigator) {
+        // 非安全上下文（file:// 等）不受 SW 支持：清理历史遗留注册，避免僵尸缓存
         navigator.serviceWorker.getRegistrations().then(regs => {
             for (let reg of regs) reg.unregister();
         }).catch(() => {});
@@ -6986,6 +6997,13 @@
     function formatPlaySecondsLabel(sec) {
         const s = Math.floor(Number(sec) || 0);
         if (s <= 5) return '';
+        // 超过 1 小时显示 h:mm:ss（避免出现 "75:05" 这类反直觉分钟串）
+        if (s >= 3600) {
+            const hh = Math.floor(s / 3600);
+            const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+            const ss = String(s % 60).padStart(2, '0');
+            return `${hh}:${mm}:${ss}`;
+        }
         const mm = String(Math.floor(s / 60)).padStart(2, '0');
         const ss = String(s % 60).padStart(2, '0');
         return `${mm}:${ss}`;
@@ -8181,7 +8199,7 @@
             const icon = isManga ? '<i class="fas fa-images" style="color:#a78bfa;"></i>' : '<i class="fas fa-book-open" style="color:#38bdf8;"></i>';
             const typeLabel = isManga ? '漫画' : '小说';
             return `
-                <div class="home-read-card" onclick="openBookFromHistory('${encodeURIComponent(JSON.stringify(b))}')" title="继续阅读《${b.book_name}》">
+                <div class="home-read-card" onclick="openBookFromHistory('${window._lyaOnclickPayload(b)}')" title="继续阅读《${b.book_name}》">
                     <div class="home-read-cover">${icon}<span>${(b.book_name || '').slice(0, 4)}</span></div>
                     <div class="home-read-title">${b.book_name}</div>
                     <div class="home-read-meta">${typeLabel} · ${b.lastReadTitle || '第一章'}${b.lastProgressLabel ? ` · ${escapeNovelHtml(b.lastProgressLabel)}` : ''}</div>
@@ -8236,10 +8254,12 @@
     }
 
     function renderHomeVideoCard(c) {
-        const pic = c.img || c.cover || c.vod_pic || HOME_POSTER_FALLBACK;
-        const name = c.title || c.vod_name || '';
-        const remark = c.remark || c.vod_remarks || c.ep_badge || '';
-        const payload = encodeURIComponent(JSON.stringify(c));
+        // 兼容两种入参形态：CMS 原始项（vod_* 字段）与 kanju 卡片（vod_* 同构），显示层字段做兜底映射
+        const pic = c.vod_pic || c.img || c.cover || HOME_POSTER_FALLBACK;
+        const name = c.vod_name || c.title || '';
+        const remark = c.vod_remarks || c.remark || '';
+        const sub = c.sub_title || c.type_name || '超清线路';
+        const payload = window._lyaOnclickPayload(c);
         return `
             <div class="kanju-poster-card" onclick="window.openHomeVideoCard('${payload}')">
                 <div class="kanju-poster-wrap">
@@ -8248,7 +8268,7 @@
                 </div>
                 <div class="kanju-poster-info">
                     <div class="kanju-poster-title" title="${name}">${name}</div>
-                    <div class="kanju-poster-meta"><span>${c.sub_title || c.type_name || '超清线路'}</span></div>
+                    <div class="kanju-poster-meta"><span>${sub}</span></div>
                 </div>
             </div>
         `;
@@ -8257,13 +8277,23 @@
     window.openHomeVideoCard = function(payload) {
         try {
             const item = JSON.parse(decodeURIComponent(payload));
-            if (typeof window.openVideoDetail === 'function') window.openVideoDetail(item);
+            // 规范化：openVideoDetail 严格要求 vod_name；映射形（title/img）补齐
+            const normalized = {
+                ...item,
+                vod_name: item.vod_name || item.title || '',
+                vod_pic: item.vod_pic || item.img || item.cover || '',
+                vod_remarks: item.vod_remarks || item.remark || '',
+                type_name: item.type_name || item.sub_title || ''
+            };
+            if (normalized.vod_name && typeof window.openVideoDetail === 'function') {
+                window.openVideoDetail(normalized);
+            }
         } catch (e) { console.warn('openHomeVideoCard 解析失败', e); }
     };
 
     function renderHomeBookCard(b, type) {
         const cover = (b.thumb_url || b.cover || b.pic || '').replace(/^http:\/\//i, 'https://');
-        const payload = encodeURIComponent(JSON.stringify(b));
+        const payload = window._lyaOnclickPayload(b);
         return `
             <div class="kanju-poster-card" onclick="window.openHomeBookCard('${payload}')">
                 <div class="kanju-poster-wrap home-book-cover">
@@ -8345,12 +8375,8 @@
                 grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:20px; font-size:12.5px;">暂无推荐内容，去 <a href="javascript:void(0)" onclick="switchNav(\'video\')" style="color:var(--accent);">影视</a> 看点什么吧</div>';
                 return;
             }
-            grid.innerHTML = list.slice(0, 12).map(c => renderHomeVideoCard({
-                img: c.vod_pic,
-                title: c.vod_name,
-                remark: c.vod_remarks || '',
-                sub_title: c.type_name || ''
-            })).join('');
+            // 直传 CMS 原始条目（vod_* 字段），renderHomeVideoCard 内部做显示兜底映射
+            grid.innerHTML = list.slice(0, 12).map(c => renderHomeVideoCard(c)).join('');
         } catch (e) {
             if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:20px; font-size:12.5px;">推荐服务暂时不可用</div>';
         }
@@ -8378,7 +8404,7 @@
             const isManga = b.tab === '漫画' || b.source === '看漫画' || b.source === '新新漫画' || b.source === '全面漫画' || b.source === 'G社漫画' || b.source === '极速韩漫' || String(b.book_id || '').startsWith('kanman_') || String(b.book_id || '').startsWith('veryim_');
             const typeBadge = isManga ? '<i class="fas fa-images"></i> 漫画' : '<i class="fas fa-book-open"></i> 小说';
             return `
-                <div class="card" onclick="openBookFromHistory('${encodeURIComponent(JSON.stringify(b))}')">
+                <div class="card" onclick="openBookFromHistory('${window._lyaOnclickPayload(b)}')">
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span class="card-title">${b.book_name}</span>
@@ -8464,7 +8490,7 @@
 
         empty.style.display = 'none';
         grid.innerHTML = list.map((b, idx) => `
-            <div class="card" onclick="openBookFromHistory('${encodeURIComponent(JSON.stringify(b))}')">
+            <div class="card" onclick="openBookFromHistory('${window._lyaOnclickPayload(b)}')">
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span class="card-title">${b.book_name}</span>
@@ -8501,7 +8527,7 @@
 
         empty.style.display = 'none';
         grid.innerHTML = list.map((b, idx) => `
-            <div class="card" onclick="openBookFromHistory('${encodeURIComponent(JSON.stringify(b))}')">
+            <div class="card" onclick="openBookFromHistory('${window._lyaOnclickPayload(b)}')">
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span class="card-title">${b.book_name}</span>
@@ -8664,6 +8690,12 @@
         });
     };
 
+    // onclick 内联 JSON 载荷编码：encodeURIComponent 不转义单引号，含引号的书名/作者会
+    // 打破 onclick 属性造成死卡；这里补 %27（decodeURIComponent 可还原，JSON.parse 不受影响）
+    window._lyaOnclickPayload = function(obj) {
+        return encodeURIComponent(JSON.stringify(obj)).replace(/'/g, '%27');
+    };
+
     // 书城分段：小说 / 漫画（书城 Tab 内部切换，外部入口自动映射）
     let _bookSegment = 'novel';
     window.setBookSegment = function(seg) {
@@ -8818,6 +8850,7 @@
         }
 
         previousView = nav;
+        window.previousView = nav; // 供 video.js closeVideoPlayer 等模块还原来源页
         updateTabGlider(nav);
 
         if (isHome) {
@@ -8896,7 +8929,7 @@
             : (item.last_chapter ? item.last_chapter.trim() : cleanSource);
         const cat = (item.category || item.tags || (tab === '漫画' ? '全彩漫画' : '精品小说')).split(',')[0] || cleanSource;
         const author = item.author || (tab === '漫画' ? '人气画师' : '网络作家');
-        const encoded = encodeURIComponent(JSON.stringify(item));
+        const encoded = window._lyaOnclickPayload(item);
 
         return `
             <div class="kanju-poster-card" onclick="loadBookDetail('${encoded}')" title="点击阅读《${item.book_name}》">
@@ -9065,7 +9098,9 @@ window.clearNovelSearch = function() {
 
         if (searchBlock) searchBlock.style.display = 'block';
         if (plaza) plaza.style.display = 'none';
-        if (titleEl) titleEl.innerHTML = `<i class="fas fa-search" style="color:var(--accent);"></i> 「${title}」搜索结果 ${source === 'ALL' ? '<span style="font-size:10.5px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.4); border-radius:10px; padding:2px 8px; margin-left:6px;">⚡聚合全网源</span>' : ''}`;
+        // 关键词转义后再进 innerHTML（自 XSS 防御）
+        const escTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        if (titleEl) titleEl.innerHTML = `<i class="fas fa-search" style="color:var(--accent);"></i> 「${escTitle}」搜索结果 ${source === 'ALL' ? '<span style="font-size:10.5px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.4); border-radius:10px; padding:2px 8px; margin-left:6px;">⚡聚合全网源</span>' : ''}`;
 
         const isAll = (source === 'ALL');
         if (typeof window.renderSkeletonGrid === 'function') { window.renderSkeletonGrid(grid, 8, true); } else { grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在全网检索小说《${title}》...</div>`; }
@@ -9149,7 +9184,9 @@ window.clearNovelSearch = function() {
 
         if (searchBlock) searchBlock.style.display = 'block';
         if (plaza) plaza.style.display = 'none';
-        if (titleEl) titleEl.innerHTML = `<i class="fas fa-search" style="color:var(--accent);"></i> 「${title}」搜索结果 ${source === 'ALL' ? '<span style="font-size:10.5px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.4); border-radius:10px; padding:2px 8px; margin-left:6px;">⚡聚合全网源</span>' : ''}`;
+        // 关键词转义后再进 innerHTML（自 XSS 防御）
+        const escTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        if (titleEl) titleEl.innerHTML = `<i class="fas fa-search" style="color:var(--accent);"></i> 「${escTitle}」搜索结果 ${source === 'ALL' ? '<span style="font-size:10.5px; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.4); border-radius:10px; padding:2px 8px; margin-left:6px;">⚡聚合全网源</span>' : ''}`;
 
         const isAll = (source === 'ALL');
         if (typeof window.renderSkeletonGrid === 'function') { window.renderSkeletonGrid(grid, 8, true); } else { grid.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center; grid-column:1/-1;"><i class="fas fa-spinner fa-spin"></i> 正在检索漫画《${title}》原画资源...</div>`; }
@@ -10457,6 +10494,11 @@ window.clearNovelSearch = function() {
         const chap = currentCatalog[idx];
         if (!chap) return;
 
+        // 阅读器独立框架懒加载兜底（从"我的"书架/首页继续阅读直开时书城 Tab 未经过，此处幂等补载）
+        if (typeof window.ensureReaderFrameworks === 'function') {
+            window.ensureReaderFrameworks();
+        }
+
         currentChapterIndex = idx;
         currentBookInfo.lastReadIndex = idx;
         currentBookInfo.lastReadTitle = chap.title;
@@ -10995,6 +11037,10 @@ window.clearNovelSearch = function() {
         document.getElementById('novelSection').style.display = 'none';
         document.getElementById('mangaSection').style.display = 'none';
         document.getElementById('videoSection').style.display = 'none';
+        const homeSecEl = document.getElementById('homeSection');
+        if (homeSecEl) homeSecEl.style.display = 'none';
+        const bookShellEl = document.getElementById('bookShell');
+        if (bookShellEl) bookShellEl.style.display = 'none';
         const chiguaSec = document.getElementById('chiguaSection');
         if (chiguaSec) chiguaSec.style.display = 'none';
 
@@ -11807,7 +11853,7 @@ window.clearNovelSearch = function() {
                     if (loadMoreWrap) loadMoreWrap.style.display = 'none';
                 } else {
                     const cardsHtml = items.map(item => {
-                        const safeItem = encodeURIComponent(JSON.stringify(item));
+                        const safeItem = window._lyaOnclickPayload(item);
                         const clickHandler = `window.openChiguaHtmlArticle('${safeItem}')`;
                         const fallbackImg = item.poster_fallback || FALLBACK_BOOK_COVER;
                         const encAttr = item.enc_pic ? `data-cg-enc="${item.enc_pic}"` : '';
@@ -12130,6 +12176,16 @@ window.clearNovelSearch = function() {
         } catch (e) { console.warn('沉浸刷入口异常:', e); }
     };
 
+    // 吃瓜搜索结果（无 article_url 的视频卡）打开桥：转交视频详情播放器
+    window.openVideoPlayer = function(encodedItem) {
+        try {
+            const item = JSON.parse(decodeURIComponent(encodedItem));
+            if (typeof window.openVideoDetail === 'function') {
+                window.openVideoDetail(item);
+            }
+        } catch (e) { console.warn('openVideoPlayer 解析失败:', e); }
+    };
+
     window.openChiguaHtmlArticle = async function(encodedItem) {
         let item;
         try { item = JSON.parse(decodeURIComponent(encodedItem)); } catch (e) { return; }
@@ -12164,6 +12220,9 @@ window.clearNovelSearch = function() {
         document.getElementById('chiguaDetailLoading').style.display = 'block';
         document.getElementById('chiguaDetailLoading').innerHTML = '<i class="fas fa-spinner fa-spin" style="color:#fb7185; font-size:20px; margin-bottom:10px; display:block;"></i>正在提取并解密原站高清视频与实拍图集...';
         document.getElementById('chiguaVideoBlock').style.display = 'none';
+        // 沉浸刷入口默认隐藏，确认本篇确有视频后再亮出（无视频文章不显示死按钮）
+        const feedModeBtnReset = document.getElementById('chiguaFeedModeBtn');
+        if (feedModeBtnReset) feedModeBtnReset.style.display = 'none';
         document.getElementById('chiguaGalleryBlock').style.display = 'none';
         document.getElementById('chiguaDplayer').innerHTML = '';
         document.getElementById('chiguaImageStream').innerHTML = '';
@@ -12533,7 +12592,7 @@ window.clearNovelSearch = function() {
             if (!item.article_url && typeof window.renderPosterCardHtml === 'function') {
                 return window.renderPosterCardHtml(item);
             }
-            const safeItem = encodeURIComponent(JSON.stringify(item));
+            const safeItem = window._lyaOnclickPayload(item);
             const clickHandler = item.article_url
                 ? `window.openChiguaHtmlArticle('${safeItem}')`
                 : `window.openVideoPlayer('${safeItem}')`;
