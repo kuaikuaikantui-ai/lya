@@ -166,7 +166,7 @@ struct KanjuBridgeWebView: UIViewRepresentable {
         let cfg = WKWebViewConfiguration()
         let userContent = WKUserContentController()
         // 每次导航完成自动注入桥函数（atDocumentEnd，页面脚本就绪后可用）
-        userContent.addUserScript(WKUserScript(source: bridgeScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        userContent.addUserScript(WKUserScript(source: Self.bridgeScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         cfg.userContentController = userContent
         let wv = WKWebView(frame: .zero, configuration: cfg)
         wv.isHidden = true
