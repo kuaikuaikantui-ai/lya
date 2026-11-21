@@ -171,6 +171,8 @@ struct LyaWebView: UIViewRepresentable {
                     }
                 }
                 document.addEventListener('DOMContentLoaded', purgeAds);
+                // 脚本注入时 DOM 已就绪（atDocumentEnd），DOMContentLoaded 已错过——立即清一次
+                setTimeout(purgeAds, 0);
                 try {
                     var pending = null;
                     var observer = new MutationObserver(function(muts) {
@@ -233,6 +235,9 @@ struct LyaWebView: UIViewRepresentable {
         func loadContent(in webView: WKWebView, serverUrl: String, isOffline: Bool) {
             let trimmed = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
 
+            // 新页面加载前重置屏幕常亮：防止"播放中刷新页面"后常亮卡死整个会话
+            UIApplication.shared.isIdleTimerDisabled = false
+
             if !isOffline && !trimmed.isEmpty, let targetUrl = URL(string: trimmed.hasPrefix("http") ? trimmed : "https://\(trimmed)") {
                 let req = URLRequest(url: targetUrl, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 12)
                 webView.load(req)
@@ -265,13 +270,14 @@ struct LyaWebView: UIViewRepresentable {
             }
         }
 
-        func webView(_ webView: WKWebView, didFailNavigation navigation: WKNavigation!, withError error: Error) {
+        // 注：Xcode 26+ SDK 已将 WKNavigationDelegate 的 didFailNavigation 重命名为 didFail
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
             // 导航中途失败（重定向被断、内容进程崩溃等）同样给出重试面板
             let hasOfflineBundle = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "www") != nil
             if !hasOfflineBundle {
                 DispatchQueue.main.async {
                     if self.parent.loadError == nil {
-                        self.parent.loadError = "页面加载中断：(error.localizedDescription)"
+                        self.parent.loadError = "页面加载中断：\(error.localizedDescription)"
                     }
                 }
             }
