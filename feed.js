@@ -271,27 +271,15 @@
         return slide;
     }
 
-    // 滑块交互只绑定一次（单击暂停/继续；双击静音切换），重挂载不重复累积监听
+    // 滑块交互只绑定一次（单击立即暂停/继续；静音走顶栏专用按钮，不再做双击判定，消除 290ms 响应延迟）
     function bindSlideInteractions(slide) {
         if (slide._interactionsBound) return;
         slide._interactionsBound = true;
-        var lastTap = 0;
-        slide.addEventListener('click', function() {
+        slide.addEventListener('click', function(e) {
             var v = slide._video;
             if (!v) return;
-            var now = Date.now();
-            if (now - lastTap < 280) {
-                v.muted = !v.muted;
-                lastTap = 0;
-                return;
-            }
-            lastTap = now;
-            setTimeout(function() {
-                if (lastTap && Date.now() - lastTap >= 260) {
-                    if (v.paused) v.play().catch(function() {});
-                    else v.pause();
-                }
-            }, 290);
+            if (v.paused) v.play().catch(function() {});
+            else v.pause();
         });
     }
 

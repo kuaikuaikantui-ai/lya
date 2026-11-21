@@ -1787,6 +1787,7 @@
         }
     };
 
+    // 播放页线路条：智能选源 + 当前线路胶囊 + 全部线路(N)——全量线路移入底部抽屉（参考腾讯换源/danbo 播放源管理）
     window.renderVideoSourceTabs = function(groups) {
         const tabsBox = document.getElementById('videoPlaySourceTabs');
         if (!tabsBox) return;
@@ -1794,39 +1795,121 @@
             tabsBox.innerHTML = '';
             return;
         }
+        window.currentVideo.groups = groups;
+
+        const cur = groups[window.currentGroupIdx];
+        const curName = cur ? formatFriendlyLineName(cur.name, window.currentGroupIdx, cur.episodes && cur.episodes[0] && cur.episodes[0].url) : '未选择';
 
         tabsBox.className = 'source-route-nav';
-        const smartBtnHtml = `
+        tabsBox.innerHTML = `
             <button class="source-route-btn" id="smartRouteProbeBtn" onclick="window.smartProbeAndSwitchRoute()" title="自动测速并优选原站弹幕主源" style="border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; font-weight: 600;">
                 <i class="fas fa-bolt"></i> <span>⚡ 智能选源</span>
             </button>
+            <button class="source-route-btn active" id="currentLinePill" onclick="window.openLineDrawer()" title="点击查看全部 ${groups.length} 条线路">
+                <i class="fas fa-play-circle"></i> <span>${curName}</span>
+            </button>
+            <button class="source-route-btn" id="allLinesBtn" onclick="window.openLineDrawer()" title="全部播放线路列表">
+                <i class="fas fa-list"></i> <span>全部线路 (${groups.length})</span>
+            </button>
         `;
-        const btnsHtml = groups.map((g, idx) => {
-            const sampleUrl = g.episodes && g.episodes[0] ? g.episodes[0].url : '';
-            const displayName = formatFriendlyLineName(g.name, idx, sampleUrl);
-            const isAct = idx === window.currentGroupIdx;
-            return `
-                <button class="source-route-btn ${isAct ? 'active' : ''}" id="sourceRouteBtn_${idx}" onclick="window.switchPlayGroup(${idx}, window.currentEpisodeIdx || 0)">
-                    <i class="fas fa-play-circle"></i> <span>${displayName}</span>
-                </button>
-            `;
-        }).join('');
 
-        tabsBox.innerHTML = '<div class="source-route-glider" id="sourceRouteGlider"></div>' + smartBtnHtml + btnsHtml;
-
-        // 绑定鼠标跟随光效与液态玻璃选中框透镜随动
-        if (typeof window.bindLiquidGlassNav === 'function') {
-            window.bindLiquidGlassNav('videoPlaySourceTabs', 'sourceRouteGlider', '.source-route-btn', () => {
-                return document.querySelector('#videoPlaySourceTabs .source-route-btn.active');
-            });
+        // 若抽屉正开着，同步刷新内容
+        const drawer = document.getElementById('lyaLineDrawer');
+        if (drawer && drawer.style.display === 'flex') {
+            window.renderLineDrawerContent();
         }
-        setTimeout(() => {
-            const activeBtn = document.getElementById('sourceRouteBtn_' + (window.currentGroupIdx || 0));
-            const glider = document.getElementById('sourceRouteGlider');
-            if (activeBtn && glider && typeof window.moveGliderToButton === 'function') {
-                window.moveGliderToButton(tabsBox, glider, activeBtn);
-            }
-        }, 30);
+    };
+
+    // ==================== 线路全量底部抽屉 ====================
+    window._LINE_FRIENDLY_MAP = {
+        lzm3u8: '量子蓝光', bfzym3u8: '暴风超清', ffm3u8: '非凡超清', jsm3u8: '极速蓝光',
+        jinyingm3u8: '金鹰蓝光', wjm3u8: '无尽专线', gsm3u8: '光速蓝光', subm3u8: '速播蓝光',
+        modum3u8: '魔都专线', rym3u8: '如意专线', ikm3u8: 'iKun超清', dbm3u8: '百度超清',
+        '360zy': '360超清', bdzym3u8: '百度超清', wolong: '卧龙资源', km3u8: '快看资源'
+    };
+    window._friendlyLineFallback = function(rawName) {
+        const lower = String(rawName || '').toLowerCase();
+        for (const [k, v] of Object.entries(window._LINE_FRIENDLY_MAP)) {
+            if (lower.includes(k)) return v;
+        }
+        return String(rawName || '').trim() || '未知线路';
+    };
+
+    window.openLineDrawer = function() {
+        let drawer = document.getElementById('lyaLineDrawer');
+        if (!drawer) {
+            drawer = document.createElement('div');
+            drawer.id = 'lyaLineDrawer';
+            drawer.style.cssText = 'position:fixed;inset:0;z-index:1000;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
+            drawer.innerHTML = '<div id="lyaLineSheet" style="width:100%;max-width:860px;max-height:72vh;overflow-y:auto;background:linear-gradient(180deg,rgba(22,30,46,0.96),rgba(12,17,28,0.98));backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-radius:22px 22px 0 0;border:1px solid rgba(255,255,255,0.14);border-bottom:none;padding:16px 16px calc(env(safe-area-inset-bottom, 0px) + 18px);transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,1.25,0.64,1);"></div>';
+            drawer.addEventListener('click', function(e) { if (e.target === drawer) window.closeLineDrawer(); });
+            document.body.appendChild(drawer);
+        }
+        window.renderLineDrawerContent();
+        drawer.style.display = 'flex';
+        requestAnimationFrame(() => {
+            const sheet = document.getElementById('lyaLineSheet');
+            if (sheet) sheet.style.transform = 'translateY(0)';
+        });
+    };
+
+    window.closeLineDrawer = function() {
+        const drawer = document.getElementById('lyaLineDrawer');
+        const sheet = document.getElementById('lyaLineSheet');
+        if (sheet) sheet.style.transform = 'translateY(100%)';
+        setTimeout(() => { if (drawer) drawer.style.display = 'none'; }, 300);
+    };
+
+    window.renderLineDrawerContent = function() {
+        const sheet = document.getElementById('lyaLineSheet');
+        const groups = window.currentVideo && window.currentVideo.groups;
+        if (!sheet || !groups || !groups.length) return;
+
+        const failedSet = window._failedRouteSet || new Set();
+        const section = (title, icon, color, items) => {
+            if (!items.length) return '';
+            const btns = items.map(({ g, idx }) => {
+                const isCur = idx === window.currentGroupIdx;
+                const isFailed = failedSet.has(idx);
+                const name = formatFriendlyLineName(g.name, idx, g.episodes && g.episodes[0] && g.episodes[0].url);
+                const fallback = window._friendlyLineFallback(g.name);
+                const epCount = (g.episodes || []).length;
+                return `
+                    <button class="lya-line-cell ${isCur ? 'cur' : ''} ${isFailed ? 'failed' : ''}" data-idx="${idx}" onclick="window.switchPlayGroup(${idx}, window.currentEpisodeIdx || 0); window.closeLineDrawer();">
+                        <div class="lya-line-name">${isCur ? '<i class="fas fa-circle-check" style="color:#38bdf8;"></i> ' : ''}${name}</div>
+                        <div class="lya-line-meta">${fallback !== name ? fallback + ' · ' : ''}${epCount} 集${isFailed ? ' · <span style="color:#f87171;">已失败</span>' : ''}${isCur ? ' · <span style="color:#38bdf8;">播放中</span>' : ''}<span class="lya-probe" data-pidx="${idx}"></span></div>
+                    </button>
+                `;
+            }).join('');
+            return `<div class="lya-line-section"><div class="lya-line-section-head" style="color:${color};">${icon} ${title} <span style="color:var(--text-muted); font-size:11px;">(${items.length})</span></div><div class="lya-line-grid">${btns}</div></div>`;
+        };
+
+        const official = [], aggregated = [], recommended = [];
+        groups.forEach((g, idx) => {
+            const n = String(g.name || '');
+            if (n.includes('原站') || n.includes('源站') || n.includes('官方') || n.includes('1080') || n.includes('4K')) official.push({ g, idx });
+            else aggregated.push({ g, idx });
+        });
+        recommended.push({ g: groups[window.currentGroupIdx] || groups[0], idx: window.currentGroupIdx });
+        // 推荐优选：按既有得分顺序取前 4（排除当前已在官方区展示的重复呈现保留）
+        groups.forEach((g, idx) => {
+            if (recommended.length < 5 && idx !== window.currentGroupIdx && idx < 5) recommended.push({ g, idx });
+        });
+
+        sheet.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <div style="font-size:16px; font-weight:800; color:#fff;"><i class="fas fa-route" style="color:#38bdf8;"></i> 全部播放线路 <span style="color:var(--text-muted); font-size:12px; font-weight:600;">(${groups.length} 条)</span></div>
+                <button class="lya-feed-close-btn" onclick="window.closeLineDrawer()" style="background:rgba(255,255,255,0.08);"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">线路由原站官方 + 14 家聚合采集源实时聚合，数量随各源实时可用性浮动 · 点击任意线路立即无缝切换续播</div>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                <button class="video-chip" id="lineProbeBtn" onclick="window.probeAllLines()"><i class="fas fa-tachometer-alt"></i> ⚡ 一键测速（标记本机可连线路）</button>
+                <span id="lineProbeStatus" style="font-size:11px; color:var(--text-muted);"></span>
+            </div>
+            ${section('推荐优选', '<i class="fas fa-bolt"></i>', '#38bdf8', recommended)}
+            ${section('原站官方源', '<i class="fas fa-crown"></i>', '#f59e0b', official)}
+            ${section('采集聚合源', '<i class="fas fa-globe"></i>', '#a855f7', aggregated)}
+        `;
     };
 
     // 切换播放线路（自由无缝切换：自动保留精确当前播放秒数，绝不重头开始）
@@ -1843,16 +1926,8 @@
             ? customPreserveTime
             : (window.dpInstance && window.dpInstance.video ? (window.dpInstance.video.currentTime || 0) : 0);
 
-        document.querySelectorAll('#videoPlaySourceTabs .source-route-btn').forEach(b => b.classList.remove('active'));
-        const activeBtn = document.getElementById('sourceRouteBtn_' + groupIdx);
-        const tabsBox = document.getElementById('videoPlaySourceTabs');
-        const glider = document.getElementById('sourceRouteGlider');
-        if (activeBtn) {
-            activeBtn.classList.add('active');
-            if (tabsBox && glider && typeof window.moveGliderToButton === 'function') {
-                window.moveGliderToButton(tabsBox, glider, activeBtn);
-            }
-        }
+        // 线路条已改为「当前线路胶囊 + 全部线路抽屉」形态：刷新胶囊文案即可
+        window.renderVideoSourceTabs(window.currentVideo.groups);
         window.renderVideoEpisodes(groupIdx);
         window.playVideoEpisode(targetEpIdx, liveCurrentTime);
     };
@@ -3143,6 +3218,87 @@
                 window.dpInstance.notice('清晰度切换失败，已保持当前档位', 1800);
             }
         }
+    };
+
+    // ==================== 线路一键测速 ====================
+    // 对每条线路的首集地址发起真实请求（m3u8 主清单/凭证换直连），标记本机可达性与延迟。
+    // resolve:// 凭证线路走自家 /api/video/resolve-line 探测；并发分批 5 路，3.5s 超时。
+    window.probeAllLines = async function() {
+        const groups = window.currentVideo && window.currentVideo.groups;
+        const statusEl = document.getElementById('lineProbeStatus');
+        const btn = document.getElementById('lineProbeBtn');
+        if (!groups || !groups.length) return;
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 测速中...'; }
+
+        const mark = (idx, html) => {
+            // 同一线路可能同时出现在"推荐优选"与分组区，标记所有同 idx 格子
+            document.querySelectorAll(`#lyaLineDrawer .lya-probe[data-pidx="${idx}"]`).forEach(el => {
+                el.innerHTML = html;
+            });
+        };
+
+        let done = 0;
+        let okCount = 0;
+        const total = groups.length;
+
+        const probeOne = async (idx) => {
+            const g = groups[idx];
+            const ep = g.episodes && g.episodes[0];
+            if (!ep || !ep.url) { mark(idx, ' · 无片源'); done += 1; return; }
+            const url = String(ep.url);
+            if (url.startsWith('resolve://')) {
+                // 原站凭证线路：经自家后端换直连（一次轻量探测）
+                try {
+                    const t0 = performance.now();
+                    const ctl = new AbortController();
+                    const tm = setTimeout(() => ctl.abort(), 4000);
+                    const r = await fetch('/api/video/resolve-line?ticket=' + encodeURIComponent(url.replace(/^resolve:\/\//, '')), { signal: ctl.signal });
+                    clearTimeout(tm);
+                    const j = await r.json().catch(() => null);
+                    const ms = Math.round(performance.now() - t0);
+                    if (r.ok && j && j.code === 0 && j.url) { okCount += 1; mark(idx, ` · <span style="color:#34d399;">${ms}ms</span>`); }
+                    else { mark(idx, ' · <span style="color:#f87171;">凭证受限</span>'); }
+                } catch (e) {
+                    mark(idx, ' · <span style="color:#f87171;">超时</span>');
+                }
+                done += 1;
+                if (statusEl) statusEl.textContent = `${done}/${total}`;
+                return;
+            }
+            const t0 = performance.now();
+            try {
+                const ctl = new AbortController();
+                const tm = setTimeout(() => ctl.abort(), 3500);
+                const r = await fetch(url, { signal: ctl.signal, redirect: 'follow' });
+                clearTimeout(tm);
+                const ms = Math.round(performance.now() - t0);
+                const txt = await r.text();
+                const looksRight = r.ok && (txt.includes('#EXTM3U') || url.includes('.mp4') || txt.includes('.mp4'));
+                if (looksRight) {
+                    okCount += 1;
+                    mark(idx, ` · <span style="color:#34d399;">${ms}ms</span>`);
+                } else {
+                    mark(idx, ' · <span style="color:#f87171;">源返回异常</span>');
+                }
+            } catch (e) {
+                mark(idx, ' · <span style="color:#f87171;">本机不可连</span>');
+            }
+            done += 1;
+            if (statusEl) statusEl.textContent = `${done}/${total}`;
+        };
+
+        // 分批 5 路并发
+        const queue = groups.map((_, i) => i);
+        const workers = new Array(Math.min(5, queue.length)).fill(0).map(async () => {
+            while (queue.length) {
+                const idx = queue.shift();
+                if (idx === undefined) break;
+                await probeOne(idx);
+            }
+        });
+        await Promise.all(workers);
+        if (statusEl) statusEl.textContent = `测速完成：${okCount}/${total} 条本机可连`;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-tachometer-alt"></i> ⚡ 重新测速'; }
     };
 
     // 长按倍速松手锁定（danbo 双模式）：开启后长按加速松手保持 2x，点画面恢复

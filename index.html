@@ -4670,6 +4670,113 @@
             box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset;
         }
         html.app-mode .liquid-view-enter { animation-duration: 0.34s; }
+
+        /* ==================== 播放线路底部抽屉 ==================== */
+        .lya-line-section { margin-bottom: 14px; }
+        .lya-line-section-head {
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 12px 0 8px;
+        }
+        .lya-line-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 8px;
+        }
+        .lya-line-cell {
+            text-align: left;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+        }
+        .lya-line-cell:hover { border-color: rgba(56,189,248,0.4); }
+        .lya-line-cell:active { transform: scale(0.97); }
+        .lya-line-cell.cur {
+            background: rgba(56,189,248,0.12);
+            border-color: rgba(56,189,248,0.55);
+        }
+        .lya-line-cell.failed { opacity: 0.55; }
+        .lya-line-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .lya-line-meta {
+            font-size: 10.5px;
+            color: var(--text-muted);
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ==================== 吃瓜沉浸模式弹窗 ==================== */
+        .chigua-mode-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 900;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+        .chigua-mode-sheet {
+            width: 100%;
+            max-width: 560px;
+            background: linear-gradient(180deg, rgba(28,20,30,0.97), rgba(16,12,18,0.98));
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border-radius: 22px 22px 0 0;
+            border: 1px solid rgba(244,63,94,0.28);
+            border-bottom: none;
+            padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32,1.25,0.64,1);
+        }
+        .chigua-mode-big-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 16px;
+            border-radius: 18px;
+            border: none;
+            background: linear-gradient(135deg, rgba(244,63,94,0.92), rgba(249,115,22,0.88));
+            color: #fff;
+            font-size: 16.5px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 8px 26px rgba(244,63,94,0.4);
+            margin-bottom: 10px;
+        }
+        .chigua-mode-big-btn:active { transform: scale(0.98); }
+        .chigua-mode-plain-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.05);
+            color: var(--text-muted);
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+        }
 </style>
     <!-- 开源中文专业排版引擎 Heti (赫蹏) + 霞鹜文楷屏幕阅读字体 (LXGW WenKai Screen) -->
     <!-- 排版引擎与阅读字体（阅读器专属）：异步加载消除首屏阻塞，novel.js 框架会在字体就绪后自动补偿重排 -->
@@ -7988,6 +8095,23 @@
 
         try {
             const uid = await deriveCloudUid(account, pin);
+            // 登录前预查云端：口令打错时通常为空桶，提前告知避免"以为记录丢了"
+            let welcomeText = '';
+            try {
+                const probe = await fetch(`/api/sync?uid=${encodeURIComponent(uid)}&_t=${Date.now()}`);
+                const pj = await probe.json();
+                const pp = pj && pj.payload;
+                if (pp && pp.syncTime) {
+                    const vhn = Array.isArray(pp.videoHistory) ? pp.videoHistory.length : 0;
+                    const hn = Array.isArray(pp.history) ? pp.history.length : 0;
+                    const shn = Array.isArray(pp.shelf) ? pp.shelf.length : 0;
+                    const lastSync = Number(pp.syncTime);
+                    const agoTxt = lastSync ? ('，上次同步 ' + formatTimeAgo(lastSync)) : '';
+                    if (vhn + hn + shn > 0) {
+                        welcomeText = `已从云端找回记录：影视 ${vhn} 部 · 阅读 ${hn} 条 · 书架 ${shn} 本${agoTxt}`;
+                    }
+                }
+            } catch (e) {}
             saveCloudUser({
                 account,
                 hasPin: Boolean(pin),
@@ -7996,6 +8120,7 @@
             });
             ensureCloudLiveStream();
             await window.syncCloudNow(true);
+            if (welcomeText) showCloudToast(welcomeText, 'fa-cloud-check', '#10b981');
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -8881,6 +9006,10 @@
             }
             if (typeof window.initChiguaFeed === 'function') {
                 window.initChiguaFeed();
+            }
+            // 直达弹窗：进入吃瓜即询问是否沉浸刷（本会话点过"普通浏览"后不再打扰）
+            if (!sessionStorage.getItem('lya_chigua_sheet_dismissed')) {
+                setTimeout(() => window.openChiguaModeSheet && window.openChiguaModeSheet(), 450);
             }
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -12146,6 +12275,54 @@ window.clearNovelSearch = function() {
         window._chiguaLatestItems = items; // 沉浸流框架（feed.js）读取当前列表做上下滑预取
         return items;
     }
+
+    // 吃瓜 Tab 直达弹窗：进入即询问"沉浸刷瓜"或"普通浏览"（本会话选择普通浏览后不再打扰）
+    window.openChiguaModeSheet = function() {
+        if (document.getElementById('chiguaModeSheetOv')) return;
+        const ov = document.createElement('div');
+        ov.id = 'chiguaModeSheetOv';
+        ov.className = 'chigua-mode-sheet-overlay';
+        ov.innerHTML = `
+            <div class="chigua-mode-sheet" id="chiguaModeSheet">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                    <i class="fas fa-fire-flame-curved" style="color:#fb7185; font-size:18px;"></i>
+                    <div style="font-size:16.5px; font-weight:800; color:#fff;">吃瓜 · 选择刷瓜方式</div>
+                </div>
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">沉浸模式 = 抖音式全屏上下滑，视频自动连播；普通模式 = 图文列表浏览</div>
+                <button class="chigua-mode-big-btn" id="chiguaSheetImmersive"><i class="fas fa-arrows-up-down"></i> 沉浸式刷瓜（推荐）</button>
+                <button class="chigua-mode-plain-btn" id="chiguaSheetPlain"><i class="fas fa-list"></i> 普通浏览列表</button>
+            </div>
+        `;
+        ov.addEventListener('click', function(e) {
+            if (e.target === ov) {
+                sessionStorage.setItem('lya_chigua_sheet_dismissed', '1');
+                closeSheet();
+            }
+        });
+        function closeSheet() {
+            const sheet = document.getElementById('chiguaModeSheet');
+            if (sheet) sheet.style.transform = 'translateY(100%)';
+            setTimeout(() => { if (ov.isConnected) ov.remove(); }, 300);
+        }
+        document.body.appendChild(ov);
+        requestAnimationFrame(() => {
+            const sheet = document.getElementById('chiguaModeSheet');
+            if (sheet) sheet.style.transform = 'translateY(0)';
+        });
+        document.getElementById('chiguaSheetImmersive').onclick = function() {
+            closeSheet();
+            // 确保沉浸流框架就绪后从第 0 篇开刷
+            const start = () => {
+                if (window.LyaFeed && typeof window.LyaFeed.openChigua === 'function') window.LyaFeed.openChigua(0);
+            };
+            if (window.LyaFeed) start();
+            else setTimeout(start, 500);
+        };
+        document.getElementById('chiguaSheetPlain').onclick = function() {
+            sessionStorage.setItem('lya_chigua_sheet_dismissed', '1');
+            closeSheet();
+        };
+    };
 
     // 从详情页进入抖音式上下滑沉浸刷（feed.js 桥接：确保框架加载 + 定位当前文章）
     window.LyaEnterChiguaFeedFromDetail = function(btn) {

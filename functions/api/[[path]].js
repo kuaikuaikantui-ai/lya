@@ -1211,7 +1211,11 @@ const VOD_API_BASES = [
     { url: 'https://ikunzyapi.com/api.php/provide/vod/?ac=detail', name: 'iKun超清' },
     { url: 'https://www.mdzyapi.com/api.php/provide/vod/?ac=detail', name: '魔都专线' },
     { url: 'https://api.wujinapi.com/api.php/provide/vod/from/wjm3u8/?ac=detail', name: '无尽专线' },
-    { url: 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/?ac=detail', name: '光速蓝光' }
+    { url: 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/?ac=detail', name: '光速蓝光' },
+    // 候选补充源（2026-11 复查轮加入）：交给健康分自动甄别——可用则贡献线路，不可用自动熔断
+    { url: 'https://sdzyapi.com/api.php/provide/vod/?ac=detail', name: '闪电专线' },
+    { url: 'https://cj.haiwaikan.com/api.php/provide/vod/?ac=detail', name: '海外看' },
+    { url: 'https://collect.yuyuanzy.com/api.php/provide/vod/?ac=detail', name: '雨燕资源' }
 ];
 
 const VOD_SOURCE_HEALTH = new Map();
