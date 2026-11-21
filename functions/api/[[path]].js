@@ -1875,9 +1875,20 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             try {
                 const res = await fetchKanjuSignedPost('/v1/playback/resolve-line?view=compact', { ticket });
                 if (res && res.line && res.line.url) {
-                    return new Response(JSON.stringify({ code: 0, url: res.line.url, line: res.line }), {
+                    // 透传上游全部可选线路（含 4K/1080P 档位标签，若有）：前端据此动态追加原站线路组
+                    const lines = (Array.isArray(res.lines) && res.lines.length > 0) ? res.lines : undefined;
+                    return new Response(JSON.stringify({ code: 0, url: res.line.url, line: res.line, lines }), {
                         headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache, no-store' }
                     });
+                }
+                // 主线路缺失但上游给出了备选线路数组：同样返回供前端兜底
+                if (res && Array.isArray(res.lines) && res.lines.length > 0) {
+                    const first = res.lines[0];
+                    if (first && first.url) {
+                        return new Response(JSON.stringify({ code: 0, url: first.url, line: first, lines: res.lines }), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache, no-store' }
+                        });
+                    }
                 }
                 return new Response(JSON.stringify({ code: -1, msg: '解析失败', raw: res }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }

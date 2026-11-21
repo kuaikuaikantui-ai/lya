@@ -1999,6 +1999,18 @@
         const oldQualityBar = document.getElementById('videoQualityBar');
         if (oldQualityBar) oldQualityBar.remove();
 
+        // 清理上一集动态追加的原站凭证线路组（resolve 凭证仅对单集有效，换集必须重新解析）
+        if (window.currentVideo && Array.isArray(window.currentVideo.groups)) {
+            const before = window.currentVideo.groups.length;
+            window.currentVideo.groups = window.currentVideo.groups.filter(g => g._lyaResolvedEp === undefined || g._lyaResolvedEp === idx);
+            if (window.currentVideo.groups.length !== before) {
+                if (window.currentGroupIdx >= window.currentVideo.groups.length) {
+                    window.currentGroupIdx = window.selectBestVideoRoute(window.currentVideo.groups, idx);
+                }
+                window.renderVideoSourceTabs(window.currentVideo.groups);
+            }
+        }
+
         if (window.currentP2pEngine) {
             try { window.currentP2pEngine.destroy(); } catch(e){}
             window.currentP2pEngine = null;
@@ -2027,6 +2039,28 @@
                         videoUrl = json.url;
                         ep.url = json.url;
                         if (badge) badge.innerText = formatFriendlyLineName(group.name, window.currentGroupIdx, videoUrl) + ' · ' + ep.title;
+                        // kanju 上游多线路透传：动态追加本集可选的原站线路组（含 4K/1080P 档位标签，若有）
+                        if (Array.isArray(json.lines) && json.lines.length > 1 && window.currentVideo) {
+                            let addedLine = false;
+                            json.lines.forEach((l) => {
+                                if (!l || !l.url || !/\.m3u8|\.mp4/.test(String(l.url))) return;
+                                const qTag = (l.quality || l.label || '').toString().trim();
+                                const lineName = '原站·' + ((l.name || '官方线路').toString().trim()) + (qTag ? ('·' + qTag) : '');
+                                if (window.currentVideo.groups.some(g => g.name === lineName)) return;
+                                window.currentVideo.groups.push({
+                                    name: lineName,
+                                    episodes: [{ title: ep.title || '正片', url: l.url }],
+                                    _lyaResolvedEp: idx // 凭证仅对本集有效，换集时清理
+                                });
+                                addedLine = true;
+                            });
+                            if (addedLine) {
+                                window.currentVideo.groups.sort((a, b) => getRoutePriorityScore(b.name, b.episodes[0] && b.episodes[0].url) - getRoutePriorityScore(a.name, a.episodes[0] && a.episodes[0].url));
+                                const newIdx = window.currentVideo.groups.findIndex(g => g.episodes.some(e => e.url === json.url));
+                                if (newIdx !== -1) window.currentGroupIdx = newIdx;
+                                window.renderVideoSourceTabs(window.currentVideo.groups);
+                            }
+                        }
                     } else {
                         console.warn('[Video] 官方直连凭证受限或需要会员，智能自动换用高速免登直连源');
                         window.triggerAutoSwitchRoute(idx, '官方源受限');
@@ -2802,16 +2836,17 @@
             originPanel.appendChild(skipActionRow);
         }
 
-        // 3. 移动端/触屏长按 2.0X 极速播放（丝滑版：HUD 常驻 DOM 走合成器动画、260ms 快速激活、
-        //    长按期间抑制自动换线、松手屏蔽合成 click，杜绝按下/松手两头的掉帧与控制条闪跳）
+        // 3. 移动端/触屏长按 2.0X 极速播放（原站手感版）：
+        //    ① 按下即时 HUD 淡入（纯合成器动画，零布局）→ 260ms 后只做 rate 切换（分帧，体感无卡顿）
+        //    ② engage 时关闭 preservesPitch 减少 WebKit 音频重采样管线重配开销，松手恢复
+        //    ③ 屏幕左右边缘 24px 内不启动（避开 iOS 系统边缘手势竞争）
+        //    ④ HUD 文案对齐原站：极简「2X」
         if (!dpContainer.querySelector('.dp-speed-hud') && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0))) {
             const videoWrap = dpContainer.querySelector('.dplayer-video-wrap') || dpContainer;
             const speedHud = document.createElement('div');
             speedHud.className = 'dp-speed-hud';
-            // 常驻可见层：用 opacity/transform 过渡替代 display 切换与 backdrop-filter 首绘
-            // （backdrop-filter 在 WKWebView 首次合成时必须快照整层视频，是按下瞬间掉帧的主因之一）
-            speedHud.style.cssText = 'position:absolute;top:20px;left:50%;transform:translateX(-50%) scale(0.82);background:rgba(8,12,22,0.86);color:#38bdf8;padding:8px 18px;border-radius:20px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:6px;z-index:99;border:1px solid rgba(56,189,248,0.5);pointer-events:none;opacity:0;will-change:opacity,transform;transition:opacity 0.14s ease-out,transform 0.14s ease-out;box-shadow:0 4px 16px rgba(0,0,0,0.5);';
-            speedHud.innerHTML = '<i class="fas fa-bolt" style="color:#38bdf8;"></i> <span>2.0X 极速播放中...</span>';
+            speedHud.style.cssText = 'position:absolute;top:20px;left:50%;transform:translateX(-50%) scale(0.82);background:rgba(8,12,22,0.82);color:#fff;padding:6px 16px;border-radius:16px;font-size:17px;font-weight:800;letter-spacing:1px;display:flex;align-items:center;z-index:99;border:1px solid rgba(255,255,255,0.22);pointer-events:none;opacity:0;will-change:opacity,transform;transition:opacity 0.12s ease-out,transform 0.12s ease-out;box-shadow:0 4px 14px rgba(0,0,0,0.45);';
+            speedHud.innerHTML = '<span>2X</span>';
             videoWrap.appendChild(speedHud);
 
             let longPressTimer = null;
@@ -2838,9 +2873,10 @@
                 window._lyaSpeedBoostActive = true;
                 origSpeed = (video.playbackRate > 0) ? video.playbackRate : 1.0;
                 window._lyaBasePlaybackRate = origSpeed;
+                // 关闭音调保持：跳过 WebKit 的音频重采样器重配，2x 切换显著更顺滑（音调略升为长按快进的预期听感）
+                try { video.preservesPitch = false; } catch (err) {}
+                try { video.webkitPreservesPitch = false; } catch (err) {}
                 try { video.playbackRate = 2.0; } catch (err) {}
-                speedHud.style.opacity = '1';
-                speedHud.style.transform = 'translateX(-50%) scale(1)';
                 triggerHaptic();
             };
 
@@ -2858,27 +2894,34 @@
                     if (lockMode) {
                         window._lyaLockedBoost = true;
                         const lockSpan = speedHud.querySelector('span');
-                        if (lockSpan) lockSpan.textContent = '2.0X 已锁定 · 点画面恢复';
+                        if (lockSpan) lockSpan.textContent = '2X 已锁定';
                         setTimeout(function() {
                             speedHud.style.opacity = '0';
                             speedHud.style.transform = 'translateX(-50%) scale(0.82)';
-                            if (lockSpan) lockSpan.textContent = '2.0X 极速播放中...';
+                            if (lockSpan) lockSpan.textContent = '2X';
                         }, 1500);
                         suppressClickUntil = 0; // 锁定模式不屏蔽下一次点击（那是解除指令）
                         return;
                     }
-                    speedHud.style.opacity = '0';
-                    speedHud.style.transform = 'translateX(-50%) scale(0.82)';
-                    // 恢复原速放到 rAF 下一帧：避免倍速恢复、HUD 隐藏、控制条显示同帧抢主线程
-                    requestAnimationFrame(function() {
-                        const video = (window.dpInstance && window.dpInstance.video) ? window.dpInstance.video : null;
-                        if (video) {
-                            const target = (typeof window._lyaBasePlaybackRate === 'number' && window._lyaBasePlaybackRate > 0) ? window._lyaBasePlaybackRate : 1.0;
-                            try { video.playbackRate = target; } catch (err) {}
-                        }
-                    });
+                    // 立即恢复原速与音调保持（同一帧完成，音频越早恢复越好）
+                    const video = (window.dpInstance && window.dpInstance.video) ? window.dpInstance.video : null;
+                    if (video) {
+                        const target = (typeof window._lyaBasePlaybackRate === 'number' && window._lyaBasePlaybackRate > 0) ? window._lyaBasePlaybackRate : 1.0;
+                        try { video.playbackRate = target; } catch (err) {}
+                        try { video.preservesPitch = true; } catch (err) {}
+                        try { video.webkitPreservesPitch = true; } catch (err) {}
+                    }
+                    // HUD 延迟 100ms 再淡出（与 rate 恢复分帧，避免同帧抢主线程）
+                    setTimeout(function() {
+                        speedHud.style.opacity = '0';
+                        speedHud.style.transform = 'translateX(-50%) scale(0.82)';
+                    }, 100);
                     // 长按结束后短暂屏蔽合成 click，防止 DPlayer 控制条 toggle 与误触
                     suppressClickUntil = Date.now() + 400;
+                } else if (speedHud.style.opacity === '1') {
+                    // 按下但未达 260ms 就松手：HUD 立即收回（不残留）
+                    speedHud.style.opacity = '0';
+                    speedHud.style.transform = 'translateX(-50%) scale(0.82)';
                 }
             };
             window._lyaOnPlayerRebuilt = function() {
@@ -2897,8 +2940,16 @@
                 }
                 startTouchX = e.touches[0].clientX;
                 startTouchY = e.touches[0].clientY;
+                // 屏幕左右边缘 24px 是 iOS 系统返回/通知手势的冲突区，长按会与系统手势打架造成卡顿体感
+                if (startTouchX < 24 || startTouchX > (window.innerWidth - 24)) {
+                    return;
+                }
                 window._lyaCancelSpeedBoost();
 
+                // 第一帧：只做 HUD 淡入（即时视觉反馈，纯合成器操作）
+                speedHud.style.opacity = '1';
+                speedHud.style.transform = 'translateX(-50%) scale(1)';
+                // 第二帧（260ms 后）：只做倍速切换，零 DOM 操作
                 longPressTimer = setTimeout(engageSpeedBoost, 260);
             }, { passive: true });
 
@@ -2908,6 +2959,8 @@
                     const dy = Math.abs(e.touches[0].clientY - startTouchY);
                     if (dx > 12 || dy > 12) {
                         window._lyaCancelSpeedBoost();
+                        speedHud.style.opacity = '0';
+                        speedHud.style.transform = 'translateX(-50%) scale(0.82)';
                     }
                 }
             }, { passive: true });
