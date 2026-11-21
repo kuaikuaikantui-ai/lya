@@ -1587,6 +1587,10 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     ? ['看漫画', '极速韩漫', '新新漫画', 'G社漫画', '全面漫画', '番茄']
                     : ['爱下电子书', '搬山人', '轻小说文库', '七猫', '番茄', '伪69', '半夏小说', '52书库', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
 
+                // 搜索结果边缘缓存（60s）：相同关键词重复搜索秒回
+                const sHit = await edgeCacheMatch(request, '/api/search/ALL');
+                if (sHit) return sHit;
+
                 const fetchTasks = candidates.map(async s => {
                     if (s === '极速韩漫') {
                         return await searchVeryim(title);
@@ -1616,7 +1620,13 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     }
                 });
 
-                const settled = await Promise.allSettled(fetchTasks);
+                // 软超时竞速：单源包 3.2s 上限（超时的源放弃本轮结果），整体不再被最慢源拖到 5-7 秒
+                const SOFT_TIMEOUT = 3200;
+                const withSoftTimeout = (p) => Promise.race([
+                    Promise.resolve(p).catch(() => []),
+                    new Promise(resolve => setTimeout(() => resolve([]), SOFT_TIMEOUT))
+                ]);
+                const settled = await Promise.allSettled(fetchTasks.map(withSoftTimeout));
                 const aggregated = [];
                 settled.forEach(res => {
                     if (res.status === 'fulfilled' && Array.isArray(res.value)) {
@@ -1624,9 +1634,23 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     }
                 });
 
-                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: aggregated }), {
+                // 单源限量 top 24：防止个别源（如 伪69）灌屏，让结果来源更多样
+                const perSourceCap = 24;
+                const capped = [];
+                const countBySource = new Map();
+                for (const item of aggregated) {
+                    const s = item.source || '?';
+                    const n = countBySource.get(s) || 0;
+                    if (n >= perSourceCap) continue;
+                    countBySource.set(s, n + 1);
+                    capped.push(item);
+                }
+
+                const searchResponse = new Response(JSON.stringify({ code: 0, msg: 'ok', data: capped }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
+                edgeCachePut(ctx, request, '/api/search/ALL', searchResponse, 60);
+                return searchResponse;
             }
 
             try {
@@ -2556,6 +2580,9 @@ if (source === '轻小说文库' || source === 'Wenku8') {
         }
 
         if (url.pathname === '/api/catalog') {
+            // 目录边缘缓存（10 分钟）：开书必经链路，目录结构短期不变，二次开书秒开
+            const catHit = await edgeCacheMatch(request, '/api/catalog');
+            if (catHit) return catHit;
             const book_id = url.searchParams.get('book_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
@@ -2801,9 +2828,11 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     } catch(e) {}
                 }
 
-                return new Response(JSON.stringify(data), {
+                const catalogResponse = new Response(JSON.stringify(data), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                 });
+                edgeCachePut(ctx, request, '/api/catalog', catalogResponse, 600);
+                return catalogResponse;
             } catch(e) {
                 if (tab === '漫画' && title) {
                     const vTask = (async () => {
