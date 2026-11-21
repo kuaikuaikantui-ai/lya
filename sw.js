@@ -8,7 +8,7 @@
  *  - /api/*  一律不缓存（数据实时性优先）
  * 版本号变更即整体换仓，旧缓存自动清理。
  * ===================================================================== */
-const CACHE_VERSION = 'lya-shell-v20261121-4';
+const CACHE_VERSION = 'lya-shell-v20261121-6';
 const SHELL_PRECACHE = [
     'video.js?v=20261121d',
     'recommend_data.js',
@@ -67,12 +67,12 @@ self.addEventListener('fetch', (event) => {
     // API 实时数据一律直连，绝不缓存
     if (url.pathname.startsWith('/api/')) return;
 
-    // 页面导航：network-first，400ms 超时回退缓存副本
+    // 页面导航：network-first，1.5s 超时回退缓存副本（短超时易在弱网回退陈旧副本）
     if (req.mode === 'navigate' || (url.pathname === '/' || url.pathname === '/index.html')) {
         event.respondWith((async () => {
             const cache = await caches.open(CACHE_VERSION);
             try {
-                const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 400));
+                const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 1500));
                 const fresh = await Promise.race([
                     fetch(req).then((r) => { if (r && r.ok) cache.put('index.html', r.clone()).catch(() => {}); return r; }),
                     timeout
