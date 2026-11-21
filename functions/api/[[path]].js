@@ -1098,8 +1098,6 @@ async function ensureKanjuLogin(env, force) {
 // 影视原站 kanju.ai 深度解析直连 4K/1080P/蓝光 顶级原画播放源（智能严选真实可播流，杜绝失效票据）
 async function searchOriginKanju(keyword, originId = '') {
     try {
-        // 官方线路需要登录态：确保 kanju session（游客/账号）
-        try { await ensureKanjuLogin(globalThis.__LYA_ENV); } catch (e) {}
         const cleanKw = (keyword || '').replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim();
         const targets = [];
         if (originId && originId.startsWith('av_')) {
@@ -1132,63 +1130,6 @@ async function searchOriginKanju(keyword, originId = '') {
 
             const ep0Resolved = resolvedList[0];
             if (!ep0Resolved || !Array.isArray(ep0Resolved.line_options)) return [];
-
-            // 并发预解析首集所有原站官方直连票据 (4K海外、1080P官方R/Z、官方B等，自动过滤 401 VIP受限票据)
-            const ticketOptions = ep0Resolved.line_options.filter(l => l && l.url && l.url.startsWith('resolve://'));
-            const ticketResolvedMap = new Map();
-
-            await Promise.all(ticketOptions.map(async l => {
-                try {
-                    const ticket = l.url.replace(/^resolve:\/\//, '');
-                    const r = await fetchKanjuSignedPost('/v1/playback/resolve-line?view=compact', { ticket });
-                    if (r && r.line && r.line.url && (r.line.url.includes('.m3u8') || r.line.url.includes('.mp4'))) {
-                        ticketResolvedMap.set(l.display_label || l.provider_name, {
-                            url: r.line.url,
-                            weight: l.preference_weight || 990,
-                            rawLabel: l.display_label || l.provider_name
-                        });
-                    }
-                } catch(e) {}
-            }));
-
-            const normalizeOriginName = (raw) => {
-                let name = String(raw || '').trim();
-                if (name.includes('4K') || name.toLowerCase().includes('4k')) {
-                    const sub = name.replace(/^(原站|源站)[·・\s\-_]*/g, '').replace(/^4K[·・\s\-_]*/g, '').trim();
-                    return '原站4K超清·' + (sub || '专享4K');
-                }
-                if (name.includes('1080P') || name.includes('1080') || name.includes('官方')) {
-                    const sub = name.replace(/^(原站|源站)[·・\s\-_]*/g, '').replace(/^1080P[·・\s\-_]*/g, '').trim();
-                    return '原站1080P·' + (sub || '官方超清');
-                }
-                if (!name.startsWith('原站') && !name.startsWith('源站')) {
-                    return '原站·' + name;
-                }
-                return name;
-            };
-
-            const providerMap = new Map();
-            const ep0Title = cat.episodes[0].title || (eps.length === 1 ? '正片' : '第1集');
-
-            // 1. 挂载已证实 100% 真实有效的源站官方直连流 (首集已换成真实m3u8，后续集数挂载对应票据由前端动态换流)
-            for (const [label, data] of ticketResolvedMap.entries()) {
-                const pName = normalizeOriginName(label);
-                if (!providerMap.has(pName)) {
-                    providerMap.set(pName, { weight: data.weight || 990, episodes: [] });
-                }
-                providerMap.get(pName).episodes.push(ep0Title + '$' + data.url);
-
-                // 尝试为后续集数寻找同名官方线路
-                for (let epIdx = 1; epIdx < eps.length; epIdx++) {
-                    const epRes = resolvedList[epIdx];
-                    if (!epRes || !Array.isArray(epRes.line_options)) continue;
-                    const thisTitle = cat.episodes[epIdx].title || ('第' + (epIdx + 1) + '集');
-                    const matchLine = epRes.line_options.find(l => (l.display_label || l.provider_name) === data.rawLabel);
-                    if (matchLine && matchLine.url) {
-                        providerMap.get(pName).episodes.push(thisTitle + '$' + matchLine.url);
-                    }
-                }
-            }
 
             // 2. 挂载源站原生免解析直连可用 .m3u8 线路 (豆瓣/暴风/茅台/红牛/极速/量子/非凡等)
             resolvedList.forEach((res, epIdx) => {

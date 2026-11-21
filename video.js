@@ -1625,6 +1625,7 @@
         for (let i = 0; i < groups.length; i++) {
             const g = groups[i];
             if (failedSet.has(i) || bannedNames.has(g.name)) continue;
+            if (g._lyaManualOnly) continue; // kanju 官方组仅手动可选
             if (!g.episodes || !g.episodes[targetEpIdx]) continue;
             const ep = g.episodes[targetEpIdx];
             if (!ep.url || (!ep.url.includes('.m3u8') && !ep.url.includes('.mp4') && !ep.url.startsWith('resolve://'))) continue;
@@ -1781,6 +1782,7 @@
         let bestScore = -1;
         for (let i = 0; i < totalGroups; i++) {
             if (window._failedRouteSet.has(i)) continue;
+            if (groups[i] && groups[i]._lyaManualOnly) continue; // kanju 官方组不参与自动换线
             const g = groups[i];
             if (!g.episodes || !g.episodes[epIdx]) continue;
             const score = getRoutePriorityScore(g.name, g.episodes[epIdx]?.url);
@@ -2122,65 +2124,6 @@
         }
         const isHls = videoUrl.includes('.m3u8');
         const videoTitle = window.currentVideo.kanju_title || window.currentVideo.vod_name || '';
-
-        // ==================== 后台静默测速优选（danbo 播放源健康度模式） ====================
-        // 对当前线路与备选线路做真实拉流测速（主清单+首分片），当前线路起播受阻时
-        // 自动切到实测最快的备选——比 10s 看门狗快得多，直击"官方源黑屏只有弹幕"的痛点。
-        const probeLineSpeed = async function(url, timeoutMs) {
-            try {
-                const ctl = new AbortController();
-                const tm = setTimeout(() => ctl.abort(), timeoutMs);
-                const t0 = performance.now();
-                const r = await fetch(url, { headers: { 'User-Agent': navigator.userAgent }, signal: ctl.signal });
-                const text = await r.text();
-                if (!r.ok || !text.includes('#EXTM3U')) return { ok: false };
-                const segLine = text.split('\n').map(s => s.trim()).find(l => l && !l.startsWith('#'));
-                if (!segLine) return { ok: false };
-                const segUrl = segLine.startsWith('http') ? segLine : url.replace(/[^/]*$/, '') + segLine;
-                const sr = await fetch(segUrl, { signal: ctl.signal });
-                const firstChunk = await sr.body.getReader().read();
-                clearTimeout(tm);
-                const ms = Math.round(performance.now() - t0);
-                const bytes = firstChunk.value ? firstChunk.value.byteLength : 0;
-                return { ok: sr.ok && bytes > 0, ms };
-            } catch (e) {
-                return { ok: false };
-            }
-        };
-
-        const autoProbeAndSwitch = async function(curIdx, curUrl) {
-            if (!/^https?:\/\//.test(curUrl) || !curUrl.includes('.m3u8')) return;
-            const mySession = window._openVideoSessionId;
-            // 当前线路探测（5.5s 上限）：正常就保持，不打扰
-            const cur = await probeLineSpeed(curUrl, 5500).catch(() => ({ ok: false }));
-            if (mySession !== window._openVideoSessionId) return;
-            if (cur.ok) return;
-            console.warn('[Video] 后台测速：当前线路拉流受阻，开始寻找实测最快的备选...');
-            const groups = window.currentVideo.groups;
-            const candidates = [];
-            for (let i = 0; i < groups.length && candidates.length < 6; i++) {
-                if (i === curIdx) continue;
-                if (window._failedRouteSet && window._failedRouteSet.has(i)) continue;
-                const ep = groups[i].episodes && groups[i].episodes[idx];
-                if (!ep || !/^https?:\/\//.test(ep.url) || !ep.url.includes('.m3u8')) continue;
-                candidates.push({ idx: i, url: ep.url });
-            }
-            let best = null;
-            for (const c of candidates) {
-                if (mySession !== window._openVideoSessionId) return;
-                const r = await probeLineSpeed(c.url, 5000).catch(() => ({ ok: false }));
-                if (r.ok && (!best || r.ms < best.ms)) best = { idx: c.idx, ms: r.ms };
-            }
-            if (best && mySession === window._openVideoSessionId && window.currentGroupIdx === curIdx) {
-                console.warn('[Video] 自动切换至实测最快备选线路 idx=' + best.idx);
-                if (window.dpInstance && window.dpInstance.notice) {
-                    window.dpInstance.notice('当前线路本机受阻，已自动切换至实测最快线路', 2200);
-                }
-                window.switchPlayGroup(best.idx, idx, 0);
-            }
-        };
-        // 只对 m3u8 直连线路后台测速；后台执行不阻塞起播
-        setTimeout(() => { autoProbeAndSwitch(idx, videoUrl).catch(() => {}); }, 800);
 
         // 注册全屏原生唤起函数 (供半屏播放器全屏按钮点击时呼出腾讯/B站级横屏全屏播放器)
         const kanjuCardId = window.currentVideo.kanju_id || (String(window.currentVideo.vod_id).startsWith('av_') ? window.currentVideo.vod_id : '');
