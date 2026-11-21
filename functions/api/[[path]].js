@@ -1482,9 +1482,10 @@ const workerHandler = {    async fetch(request, env, ctx) {
         }
 
         // ==================== IPA 下载镜像 ====================
-        // /ipa 或 /api/ipa：边缘缓存 24h，流式转发 GitHub Release 资产。
+        // /api/ipa：边缘缓存 24h，流式转发 GitHub Release 资产。
         // 每次新构建发布后地址恒定不变（Tag 资产被覆盖），国内经 pages.dev 直下绕过 GitHub 下载不稳的问题。
-        if (url.pathname === '/ipa' || url.pathname === '/api/ipa') {
+        // 注意：本 Function 位于 functions/api/，路由只覆盖 /api/*，/ipa 裸路径会被静态层兜底，不可用。
+        if (url.pathname === '/api/ipa') {
             const GH_IPA_URL = 'https://github.com/kuaikuaikantui-ai/lya/releases/download/v1.0.0-ipa/Lya.ipa';
             const ipaCache = (typeof caches !== 'undefined' && caches.default) ? caches.default : null;
             const ipaKey = new Request(url.origin + '/ipa/latest');

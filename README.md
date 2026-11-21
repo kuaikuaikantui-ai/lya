@@ -76,6 +76,20 @@ npx serve .
 
 ---
 
+## 📱 iOS 客户端下载 (IPA)
+
+> 每次 push main 后 GitHub Actions 自动构建最新 IPA 并覆盖发布到 Release `v1.0.0-ipa`，**下载地址恒定不变**：
+
+| 渠道 | 地址 | 说明 |
+| :--- | :--- | :--- |
+| ⚡ **CF 镜像直下（推荐）** | https://lya-arr.pages.dev/api/ipa | 边缘缓存 24h + 流式转发，国内直连友好 |
+| GitHub Release 直链 | https://github.com/kuaikuaikantui-ai/lya/releases/download/v1.0.0-ipa/Lya.ipa | 国际网络快 |
+| Release 页面（含历史） | https://github.com/kuaikuaikantui-ai/lya/releases/tag/v1.0.0-ipa | 手动挑选版本 |
+
+安装方式：TrollStore 永久免签，或爱思助手/牛蛙助手/AltStore 使用普通 Apple ID 免费自签（7 天）。
+
+---
+
 ## 📄 开源许可证 (License)
 
 本项目采用 [MIT License](LICENSE) 开源协议，欢迎广大开发者提交 Issue 与 Pull Request 共同完善！
