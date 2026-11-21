@@ -1481,6 +1481,40 @@ const workerHandler = {    async fetch(request, env, ctx) {
             return new Response(null, { headers: corsHeaders });
         }
 
+        // ==================== IPA 下载镜像 ====================
+        // /ipa 或 /api/ipa：边缘缓存 24h，流式转发 GitHub Release 资产。
+        // 每次新构建发布后地址恒定不变（Tag 资产被覆盖），国内经 pages.dev 直下绕过 GitHub 下载不稳的问题。
+        if (url.pathname === '/ipa' || url.pathname === '/api/ipa') {
+            const GH_IPA_URL = 'https://github.com/kuaikuaikantui-ai/lya/releases/download/v1.0.0-ipa/Lya.ipa';
+            const ipaCache = (typeof caches !== 'undefined' && caches.default) ? caches.default : null;
+            const ipaKey = new Request(url.origin + '/ipa/latest');
+            try {
+                const hit = await ipaCache.match(ipaKey);
+                if (hit) return hit;
+            } catch (e) {}
+            try {
+                const upstream = await fetch(GH_IPA_URL, {
+                    redirect: 'follow',
+                    headers: { 'User-Agent': 'lya-pages-mirror', 'Accept': 'application/octet-stream' }
+                });
+                if (!upstream.ok || !upstream.body) throw new Error('upstream HTTP ' + upstream.status);
+                const headers = new Headers({
+                    'Content-Type': 'application/octet-stream',
+                    'Content-Disposition': 'attachment; filename="Lya.ipa"',
+                    'Cache-Control': 'public, max-age=86400',
+                    'X-Ipa-Source': 'github-release-v1.0.0-ipa'
+                });
+                const resp = new Response(upstream.body, { status: 200, headers });
+                if (ipaCache && ctx && typeof ctx.waitUntil === 'function') {
+                    ctx.waitUntil(ipaCache.put(ipaKey, resp.clone()).catch(() => {}));
+                }
+                return resp;
+            } catch (e) {
+                // 上游异常时 302 兜底直跳 GitHub（客户端网络可达 GitHub 仍可下载）
+                return Response.redirect(GH_IPA_URL, 302);
+            }
+        }
+
         if (url.pathname === '/' || url.pathname === '/index.html') {
             return new Response(HTML_CONTENT, {
                 headers: { 'Content-Type': 'text/html; charset=utf-8' }
