@@ -405,34 +405,54 @@ struct LyaWebView: UIViewRepresentable {
                 guard let data = try? JSONSerialization.data(withJSONObject: req),
                       let reqJson = String(data: data, encoding: .utf8) else { completion(nil); return }
                 let reqId = UUID().uuidString
-                let script = """
-                (function(){
-                  try {
-                    var req = \(reqJson);
-                    window.__kanjuBridgeFetch(req).then(function(res){
-                      window.__kanjuResults['\(reqId)'] = JSON.stringify(res);
-                    }).catch(function(e){
-                      window.__kanjuResults['\(reqId)'] = JSON.stringify({status:0, text:'bridge error: ' + (e && e.message ? e.message : 'unknown')});
-                    });
-                  } catch(e) {
-                    window.__kanjuResults['\(reqId)'] = JSON.stringify({status:0, text:'bridge sync error'});
-                  }
-                })();
-                """
-                kwv.evaluateJavaScript(script, completionHandler: nil)
-                var attempts = 0
-                Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { timer in
-                    attempts += 1
-                    if attempts > 40 { // 10 秒超时
-                        timer.invalidate()
+                // 先等待 kanju32 页面加载完成（桥函数就绪），最多 15s——页面未就绪时请求会失败
+                var readyAttempts = 0
+                func waitReady() {
+                    readyAttempts += 1
+                    if readyAttempts > 50 { // 15s 超时
                         completion(nil)
                         return
                     }
-                    kwv.evaluateJavaScript("window.__kanjuResults && window.__kanjuResults['\(reqId)'] || null") { result, _ in
-                        if let s = result as? String, s != "null", !s.isEmpty {
-                            timer.invalidate()
-                            completion(s)
+                    kwv.evaluateJavaScript("!!window.__kanjuBridgeReady") { ready, _ in
+                        if (ready as? Bool) == true {
+                            self.executeKanjuFetch(kwv, reqId: reqId, reqJson: reqJson, completion: completion)
+                        } else {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { waitReady() }
                         }
+                    }
+                }
+                waitReady()
+            }
+        }
+
+        private func executeKanjuFetch(_ kwv: WKWebView, reqId: String, reqJson: String, completion: @escaping (String?) -> Void) {
+            let script = """
+            (function(){
+              try {
+                var req = \(reqJson);
+                window.__kanjuBridgeFetch(req).then(function(res){
+                  window.__kanjuResults['\(reqId)'] = JSON.stringify(res);
+                }).catch(function(e){
+                  window.__kanjuResults['\(reqId)'] = JSON.stringify({status:0, text:'bridge error: ' + (e && e.message ? e.message : 'unknown')});
+                });
+              } catch(e) {
+                window.__kanjuResults['\(reqId)'] = JSON.stringify({status:0, text:'bridge sync error'});
+              }
+            })();
+            """
+            kwv.evaluateJavaScript(script, completionHandler: nil)
+            var attempts = 0
+            Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { timer in
+                attempts += 1
+                if attempts > 40 { // 10 秒超时
+                    timer.invalidate()
+                    completion(nil)
+                    return
+                }
+                kwv.evaluateJavaScript("window.__kanjuResults && window.__kanjuResults['\(reqId)'] || null") { result, _ in
+                    if let s = result as? String, s != "null", !s.isEmpty {
+                        timer.invalidate()
+                        completion(s)
                     }
                 }
             }
