@@ -49,6 +49,7 @@ struct ContentView: View {
     @State private var isOfflineMode = false
     @State private var sharedWebView: WKWebView? = nil
     @State private var loadError: String? = nil
+    @State private var sharedKanjuWebView: WKWebView? = nil
 
     var body: some View {
         ZStack {
@@ -59,9 +60,17 @@ struct ContentView: View {
                 reloadTrigger: reloadTrigger,
                 isOfflineMode: isOfflineMode,
                 sharedWebView: $sharedWebView,
-                loadError: $loadError
+                loadError: $loadError,
+                kanjuWebView: $sharedKanjuWebView
             )
             .ignoresSafeArea()
+
+            // kanju 官方线路解析桥：隐藏 WKWebView 以【用户 IP + 游客 Cookie】调原站 API，
+            // 解锁官方字节 CDN（1080P-官方V/S/Z、专享4K 等）就近分发线路
+            KanjuBridgeWebView(kanjuWebView: $sharedKanjuWebView)
+                .frame(width: 1, height: 1)
+                .opacity(0)
+                .disabled(true)
 
             if let errText = loadError {
                 networkErrorOverlay(message: errText)
@@ -111,12 +120,73 @@ struct ContentView: View {
     }
 }
 
+// kanju 官方线路解析桥：隐藏 WKWebView 装载原站页面（游客 Cookie 自动建立），
+// 主 WebView 的解析请求经原生转发到该上下文内执行（同源、用户 IP、签名注入），
+// 解锁官方字节 CDN（1080P-官方V/S/Z、专享4K）就近分发线路。
+struct KanjuBridgeWebView: UIViewRepresentable {
+    @Binding var kanjuWebView: WKWebView?
+
+    private static let bridgeScript = """
+    (function() {
+      if (window.__kanjuBridgeReady) return;
+      var SECRET = '557d0e4ae929f438da6bd84412374e6086b8af09b3fed54bf22601d5bf8c54a0';
+      function toHex(buf) { return Array.from(new Uint8Array(buf), function(b) { return b.toString(16).padStart(2, '0'); }).join(''); }
+      window.__kanjuResults = {};
+      window.__kanjuBridgeFetch = async function(req) {
+        var method = (req.method || 'GET').toUpperCase();
+        var ts = String(Date.now());
+        var arr = new Uint8Array(16);
+        crypto.getRandomValues(arr);
+        var nonce = toHex(arr.buffer);
+        var payload = method + '\\n' + req.path + (req.search || '') + '\\n' + ts + '\\n' + nonce;
+        var key = await crypto.subtle.importKey('raw', new TextEncoder().encode(SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        var sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+        var headers = {
+          'Accept': 'application/json',
+          'x-ai-movie-client-name': 'dianyingtiantang-frontend',
+          'x-ai-movie-client-version': '1.0.0',
+          'x-ai-movie-timestamp': ts,
+          'x-ai-movie-nonce': nonce,
+          'x-ai-movie-signature': toHex(sig)
+        };
+        if (req.bodyObj) headers['Content-Type'] = 'application/json';
+        var r = await fetch(req.path + (req.search || ''), {
+          method: method,
+          headers: headers,
+          body: req.bodyObj ? JSON.stringify(req.bodyObj) : undefined,
+          credentials: 'include'
+        });
+        return { status: r.status, text: await r.text() };
+      };
+      window.__kanjuBridgeReady = true;
+    })();
+    """
+
+    func makeUIView(context: Context) -> WKWebView {
+        let cfg = WKWebViewConfiguration()
+        let userContent = WKUserContentController()
+        // 每次导航完成自动注入桥函数（atDocumentEnd，页面脚本就绪后可用）
+        userContent.addUserScript(WKUserScript(source: bridgeScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        cfg.userContentController = userContent
+        let wv = WKWebView(frame: .zero, configuration: cfg)
+        wv.isHidden = true
+        if let url = URL(string: "https://kanju32.com/") {
+            wv.load(URLRequest(url: url))
+        }
+        DispatchQueue.main.async { self.kanjuWebView = wv }
+        return wv
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+}
+
 struct LyaWebView: UIViewRepresentable {
     let serverUrl: String
     let reloadTrigger: UUID
     let isOfflineMode: Bool
     @Binding var sharedWebView: WKWebView?
     @Binding var loadError: String?
+    @Binding var kanjuWebView: WKWebView?
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -127,10 +197,11 @@ struct LyaWebView: UIViewRepresentable {
 
         let userContent = WKUserContentController()
 
-        // 注册原生 Bridge：方向同步 / 触感反馈 / 屏幕常亮（播放与阅读期间保持常亮）
+        // 注册原生 Bridge：方向同步 / 触感反馈 / 屏幕常亮（播放与阅读期间保持常亮）/ kanju 官方线路解析桥
         userContent.add(context.coordinator, name: "nativeOrientation")
         userContent.add(context.coordinator, name: "nativeHaptic")
         userContent.add(context.coordinator, name: "nativeScreenSleep")
+        userContent.add(context.coordinator, name: "kanjuRequest")
 
         // 广告免疫：CSS 兜底隐藏 + MutationObserver 定向清除（替代原先每 1.2s 全页轮询，
         // 避免长按倍速等手势期间被周期性 DOM 扫描抢占主线程造成卡顿）
@@ -304,8 +375,66 @@ struct LyaWebView: UIViewRepresentable {
                         UIApplication.shared.isIdleTimerDisabled = (mode == "on")
                     }
                 }
+            case "kanjuRequest":
+                // 主页面请求 kanju 官方线路解析：转发到隐藏 kanju WebView（用户 IP 同源调用）后回传
+                if let jsonStr = message.body as? String,
+                   let data = jsonStr.data(using: .utf8),
+                   let req = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    callKanjuBridge(req: req) { resultJson in
+                        guard let mainWv = self.parent.sharedWebView else { return }
+                        let payload = resultJson ?? "{\"status\":0,\"text\":\"bridge unavailable\"}"
+                        let escaped = payload
+                            .replacingOccurrences(of: "\\", with: "\\\\")
+                            .replacingOccurrences(of: "'", with: "\\'")
+                            .replacingOccurrences(of: "\n", with: "\\n")
+                        let script = "if(window.__kanjuOnResponse){window.__kanjuOnResponse('\(req["reqId"] ?? "")','\(escaped)');}"
+                        DispatchQueue.main.async {
+                            mainWv.evaluateJavaScript(script, completionHandler: nil)
+                        }
+                    }
+                }
             default:
                 break
+            }
+        }
+
+        // 在隐藏 kanju WebView 上下文内执行带签名的同源请求，轮询回传结果
+        private func callKanjuBridge(req: [String: Any], completion: @escaping (String?) -> Void) {
+            DispatchQueue.main.async {
+                guard let kwv = self.parent.kanjuWebView else { completion(nil); return }
+                guard let data = try? JSONSerialization.data(withJSONObject: req),
+                      let reqJson = String(data: data, encoding: .utf8) else { completion(nil); return }
+                let reqId = UUID().uuidString
+                let script = """
+                (function(){
+                  try {
+                    var req = \(reqJson);
+                    window.__kanjuBridgeFetch(req).then(function(res){
+                      window.__kanjuResults['\(reqId)'] = JSON.stringify(res);
+                    }).catch(function(e){
+                      window.__kanjuResults['\(reqId)'] = JSON.stringify({status:0, text:'bridge error: ' + (e && e.message ? e.message : 'unknown')});
+                    });
+                  } catch(e) {
+                    window.__kanjuResults['\(reqId)'] = JSON.stringify({status:0, text:'bridge sync error'});
+                  }
+                })();
+                """
+                kwv.evaluateJavaScript(script, completionHandler: nil)
+                var attempts = 0
+                Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { timer in
+                    attempts += 1
+                    if attempts > 40 { // 10 秒超时
+                        timer.invalidate()
+                        completion(nil)
+                        return
+                    }
+                    kwv.evaluateJavaScript("window.__kanjuResults && window.__kanjuResults['\(reqId)'] || null") { result, _ in
+                        if let s = result as? String, s != "null", !s.isEmpty {
+                            timer.invalidate()
+                            completion(s)
+                        }
+                    }
+                }
             }
         }
 

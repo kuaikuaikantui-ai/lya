@@ -25,8 +25,49 @@
     var SECRET = '557d0e4ae929f438da6bd84412374e6086b8af09b3fed54bf22601d5bf8c54a0';
     var TIMEOUT = 6000;
 
+    // ============ iOS 原生桥回调管理（Swift 转发请求后经此回传结果） ============
+    window.__kanjuPending = new Map();
+    window.__kanjuOnResponse = function(reqId, resultJson) {
+        var p = window.__kanjuPending.get(reqId);
+        if (!p) return;
+        window.__kanjuPending.delete(reqId);
+        try { p.resolve(JSON.parse(resultJson)); } catch (e) { p.reject(e); }
+    };
+    window.kanjuBridgeRequest = function(req) {
+        return new Promise(function(resolve, reject) {
+            var reqId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+            window.__kanjuPending.set(reqId, { resolve: resolve, reject: reject });
+            setTimeout(function() {
+                if (window.__kanjuPending.has(reqId)) {
+                    window.__kanjuPending.delete(reqId);
+                    reject(new Error('kanju bridge timeout'));
+                }
+            }, 12000);
+            try {
+                window.webkit.messageHandlers.kanjuRequest.postMessage(JSON.stringify(Object.assign({ reqId: reqId }, req)));
+            } catch (e) {
+                window.__kanjuPending.delete(reqId);
+                reject(e);
+            }
+        });
+    };
+
     // 记录最快的镜像，后续请求优先走它
     var preferredHost = null;
+
+    // ============ iOS 原生桥（隐藏 kanju WebView，用户 IP 同源调用，解锁官方CDN/4K） ============
+    function bridgeAvailable() {
+        return typeof window.kanjuBridgeRequest === 'function' &&
+               !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.kanjuRequest);
+    }
+
+    function bridgeRequest(method, pathname, search, bodyObj) {
+        return window.kanjuBridgeRequest({ method: method, path: pathname, search: search || '', bodyObj: bodyObj || null }).then(function(res) {
+            if (!res || !res.status) throw new Error('bridge unavailable');
+            if (res.status !== 200 && res.status !== 201) throw new Error('HTTP ' + res.status);
+            return JSON.parse(res.text);
+        });
+    }
 
     function toHex(buf) {
         return Array.from(new Uint8Array(buf), function(b) { return b.toString(16).padStart(2, '0'); }).join('');
@@ -48,6 +89,11 @@
     }
 
     async function signedFetch(method, pathname, search, bodyObj) {
+        // APP 内优先走原生桥（隐藏 kanju WebView：同源 + 用户 IP + Cookie，官方 CDN 解锁）
+        if (bridgeAvailable()) {
+            return bridgeRequest(method, pathname, search, bodyObj);
+        }
+        // 非 APP（网页/PWA）：跨域被 kanju CORS 拦截，静默失败——调用方回退后端链路
         var hosts = preferredHost ? [preferredHost].concat(HOSTS.filter(function(h) { return h !== preferredHost; })) : HOSTS;
         var headers = await signHeaders(method, pathname, search);
         var errors = [];
