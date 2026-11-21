@@ -12,6 +12,11 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 38 36'%3E%3Cdefs%3E%3ClinearGradient id='v' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%231e1b4b'/%3E%3Cstop offset='50%25' stop-color='%234338ca'/%3E%3Cstop offset='100%25' stop-color='%237e22ce'/%3E%3C/linearGradient%3E%3ClinearGradient id='b' x1='0%25' y1='100%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%23090d16'/%3E%3Cstop offset='45%25' stop-color='%230c4a6e'/%3E%3Cstop offset='100%25' stop-color='%230284c7'/%3E%3C/linearGradient%3E%3ClinearGradient id='n' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23312e81'/%3E%3Cstop offset='50%25' stop-color='%232563eb'/%3E%3Cstop offset='100%25' stop-color='%2306b6d4'/%3E%3C/linearGradient%3E%3CclipPath id='c'%3E%3Cpath d='M4 8.8C4 4.5 8.7 1.9 12.4 4.1L27.8 13.3C31.4 15.5 31.4 20.7 27.8 22.9L12.4 32.1C8.7 34.3 4 31.7 4 27.4Z' transform='rotate(-8 16 18)'/%3E%3C/clipPath%3E%3C/defs%3E%3Cpath d='M4 8.8C4 4.5 8.7 1.9 12.4 4.1L27.8 13.3C31.4 15.5 31.4 20.7 27.8 22.9L12.4 32.1C8.7 34.3 4 31.7 4 27.4Z' transform='rotate(-8 16 18)' fill='url(%23v)' stroke='%23818cf8' stroke-opacity='0.35' stroke-width='0.8'/%3E%3Cpath d='M10.2 8.2C10.2 4.1 14.7 1.6 18.2 3.7L33.4 12.9C36.8 15.0 36.8 20.0 33.4 22.1L18.2 31.3C14.7 33.4 10.2 30.9 10.2 26.8Z' transform='rotate(3 22 18)' fill='url(%23b)' stroke='%2338bdf8' stroke-opacity='0.35' stroke-width='0.8'/%3E%3Cpath clip-path='url(%23c)' d='M10.2 8.2C10.2 4.1 14.7 1.6 18.2 3.7L33.4 12.9C36.8 15.0 36.8 20.0 33.4 22.1L18.2 31.3C14.7 33.4 10.2 30.9 10.2 26.8Z' transform='rotate(3 22 18)' fill='url(%23n)'/%3E%3Cpath d='M14.8 13.1C14.8 11.1 17.0 9.9 18.7 10.9L26.0 15.4C27.6 16.4 27.6 18.7 26.0 19.7L18.7 24.2C17.0 25.2 14.8 24.0 14.8 22.0Z' fill='%23f8fafc'/%3E%3Cpath d='M19.2 13.8L20.1 16.6L22.9 17.5L20.1 18.4L19.2 21.2L18.3 18.4L15.5 17.5L18.3 16.6Z' fill='%2338bdf8'/%3E%3C/svg%3E">
     <title>宇穹视界 · 全栖书漫影殿堂</title>
     <script>
+        // 全局运行时错误收集（诊断用）
+        window.__errs = [];
+        window.addEventListener('error', function(e) {
+            window.__errs.push(String(e.message) + ' @' + String(e.filename || '').split('/').pop() + ':' + e.lineno);
+        });
         // APP 液态玻璃模式识别：仅在 Lya 原生壳（LyaNativeApp UA）内激活，网页端零影响
         (function() {
             try {
@@ -4626,6 +4631,24 @@
         }
         .home-book-cover img { position: relative; z-index: 1; }
         .home-book-cover.no-img .home-book-cover-fallback { display: flex; }
+        .kanju-video-badge {
+            position: absolute;
+            left: 6px;
+            bottom: 6px;
+            z-index: 3;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: rgba(244,63,94,0.85);
+            color: #fff;
+            font-size: 10.5px;
+            font-weight: 700;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
 
         /* ==================== APP 液态玻璃模式（仅 LyaNativeApp UA 激活，网页端零影响） ==================== */
         html.app-mode .mobile-bottom-nav {
@@ -5352,30 +5375,7 @@
                 <!-- 原站完整分类导航栏 -->
                 <div class="kanju-hot-chips" id="chiguaCategoryChips"></div>
 
-                <!-- ⚡ 抖音模式常驻入口：跟随当前分类进入沉浸刷 -->
-                <button type="button" id="chiguaDouyinModeBtn" onclick="window.enterChiguaFeedCurrentCategory(this)" style="width:100%; margin-top:14px; display:flex; align-items:center; justify-content:center; gap:10px; padding:15px; border-radius:18px; border:none; background:linear-gradient(135deg, rgba(244,63,94,0.92), rgba(249,115,22,0.85)); color:#fff; font-size:16px; font-weight:800; cursor:pointer; box-shadow:0 8px 26px rgba(244,63,94,0.38);">
-                    <i class="fas fa-arrows-up-down" style="font-size:18px;"></i>
-                    <span>抖音模式 · 沉浸刷「<span id="chiguaDouyinCatName">首页最新</span>」</span>
-                    <i class="fas fa-chevron-right" style="opacity:0.8; font-size:13px;"></i>
-                </button>
-                <div style="font-size:11px; color:var(--text-muted); text-align:center; margin-top:6px;">先选上方分类，再点这里进入全屏上下滑 · 播放完自动切下一条</div>
-            </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <h4 id="chiguaFeedTitle" style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;">
-                        <i class="fas fa-fire-flame-curved" style="color:#f43f5e;"></i> <span>黑料不打烊 - 吃瓜黑料24小时不打烊</span>
-                    </h4>
-                </div>
-                <span id="chiguaCountBadge" style="font-size:11px; color:#fb7185; background:rgba(244,63,94,0.12); padding:4px 12px; border-radius:20px; border:1px solid rgba(244,63,94,0.3);">实时更新</span>
-            </div>
-
-            <div id="chiguaGrid" class="video-grid"></div>
-
-            <div id="chiguaLoadMoreWrap" style="display:none; text-align:center; margin: 22px 0 10px;">
-                <button class="btn primary" id="chiguaLoadMoreBtn" style="padding:10px 28px; font-size:13px; background:linear-gradient(135deg, #f43f5e, #e11d48); border:none;" onclick="window.loadMoreChiguaPage()">
-                    <i class="fas fa-angles-down"></i> 加载下一页吃瓜
-                </button>
             </div>
         </div>
 
@@ -5405,9 +5405,6 @@
                 </div>
                 <!-- 抖音式上下滑沉浸刷瓜入口（feed.js） -->
                 <div style="display:flex; justify-content:center; margin-top:12px;">
-                    <button type="button" id="chiguaFeedModeBtn" onclick="window.LyaEnterChiguaFeedFromDetail && window.LyaEnterChiguaFeedFromDetail(this)" style="display:none; align-items:center; gap:8px; padding:10px 26px; border-radius:999px; border:1px solid rgba(244,63,94,0.45); background:linear-gradient(135deg, rgba(244,63,94,0.9), rgba(249,115,22,0.85)); color:#fff; font-size:13.5px; font-weight:700; cursor:pointer; box-shadow:0 6px 20px rgba(244,63,94,0.35);">
-                        <i class="fas fa-arrows-up-down"></i> 上下滑沉浸刷
-                    </button>
                 </div>
             </div>
 
@@ -9015,10 +9012,6 @@
             if (typeof window.initChiguaFeed === 'function') {
                 window.initChiguaFeed();
             }
-            // 直达弹窗：进入吃瓜即询问是否沉浸刷（本会话点过"普通浏览"后不再打扰）
-            if (!sessionStorage.getItem('lya_chigua_sheet_dismissed')) {
-                setTimeout(() => window.openChiguaModeSheet && window.openChiguaModeSheet(), 450);
-            }
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -12005,6 +11998,7 @@ window.clearNovelSearch = function() {
                                 <div class="kanju-poster-wrap">
                                     <img src="${item.vod_pic || fallbackImg}" ${encAttr} alt="${item.vod_name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallbackImg}';" />
                                     <span class="kanju-score-badge">🔥 ${item.vod_score || '9.7'}</span>
+                        ${(item.has_video || (window.getChiguaVideoIndex && getChiguaVideoIndex()[item.article_url])) ? '<span class="kanju-video-badge"><i class="fas fa-film"></i> 含视频</span>' : ''}
                                     <span class="kanju-poster-badge">${item.vod_remarks || '24h吃瓜'}</span>
                                     <div class="kanju-play-hover"><i class="fas fa-play"></i></div>
                                 </div>
@@ -12187,7 +12181,10 @@ window.clearNovelSearch = function() {
                 }
             }
 
-            if (!title) {
+            
+            // 视频帖启发式：原站视频合集帖的标题通常含 "视频/流出" 字样（列表阶段无专有标记）
+            const hasVideo = /视频|流出/i.test(title) ? 1 : 0;
+if (!title) {
                 const linkAttrTitle = (linkEl.getAttribute('title') || '').replace(/热搜\s*HOT|HOT/gi, '').trim();
                 if (linkAttrTitle && linkAttrTitle.length >= 4) {
                     title = linkAttrTitle;
@@ -12281,6 +12278,7 @@ window.clearNovelSearch = function() {
                 vod_score: isHot ? '9.9' : '9.7',
                 vod_class: catStr,
                 vod_year: dateStr,
+                has_video: hasVideo,
                 article_url: href
             });
         });
@@ -12288,112 +12286,21 @@ window.clearNovelSearch = function() {
         return items;
     }
 
-    // 吃瓜页面常驻"抖音模式"入口：以当前分类的列表进入沉浸刷（先选分类 → 再点此按钮）
-    window.enterChiguaFeedCurrentCategory = function(btn) {
-        try {
-            if (btn) {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>正在装载「' + (window._chiguaCurrentCatName || '首页最新') + '」...</span>';
-            }
-            const start = function() {
-                if (btn) {
-                    btn.innerHTML = '<i class="fas fa-arrows-up-down" style="font-size:18px;"></i> <span>抖音模式 · 沉浸刷「<span id="chiguaDouyinCatName">' + (window._chiguaCurrentCatName || '首页最新') + '</span>」</span> <i class="fas fa-chevron-right" style="opacity:0.8; font-size:13px;"></i>';
-                }
-                if (window.LyaFeed && typeof window.LyaFeed.openChigua === 'function') {
-                    window.LyaFeed.openChigua(0);
-                }
-            };
-            if (window.LyaFeed) {
-                start();
-            } else if (!document.getElementById('lya-feed-fw')) {
-                const s = document.createElement('script');
-                s.id = 'lya-feed-fw';
-                s.src = 'feed.js?v=20261121';
-                s.onload = start;
-                s.onerror = start;
-                document.head.appendChild(s);
-            } else {
-                setTimeout(start, 400);
-            }
-        } catch (e) {
-            console.warn('抖音模式入口异常:', e);
-            if (btn) btn.innerHTML = '<i class="fas fa-arrows-up-down" style="font-size:18px;"></i> <span>抖音模式 · 沉浸刷</span>';
-        }
-    };
 
-    // 吃瓜 Tab 直达弹窗：进入即询问"沉浸刷瓜"或"普通浏览"（本会话选择普通浏览后不再打扰）
-    window.openChiguaModeSheet = function() {
-        if (document.getElementById('chiguaModeSheetOv')) return;
-        const ov = document.createElement('div');
-        ov.id = 'chiguaModeSheetOv';
-        ov.className = 'chigua-mode-sheet-overlay';
-        ov.innerHTML = `
-            <div class="chigua-mode-sheet" id="chiguaModeSheet">
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-                    <i class="fas fa-fire-flame-curved" style="color:#fb7185; font-size:18px;"></i>
-                    <div style="font-size:16.5px; font-weight:800; color:#fff;">吃瓜 · 选择刷瓜方式</div>
-                </div>
-                <div style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">沉浸模式 = 抖音式全屏上下滑，视频自动连播（可随时切分类再进）；普通模式 = 图文列表浏览</div>
-                <button class="chigua-mode-big-btn" id="chiguaSheetImmersive"><i class="fas fa-arrows-up-down"></i> 沉浸式刷瓜 · 「<span id="chiguaSheetCatName">${(window._chiguaCurrentCatName || '首页最新')}</span>」</button>
-                <button class="chigua-mode-plain-btn" id="chiguaSheetPlain"><i class="fas fa-list"></i> 普通浏览列表（页面顶部随时可再进抖音模式）</button>
-            </div>
-        `;
-        ov.addEventListener('click', function(e) {
-            if (e.target === ov) {
-                sessionStorage.setItem('lya_chigua_sheet_dismissed', '1');
-                closeSheet();
-            }
-        });
-        function closeSheet() {
-            const sheet = document.getElementById('chiguaModeSheet');
-            if (sheet) sheet.style.transform = 'translateY(100%)';
-            setTimeout(() => { if (ov.isConnected) ov.remove(); }, 300);
-        }
-        document.body.appendChild(ov);
-        requestAnimationFrame(() => {
-            const sheet = document.getElementById('chiguaModeSheet');
-            if (sheet) sheet.style.transform = 'translateY(0)';
-        });
-        document.getElementById('chiguaSheetImmersive').onclick = function() {
-            closeSheet();
-            window.enterChiguaFeedCurrentCategory(document.getElementById('chiguaDouyinModeBtn'));
-        };
-        document.getElementById('chiguaSheetPlain').onclick = function() {
-            sessionStorage.setItem('lya_chigua_sheet_dismissed', '1');
-            closeSheet();
-        };
-    };
 
-    // 从详情页进入抖音式上下滑沉浸刷（feed.js 桥接：确保框架加载 + 定位当前文章）
-    window.LyaEnterChiguaFeedFromDetail = function(btn) {
-        try {
-            if (window._chiguaDpInstance) { try { window._chiguaDpInstance.pause(); } catch (e) {} }
-            const items = window._chiguaLatestItems || [];
-            let idx = items.findIndex(it => it && it.article_url === window._chiguaCurrentArticleUrl);
-            if (idx < 0) idx = 0;
-            const start = function() {
-                if (window.LyaFeed && typeof window.LyaFeed.openChigua === 'function') {
-                    window.LyaFeed.openChigua(idx);
-                }
-            };
-            if (!window.LyaFeed) {
-                if (!document.getElementById('lya-feed-fw')) {
-                    const s = document.createElement('script');
-                    s.id = 'lya-feed-fw';
-                    s.src = 'feed.js?v=20261121';
-                    s.onload = start;
-                    s.onerror = start;
-                    document.head.appendChild(s);
-                } else {
-                    setTimeout(start, 400);
-                }
-            } else {
-                start();
-            }
-        } catch (e) { console.warn('沉浸刷入口异常:', e); }
-    };
+
+
+
 
     // 吃瓜搜索结果（无 article_url 的视频卡）打开桥：转交视频详情播放器
-    window.openVideoPlayer = function(encodedItem) {
+    
+    // 吃瓜视频帖索引：详情解析出视频后回写（article_url → 视频段数），列表卡片显示"含视频"角标
+    function getChiguaVideoIndex() {
+        try { return JSON.parse(localStorage.getItem('chigua_video_index') || '{}'); } catch (e) { return {}; }
+    }
+    window.getChiguaVideoIndex = getChiguaVideoIndex;
+
+window.openVideoPlayer = function(encodedItem) {
         try {
             const item = JSON.parse(decodeURIComponent(encodedItem));
             if (typeof window.openVideoDetail === 'function') {
@@ -12436,9 +12343,6 @@ window.clearNovelSearch = function() {
         document.getElementById('chiguaDetailLoading').style.display = 'block';
         document.getElementById('chiguaDetailLoading').innerHTML = '<i class="fas fa-spinner fa-spin" style="color:#fb7185; font-size:20px; margin-bottom:10px; display:block;"></i>正在提取并解密原站高清视频与实拍图集...';
         document.getElementById('chiguaVideoBlock').style.display = 'none';
-        // 沉浸刷入口默认隐藏，确认本篇确有视频后再亮出（无视频文章不显示死按钮）
-        const feedModeBtnReset = document.getElementById('chiguaFeedModeBtn');
-        if (feedModeBtnReset) feedModeBtnReset.style.display = 'none';
         document.getElementById('chiguaGalleryBlock').style.display = 'none';
         document.getElementById('chiguaDplayer').innerHTML = '';
         document.getElementById('chiguaImageStream').innerHTML = '';
@@ -12550,9 +12454,6 @@ window.clearNovelSearch = function() {
             if (videoConfigs.length > 0) {
                 const videoBlock = document.getElementById('chiguaVideoBlock');
                 videoBlock.style.display = 'block';
-                // 有视频内容时亮出"上下滑沉浸刷"入口（feed.js 沉浸流）
-                const feedBtn = document.getElementById('chiguaFeedModeBtn');
-                if (feedBtn) feedBtn.style.display = 'inline-flex';
 
                 if (videoConfigs.length > 1) {
                     const tabsWrap = document.getElementById('chiguaVideoTabsWrap');
@@ -12567,6 +12468,12 @@ window.clearNovelSearch = function() {
                 }
 
                 window._chiguaVideoList = videoConfigs;
+                    // 回写视频帖索引：列表卡片据此显示"含视频"角标
+                    try {
+                        const vIdx = JSON.parse(localStorage.getItem('chigua_video_index') || '{}');
+                        vIdx[targetArticleUrl] = videoConfigs.length;
+                        localStorage.setItem('chigua_video_index', JSON.stringify(vIdx));
+                    } catch (ve) {}
                 window._playChiguaVideo(0);
             }
 
