@@ -8,13 +8,14 @@
  *  - /api/*  一律不缓存（数据实时性优先）
  * 版本号变更即整体换仓，旧缓存自动清理。
  * ===================================================================== */
-const CACHE_VERSION = 'lya-shell-v20261121-3';
+const CACHE_VERSION = 'lya-shell-v20261121-4';
 const SHELL_PRECACHE = [
-    'video.js?v=20261121c',
+    'video.js?v=20261121d',
     'recommend_data.js',
     'dplayer.min.js',
     'hls.min.js',
-    'p2p-engine.min.js'
+    'p2p-engine.min.js',
+    'kanju.js?v=20261121'
 ];
 
 self.addEventListener('install', (event) => {
