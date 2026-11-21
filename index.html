@@ -5351,6 +5351,14 @@
 
                 <!-- 原站完整分类导航栏 -->
                 <div class="kanju-hot-chips" id="chiguaCategoryChips"></div>
+
+                <!-- ⚡ 抖音模式常驻入口：跟随当前分类进入沉浸刷 -->
+                <button type="button" id="chiguaDouyinModeBtn" onclick="window.enterChiguaFeedCurrentCategory(this)" style="width:100%; margin-top:14px; display:flex; align-items:center; justify-content:center; gap:10px; padding:15px; border-radius:18px; border:none; background:linear-gradient(135deg, rgba(244,63,94,0.92), rgba(249,115,22,0.85)); color:#fff; font-size:16px; font-weight:800; cursor:pointer; box-shadow:0 8px 26px rgba(244,63,94,0.38);">
+                    <i class="fas fa-arrows-up-down" style="font-size:18px;"></i>
+                    <span>抖音模式 · 沉浸刷「<span id="chiguaDouyinCatName">首页最新</span>」</span>
+                    <i class="fas fa-chevron-right" style="opacity:0.8; font-size:13px;"></i>
+                </button>
+                <div style="font-size:11px; color:var(--text-muted); text-align:center; margin-top:6px;">先选上方分类，再点这里进入全屏上下滑 · 播放完自动切下一条</div>
             </div>
 
             <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
@@ -11927,6 +11935,10 @@ window.clearNovelSearch = function() {
         _chiguaCurrentPage = 1;
         _chiguaCurrentSlug = resolvedSlug;
         _chiguaCurrentCatName = resolvedName;
+        window._chiguaCurrentCatName = resolvedName; // 供抖音模式入口/沉浸流标题读取
+        // 同步抖音模式按钮的分类名
+        const douyinCat = document.getElementById('chiguaDouyinCatName');
+        if (douyinCat) douyinCat.textContent = resolvedName;
         _loadChiguaCategoryPage(resolvedSlug, resolvedName, 1, false);
     };
 
@@ -12276,6 +12288,38 @@ window.clearNovelSearch = function() {
         return items;
     }
 
+    // 吃瓜页面常驻"抖音模式"入口：以当前分类的列表进入沉浸刷（先选分类 → 再点此按钮）
+    window.enterChiguaFeedCurrentCategory = function(btn) {
+        try {
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>正在装载「' + (window._chiguaCurrentCatName || '首页最新') + '」...</span>';
+            }
+            const start = function() {
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-arrows-up-down" style="font-size:18px;"></i> <span>抖音模式 · 沉浸刷「<span id="chiguaDouyinCatName">' + (window._chiguaCurrentCatName || '首页最新') + '</span>」</span> <i class="fas fa-chevron-right" style="opacity:0.8; font-size:13px;"></i>';
+                }
+                if (window.LyaFeed && typeof window.LyaFeed.openChigua === 'function') {
+                    window.LyaFeed.openChigua(0);
+                }
+            };
+            if (window.LyaFeed) {
+                start();
+            } else if (!document.getElementById('lya-feed-fw')) {
+                const s = document.createElement('script');
+                s.id = 'lya-feed-fw';
+                s.src = 'feed.js?v=20261121';
+                s.onload = start;
+                s.onerror = start;
+                document.head.appendChild(s);
+            } else {
+                setTimeout(start, 400);
+            }
+        } catch (e) {
+            console.warn('抖音模式入口异常:', e);
+            if (btn) btn.innerHTML = '<i class="fas fa-arrows-up-down" style="font-size:18px;"></i> <span>抖音模式 · 沉浸刷</span>';
+        }
+    };
+
     // 吃瓜 Tab 直达弹窗：进入即询问"沉浸刷瓜"或"普通浏览"（本会话选择普通浏览后不再打扰）
     window.openChiguaModeSheet = function() {
         if (document.getElementById('chiguaModeSheetOv')) return;
@@ -12288,9 +12332,9 @@ window.clearNovelSearch = function() {
                     <i class="fas fa-fire-flame-curved" style="color:#fb7185; font-size:18px;"></i>
                     <div style="font-size:16.5px; font-weight:800; color:#fff;">吃瓜 · 选择刷瓜方式</div>
                 </div>
-                <div style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">沉浸模式 = 抖音式全屏上下滑，视频自动连播；普通模式 = 图文列表浏览</div>
-                <button class="chigua-mode-big-btn" id="chiguaSheetImmersive"><i class="fas fa-arrows-up-down"></i> 沉浸式刷瓜（推荐）</button>
-                <button class="chigua-mode-plain-btn" id="chiguaSheetPlain"><i class="fas fa-list"></i> 普通浏览列表</button>
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">沉浸模式 = 抖音式全屏上下滑，视频自动连播（可随时切分类再进）；普通模式 = 图文列表浏览</div>
+                <button class="chigua-mode-big-btn" id="chiguaSheetImmersive"><i class="fas fa-arrows-up-down"></i> 沉浸式刷瓜 · 「<span id="chiguaSheetCatName">${(window._chiguaCurrentCatName || '首页最新')}</span>」</button>
+                <button class="chigua-mode-plain-btn" id="chiguaSheetPlain"><i class="fas fa-list"></i> 普通浏览列表（页面顶部随时可再进抖音模式）</button>
             </div>
         `;
         ov.addEventListener('click', function(e) {
@@ -12311,12 +12355,7 @@ window.clearNovelSearch = function() {
         });
         document.getElementById('chiguaSheetImmersive').onclick = function() {
             closeSheet();
-            // 确保沉浸流框架就绪后从第 0 篇开刷
-            const start = () => {
-                if (window.LyaFeed && typeof window.LyaFeed.openChigua === 'function') window.LyaFeed.openChigua(0);
-            };
-            if (window.LyaFeed) start();
-            else setTimeout(start, 500);
+            window.enterChiguaFeedCurrentCategory(document.getElementById('chiguaDouyinModeBtn'));
         };
         document.getElementById('chiguaSheetPlain').onclick = function() {
             sessionStorage.setItem('lya_chigua_sheet_dismissed', '1');

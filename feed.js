@@ -373,8 +373,9 @@
             function setTitle(item) {
                 var t = document.getElementById('lyaFeedTitle');
                 var s = document.getElementById('lyaFeedSub');
+                var cat = window._chiguaCurrentCatName || '';
                 if (t) t.textContent = item.vod_name || '吃瓜爆料';
-                if (s) s.textContent = (item.vod_class || '') + (item.vod_remarks ? ' · ' + item.vod_remarks : '');
+                if (s) s.textContent = (cat ? '「' + cat + '」 ' : '') + (item.vod_class || '') + (item.vod_remarks ? ' · ' + item.vod_remarks : '');
             }
 
             // 网络感知预取（danbo"仅 Wi-Fi 预载"模式）：省流模式/2G 直接跳过预取
@@ -447,25 +448,23 @@
                 });
             }
 
-            // 预取窗口：跟随当前文章位置向后 3 篇接力；失败的文章允许下次重试
-            function prefetchAround(centerArticleIdx) {
+            // 预取：从当前文章向后扫描，直到凑够 3 篇有视频的文章（无视频的自动跳过）；
+            // 网络失败的文章回滚标记允许重试
+            async function prefetchAround(centerArticleIdx) {
                 if (!prefetchAllowed()) return;
-                var jobs = [];
-                for (var off = 1; off <= 3; off++) {
-                    var nextIdx = centerArticleIdx + off;
-                    if (nextIdx < items.length && !items[nextIdx]._feedParsed) {
-                        items[nextIdx]._feedParsed = true;
-                        jobs.push(
-                            appendArticleSlides(items[nextIdx], nextIdx, false).then(function(count) {
-                                if (count === -1) {
-                                    // 网络失败：回滚标记，下次滑近时重试
-                                    items[nextIdx]._feedParsed = false;
-                                }
-                            })
-                        );
-                    }
+                var withVideos = 0;
+                var attempts = 0;
+                var scanIdx = centerArticleIdx + 1;
+                while (withVideos < 3 && scanIdx < items.length && attempts < 8) {
+                    attempts += 1;
+                    var it = items[scanIdx];
+                    if (!it || it._feedParsed) { scanIdx += 1; continue; }
+                    it._feedParsed = true;
+                    var count = await appendArticleSlides(it, scanIdx, false);
+                    if (count === -1) { it._feedParsed = false; break; } // 网络失败：停止本轮，滑近时重试
+                    if (count > 0) withVideos += 1;
+                    scanIdx += 1;
                 }
-                return Promise.all(jobs);
             }
 
             document.getElementById('lyaFeedClose').onclick = function() { window.LyaCloseFullScreen(); };
@@ -484,12 +483,41 @@
                 document.body.style.overflow = '';
             });
 
-            // 装载起始文章的视频
+            // 装载起始文章的视频；若首篇无视频/失败，自动向后扫描第一篇可刷的作为起点
             items[idx]._feedParsed = true;
             var firstCount = await appendArticleSlides(items[idx], idx, true);
             if (firstCount === -1 || slideMeta.length === 0) {
-                items[idx]._feedParsed = false; // 失败可重试
-                feedOv.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;flex-direction:column;gap:14px;"><i class="fas fa-face-frown" style="font-size:30px;color:#f43f5e;"></i><div style="font-size:14px;">' + (firstCount === -1 ? '网络异常，暂时无法提取视频，稍后再试' : '该篇没有可提取的视频，直接看详情页图集吧') + '</div></div>';
+                if (firstCount === 0) {
+                    // 首篇没有视频：向后找第一篇有视频的文章作为起点（最多向后扫 10 篇）
+                    var scanIdx = idx + 1;
+                    var tries = 0;
+                    while (slideMeta.length === 0 && scanIdx < items.length && tries < 10) {
+                        tries += 1;
+                        var cand = items[scanIdx];
+                        if (cand && !cand._feedParsed) {
+                            cand._feedParsed = true;
+                            var c = await appendArticleSlides(cand, scanIdx, true);
+                            if (c === -1) { cand._feedParsed = false; break; }
+                            if (c > 0) { idx = scanIdx; }
+                        }
+                        scanIdx += 1;
+                    }
+                }
+            }
+            if (firstCount === -1 && slideMeta.length === 0) {
+                items[idx]._feedParsed = false;
+                feedOv.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;flex-direction:column;gap:14px;"><i class="fas fa-face-frown" style="font-size:30px;color:#f43f5e;"></i><div style="font-size:14px;">网络异常，暂时无法提取视频，稍后再试</div></div>';
+                var netBtn = document.createElement('button');
+                netBtn.className = 'lya-feed-close-btn';
+                netBtn.innerHTML = '<i class="fas fa-xmark"></i>';
+                netBtn.style.cssText = 'position:absolute;top:calc(env(safe-area-inset-top, 0px) + 10px);left:12px;';
+                netBtn.onclick = function() { window.LyaCloseFullScreen(); };
+                feedOv.appendChild(netBtn);
+                return;
+            }
+            if (slideMeta.length === 0) {
+                items[idx]._feedParsed = false;
+                feedOv.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;flex-direction:column;gap:14px;"><i class="fas fa-face-frown" style="font-size:30px;color:#f43f5e;"></i><div style="font-size:14px;">这个分类暂时没有可提取的视频，换个分类或直接看图文列表吧</div></div>';
                 var backBtn = document.createElement('button');
                 backBtn.className = 'lya-feed-close-btn';
                 backBtn.innerHTML = '<i class="fas fa-xmark"></i>';
