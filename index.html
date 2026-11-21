@@ -5376,7 +5376,23 @@
                 <div class="kanju-hot-chips" id="chiguaCategoryChips"></div>
 
 
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 12px 0;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h4 id="chiguaFeedTitle" style="font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-fire-flame-curved" style="color:#f43f5e;"></i> <span>黑料不打烊 - 吃瓜黑料24小时不打烊</span>
+                    </h4>
+                </div>
+                <span id="chiguaCountBadge" style="font-size:11px; color:#fb7185; background:rgba(244,63,94,0.12); padding:4px 12px; border-radius:20px; border:1px solid rgba(244,63,94,0.3);">实时更新</span>
             </div>
+
+            <div id="chiguaGrid" class="video-grid"></div>
+
+            <div id="chiguaLoadMoreWrap" style="display:none; text-align:center; margin: 22px 0 10px;">
+                <button class="btn primary" id="chiguaLoadMoreBtn" style="padding:10px 28px; font-size:13px; background:linear-gradient(135deg, #f43f5e, #e11d48); border:none;" onclick="window.loadMoreChiguaPage()">
+                    <i class="fas fa-angles-down"></i> 加载下一页吃瓜
+                </button>
+</div>
         </div>
 
         <!-- 吃瓜原生纯享详情视图（仅保留原站标题 + 视频播放 + 实拍图片流，自动剔除一切文字与广告） -->
