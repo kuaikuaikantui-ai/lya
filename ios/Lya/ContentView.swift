@@ -1,8 +1,88 @@
 import SwiftUI
 import WebKit
 import AVFoundation
+import AVKit
 import MediaPlayer
 import UIKit
+
+final class LyaTTSManager: NSObject, AVSpeechSynthesizerDelegate {
+    private let synthesizer = AVSpeechSynthesizer()
+    private var chunks: [String] = []
+    private var chunkIndex: Int = 0
+    private var rate: Float = 0.52
+    private var isStoppedManually = false
+    var onFinishedChapter: (() -> Void)?
+
+    override init() {
+        super.init()
+        synthesizer.delegate = self
+    }
+
+    func speak(text: String, speedMultiplier: Float = 1.0) {
+        stop(silent: true)
+        isStoppedManually = false
+        let mappedRate = min(max(0.45 * speedMultiplier, 0.35), 0.68)
+        self.rate = mappedRate
+
+        // Split long chapters cleanly so AVSpeechSynthesizer maintains crisp responsive pacing
+        let rawLines = text
+            .components(separatedBy: CharacterSet.newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        var built: [String] = []
+        var buf = ""
+        for line in rawLines {
+            if buf.count + line.count > 260 && !buf.isEmpty {
+                built.append(buf)
+                buf = line
+            } else {
+                buf = buf.isEmpty ? line : (buf + "。" + line)
+            }
+        }
+        if !buf.isEmpty { built.append(buf) }
+        guard !built.isEmpty else { return }
+        chunks = built
+        chunkIndex = 0
+        speakNextChunk()
+    }
+
+    private func speakNextChunk() {
+        guard !isStoppedManually, chunkIndex < chunks.count else {
+            if !isStoppedManually && chunkIndex >= chunks.count && !chunks.isEmpty {
+                onFinishedChapter?()
+            }
+            return
+        }
+        let utterance = AVSpeechUtterance(string: chunks[chunkIndex])
+        utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
+        utterance.rate = rate
+        utterance.pitchMultiplier = 1.0
+        synthesizer.speak(utterance)
+    }
+
+    func pause() {
+        if synthesizer.isSpeaking { synthesizer.pauseSpeaking(at: .word) }
+    }
+
+    func resume() {
+        if synthesizer.isPaused { synthesizer.continueSpeaking() }
+    }
+
+    func stop(silent: Bool = false) {
+        isStoppedManually = true
+        chunks = []
+        chunkIndex = 0
+        if synthesizer.isSpeaking || synthesizer.isPaused {
+            synthesizer.stopSpeaking(at: .immediate)
+        }
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        guard !isStoppedManually else { return }
+        chunkIndex += 1
+        speakNextChunk()
+    }
+}
 
 struct OrientationHelper {
     static func forceLandscape() {
@@ -197,10 +277,14 @@ struct LyaWebView: UIViewRepresentable {
 
         let userContent = WKUserContentController()
 
-        // 注册原生 Bridge：方向同步 / 触感反馈 / 屏幕常亮（播放与阅读期间保持常亮）/ kanju 官方线路解析桥
+        // 注册原生 Bridge：方向同步 / 触感反馈 / 屏幕常亮 / 亮度控制 / AirPlay / 锁屏媒体 / 离线TTS / kanju 桥
         userContent.add(context.coordinator, name: "nativeOrientation")
         userContent.add(context.coordinator, name: "nativeHaptic")
         userContent.add(context.coordinator, name: "nativeScreenSleep")
+        userContent.add(context.coordinator, name: "nativeBrightness")
+        userContent.add(context.coordinator, name: "nativeAirPlay")
+        userContent.add(context.coordinator, name: "nativeNowPlaying")
+        userContent.add(context.coordinator, name: "nativeTTS")
         userContent.add(context.coordinator, name: "kanjuRequest")
 
         // 广告免疫：CSS 兜底隐藏 + MutationObserver 定向清除（替代原先每 1.2s 全页轮询，
@@ -298,9 +382,22 @@ struct LyaWebView: UIViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         let parent: LyaWebView
         var lastTrigger = UUID()
+        private let ttsManager = LyaTTSManager()
+        private var remoteCommandsConfigured = false
+        private lazy var airPlayPicker: AVRoutePickerView = {
+            let picker = AVRoutePickerView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
+            picker.isHidden = true
+            return picker
+        }()
 
         init(parent: LyaWebView) {
             self.parent = parent
+            super.init()
+            ttsManager.onFinishedChapter = { [weak self] in
+                DispatchQueue.main.async {
+                    self?.parent.sharedWebView?.evaluateJavaScript("if(window.__lyaOnNativeTTSEnd){window.__lyaOnNativeTTSEnd();}", completionHandler: nil)
+                }
+            }
         }
 
         func loadContent(in webView: WKWebView, serverUrl: String, isOffline: Bool) {
@@ -373,6 +470,67 @@ struct LyaWebView: UIViewRepresentable {
                 if let mode = message.body as? String {
                     DispatchQueue.main.async {
                         UIApplication.shared.isIdleTimerDisabled = (mode == "on")
+                    }
+                }
+            case "nativeBrightness":
+                if let dict = message.body as? [String: Any], let action = dict["action"] as? String {
+                    DispatchQueue.main.async {
+                        let activeScene = UIApplication.shared.connectedScenes
+                            .compactMap { $0 as? UIWindowScene }
+                            .first(where: { $0.activationState == .foregroundActive })
+                            ?? UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
+                        guard let screen = activeScene?.screen else { return }
+                        if action == "get" {
+                            let val = Double(screen.brightness)
+                            self.parent.sharedWebView?.evaluateJavaScript("if(window.__lyaOnNativeBrightness)window.__lyaOnNativeBrightness(\(val));", completionHandler: nil)
+                        } else if action == "set", let val = dict["value"] as? Double {
+                            screen.brightness = CGFloat(min(max(val, 0.02), 1.0))
+                        }
+                    }
+                }
+            case "nativeAirPlay":
+                DispatchQueue.main.async {
+                    if self.airPlayPicker.superview == nil, let topView = self.getTopViewController()?.view {
+                        topView.addSubview(self.airPlayPicker)
+                    }
+                    for subview in self.airPlayPicker.subviews {
+                        if let btn = subview as? UIButton {
+                            btn.sendActions(for: .touchUpInside)
+                            break
+                        }
+                    }
+                }
+            case "nativeNowPlaying":
+                if let dict = message.body as? [String: Any] {
+                    DispatchQueue.main.async {
+                        self.setupRemoteCommandsIfNeeded()
+                        var info: [String: Any] = [:]
+                        if let title = dict["title"] as? String { info[MPMediaItemPropertyTitle] = title }
+                        if let artist = dict["artist"] as? String { info[MPMediaItemPropertyArtist] = artist }
+                        if let duration = dict["duration"] as? Double, duration > 0 { info[MPMediaItemPropertyPlaybackDuration] = duration }
+                        if let elapsed = dict["elapsed"] as? Double, elapsed >= 0 { info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed }
+                        let rate = (dict["rate"] as? Double) ?? 1.0
+                        info[MPNowPlayingInfoPropertyPlaybackRate] = rate
+                        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+                    }
+                }
+            case "nativeTTS":
+                if let dict = message.body as? [String: Any], let action = dict["action"] as? String {
+                    DispatchQueue.main.async {
+                        switch action {
+                        case "speak":
+                            let text = (dict["text"] as? String) ?? ""
+                            let speed = Float((dict["rate"] as? Double) ?? 1.0)
+                            self.ttsManager.speak(text: text, speedMultiplier: speed)
+                        case "pause":
+                            self.ttsManager.pause()
+                        case "resume":
+                            self.ttsManager.resume()
+                        case "stop":
+                            self.ttsManager.stop()
+                        default:
+                            break
+                        }
                     }
                 }
             case "kanjuRequest":
@@ -455,6 +613,33 @@ struct LyaWebView: UIViewRepresentable {
                         completion(s)
                     }
                 }
+            }
+        }
+
+        private func setupRemoteCommandsIfNeeded() {
+            guard !remoteCommandsConfigured else { return }
+            remoteCommandsConfigured = true
+            let cc = MPRemoteCommandCenter.shared()
+            cc.playCommand.isEnabled = true
+            cc.playCommand.addTarget { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.parent.sharedWebView?.evaluateJavaScript("if(window.__lyaOnRemoteMediaCommand)window.__lyaOnRemoteMediaCommand('play');", completionHandler: nil)
+                }
+                return .success
+            }
+            cc.pauseCommand.isEnabled = true
+            cc.pauseCommand.addTarget { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.parent.sharedWebView?.evaluateJavaScript("if(window.__lyaOnRemoteMediaCommand)window.__lyaOnRemoteMediaCommand('pause');", completionHandler: nil)
+                }
+                return .success
+            }
+            cc.togglePlayPauseCommand.isEnabled = true
+            cc.togglePlayPauseCommand.addTarget { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.parent.sharedWebView?.evaluateJavaScript("if(window.__lyaOnRemoteMediaCommand)window.__lyaOnRemoteMediaCommand('toggle');", completionHandler: nil)
+                }
+                return .success
             }
         }
 

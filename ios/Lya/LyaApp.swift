@@ -34,7 +34,7 @@ struct LyaApp: App {
             try AVAudioSession.sharedInstance().setCategory(
                 .playback,
                 mode: .moviePlayback,
-                options: [.mixWithOthers, .allowAirPlay]
+                options: [.allowAirPlay]
             )
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {

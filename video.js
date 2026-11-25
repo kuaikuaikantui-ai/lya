@@ -2502,23 +2502,36 @@
         // 绑定自动跳片头、自动连播下一集及弹幕状态同步
         setTimeout(async () => {
             if (window.dpInstance) {
-                // 1. 尝试获取原站真实跳过片头片尾预设
+                // 1. 先检查用户为本剧专属记忆的片头起点（danbo 同款片头/片尾记忆），再兜底原站社区众包时间戳
                 let introSeconds = 0;
+                const seriesKey = (videoTitle || '').trim();
                 try {
-                    let metaUrl = '/api/video/meta?title=' + encodeURIComponent(videoTitle);
-                    if (kanjuCardId) metaUrl += '&id=' + encodeURIComponent(kanjuCardId);
-                    const metaRes = await fetch(metaUrl);
-                    if (metaRes.ok) {
-                        const metaJson = await metaRes.json();
-                        if (metaJson.skip_preset && metaJson.skip_preset.intro_end > 0) {
-                            introSeconds = metaJson.skip_preset.intro_end;
-                            window.currentIntroSeconds = introSeconds;
-                            const descEl = document.getElementById('skipIntroDescText');
-                            if (descEl) descEl.innerText = '已同步原站众包片头点: ' + introSeconds + '秒';
-                            console.log('[OpenHappy Video] 获取到原站片头跳过点: ' + introSeconds + '秒');
-                        }
+                    const prefs = JSON.parse(localStorage.getItem('lya_skip_prefs') || '{}');
+                    if (seriesKey && prefs[seriesKey] && prefs[seriesKey].introSec > 5) {
+                        introSeconds = prefs[seriesKey].introSec;
+                        window.currentIntroSeconds = introSeconds;
+                        const descEl = document.getElementById('skipIntroDescText');
+                        if (descEl) descEl.innerText = '已使用本剧记忆片头起点: ' + introSeconds + '秒';
                     }
-                } catch(e) {}
+                } catch (pe) {}
+
+                if (!introSeconds) {
+                    try {
+                        let metaUrl = '/api/video/meta?title=' + encodeURIComponent(videoTitle);
+                        if (kanjuCardId) metaUrl += '&id=' + encodeURIComponent(kanjuCardId);
+                        const metaRes = await fetch(metaUrl);
+                        if (metaRes.ok) {
+                            const metaJson = await metaRes.json();
+                            if (metaJson.skip_preset && metaJson.skip_preset.intro_end > 0) {
+                                introSeconds = metaJson.skip_preset.intro_end;
+                                window.currentIntroSeconds = introSeconds;
+                                const descEl = document.getElementById('skipIntroDescText');
+                                if (descEl) descEl.innerText = '已同步原站众包片头点: ' + introSeconds + '秒';
+                                console.log('[OpenHappy Video] 获取到原站片头跳过点: ' + introSeconds + '秒');
+                            }
+                        }
+                    } catch(e) {}
+                }
 
                 // 如果原站无预设，但开启了跳过片头，动漫/电视剧通用片头通常为 90 秒
                 if (!introSeconds) {
@@ -2526,15 +2539,46 @@
                     introSeconds = isAnimeOrDrama ? 90 : 0;
                 }
 
+                // iOS 锁屏媒体中心 & 灵动岛状态同步函数
+                const pushNativeNowPlaying = function(rateOverride) {
+                    if (!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeNowPlaying)) return;
+                    const v = window.dpInstance && window.dpInstance.video;
+                    if (!v) return;
+                    try {
+                        window.webkit.messageHandlers.nativeNowPlaying.postMessage({
+                            title: videoTitle || 'Lya 影院',
+                            artist: (ep && ep.title ? ep.title : '') + (group && group.name ? ' · ' + group.name : ''),
+                            duration: (v.duration && isFinite(v.duration)) ? v.duration : 0,
+                            elapsed: v.currentTime || 0,
+                            rate: (typeof rateOverride === 'number') ? rateOverride : (v.paused ? 0.0 : (v.playbackRate || 1.0))
+                        });
+                    } catch (ne) {}
+                };
+
+                window.__lyaOnRemoteMediaCommand = function(cmd) {
+                    if (!window.dpInstance) return;
+                    if (cmd === 'play') window.dpInstance.play();
+                    else if (cmd === 'pause') window.dpInstance.pause();
+                    else if (cmd === 'toggle') window.dpInstance.toggle();
+                    pushNativeNowPlaying();
+                };
+
                 // 监听开始播放：恢复跨端观看秒数 或 自动跳片头 + 定期保存播放秒数
                 let hasSkippedIntro = false;
                 let hasResumedTime = false;
                 let lastSavedSec = resumePlaySeconds || 0;
                 let lastCloudPushAt = Date.now();
+                let lastNowPlayingPush = 0;
+                window.dpInstance.on('play', function() { pushNativeNowPlaying(); });
                 window.dpInstance.on('timeupdate', function() {
                     if (!window.dpInstance || !window.dpInstance.video) return;
                     const cur = window.dpInstance.video.currentTime || 0;
                     const dur = window.dpInstance.video.duration || 0;
+
+                    if (Date.now() - lastNowPlayingPush > 5000) {
+                        lastNowPlayingPush = Date.now();
+                        pushNativeNowPlaying();
+                    }
 
                     if (!hasResumedTime && resumePlaySeconds > 3 && cur > 0.3) {
                         hasResumedTime = true;
@@ -2573,6 +2617,7 @@
                 window.dpInstance.on('seeked', function() {
                     if (!window.dpInstance || !window.dpInstance.video || !window.currentVideo) return;
                     const cur = Math.floor(window.dpInstance.video.currentTime || 0);
+                    pushNativeNowPlaying();
                     if (cur > 8) {
                         lastSavedSec = cur;
                         lastCloudPushAt = Date.now();
@@ -2583,6 +2628,7 @@
                 window.dpInstance.on('pause', function() {
                     if (!window.dpInstance || !window.dpInstance.video || !window.currentVideo) return;
                     const cur = Math.floor(window.dpInstance.video.currentTime || 0);
+                    pushNativeNowPlaying(0.0);
                     if (cur > 8) {
                         lastSavedSec = cur;
                         lastCloudPushAt = Date.now();
@@ -2727,6 +2773,25 @@
             pipBtn.innerHTML = '<span class="dplayer-icon-content"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z"/></svg></span>';
             
             frag.appendChild(pipBtn);
+
+            // (F) iOS AirPlay 隔空投屏按钮
+            if ((window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeAirPlay) || (typeof WebKitPlaybackTargetAvailabilityEvent !== 'undefined')) {
+                const airBtn = document.createElement('button');
+                airBtn.type = 'button';
+                airBtn.className = 'dplayer-icon dp-custom-icon-btn dp-airplay-icon-btn';
+                airBtn.title = 'AirPlay 隔空投屏';
+                airBtn.setAttribute('aria-label', 'AirPlay 隔空投屏');
+                airBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeAirPlay) {
+                        window.webkit.messageHandlers.nativeAirPlay.postMessage('open');
+                    } else if (window.dpInstance && window.dpInstance.video && typeof window.dpInstance.video.webkitShowPlaybackTargetPicker === 'function') {
+                        window.dpInstance.video.webkitShowPlaybackTargetPicker();
+                    }
+                };
+                airBtn.innerHTML = '<span class="dplayer-icon-content"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M6 22h12l-6-6-6 6zM21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4v-2H3V5h18v12h-4v2h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg></span>';
+                frag.appendChild(airBtn);
+            }
             rightIcons.insertBefore(frag, settingWrap);
 
             // 全屏按钮：使用 DPlayer 纯正 Web 全屏 + 原生硬件横屏联动 (不重新加载、0ms秒切、弹幕与全部功能完整保留)
@@ -2863,7 +2928,7 @@
                 () => window.toggleLockBoost()
             ));
 
-            // (7) 快捷手动跳过片头 (+85秒)
+            // (7) 快捷手动跳过片头 (+85秒) & 本剧片头定点记忆
             const skipActionRow = document.createElement('div');
             skipActionRow.className = 'dplayer-setting-item dp-custom-setting-row dp-custom-action-row';
             skipActionRow.innerHTML = `
@@ -2878,6 +2943,37 @@
                 if (settingBox) settingBox.classList.remove('dplayer-setting-box-open');
             };
             originPanel.appendChild(skipActionRow);
+
+            const pinIntroRow = document.createElement('div');
+            pinIntroRow.className = 'dplayer-setting-item dp-custom-setting-row dp-custom-action-row';
+            pinIntroRow.innerHTML = `
+                <span class="dplayer-label" style="color:#10b981;font-weight:600;"><i class="fas fa-thumbtack"></i> 设为本剧片头终点</span>
+                <span style="font-size:11px;color:#10b981;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;">记忆起点</span>
+            `;
+            pinIntroRow.onclick = function(e) {
+                e.stopPropagation();
+                const v = window.dpInstance && window.dpInstance.video;
+                const curSec = v ? Math.floor(v.currentTime || 0) : 0;
+                const sName = (window.currentVideo && (window.currentVideo.kanju_title || window.currentVideo.vod_name || '')).trim();
+                if (curSec > 5 && sName) {
+                    try {
+                        const prefs = JSON.parse(localStorage.getItem('lya_skip_prefs') || '{}');
+                        prefs[sName] = { ...(prefs[sName] || {}), introSec: curSec, at: Date.now() };
+                        localStorage.setItem('lya_skip_prefs', JSON.stringify(prefs));
+                        window.currentIntroSeconds = curSec;
+                        const descEl = document.getElementById('skipIntroDescText');
+                        if (descEl) descEl.innerText = '已记忆本剧片头起点: ' + curSec + '秒';
+                        if (window.dpInstance && window.dpInstance.notice) {
+                            window.dpInstance.notice(`已记住《${sName}》片头终点 (${curSec}秒)，全剧自动跳过`, 2400);
+                        }
+                    } catch (pe) {}
+                } else if (window.dpInstance && window.dpInstance.notice) {
+                    window.dpInstance.notice('请在片头结束位置点击（>5秒）', 1800);
+                }
+                const settingBox = dpContainer.querySelector('.dplayer-setting-box');
+                if (settingBox) settingBox.classList.remove('dplayer-setting-box-open');
+            };
+            originPanel.appendChild(pinIntroRow);
         }
 
         // 3. 移动端/触屏长按 2.0X 极速播放（原站手感版）：
@@ -2899,6 +2995,28 @@
             let startTouchX = 0;
             let startTouchY = 0;
             let suppressClickUntil = 0;
+            let swipeMode = null; // 'brightness' | 'seek'
+            let baseBrightness = 0.6;
+            let baseSeekTime = 0;
+            let pendingSeekTarget = null;
+            let webDimLayer = dpContainer.querySelector('.dp-web-dim-layer');
+            if (!webDimLayer) {
+                webDimLayer = document.createElement('div');
+                webDimLayer.className = 'dp-web-dim-layer';
+                webDimLayer.style.cssText = 'position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:12;transition:opacity 0.06s;';
+                videoWrap.appendChild(webDimLayer);
+            }
+            window.__lyaOnNativeBrightness = function(val) {
+                if (typeof val === 'number' && !isNaN(val)) baseBrightness = val;
+            };
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeBrightness) {
+                try { window.webkit.messageHandlers.nativeBrightness.postMessage({ action: 'get' }); } catch (e) {}
+            }
+
+            const gestureHud = document.createElement('div');
+            gestureHud.className = 'dp-gesture-hud';
+            gestureHud.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(8,12,22,0.85);color:#fff;padding:8px 16px;border-radius:14px;font-size:14px;font-weight:700;z-index:99;border:1px solid rgba(255,255,255,0.2);pointer-events:none;opacity:0;transition:opacity 0.12s;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,0.45);';
+            videoWrap.appendChild(gestureHud);
 
             const triggerHaptic = function() {
                 try {
@@ -2912,7 +3030,7 @@
 
             const engageSpeedBoost = function() {
                 const video = (window.dpInstance && window.dpInstance.video) ? window.dpInstance.video : null;
-                if (!video || video.paused) return;
+                if (!video || video.paused || swipeMode) return;
                 isLongPressing = true;
                 window._lyaSpeedBoostActive = true;
                 origSpeed = (video.playbackRate > 0) ? video.playbackRate : 1.0;
@@ -2929,6 +3047,17 @@
                     clearTimeout(longPressTimer);
                 }
                 longPressTimer = null;
+                if (swipeMode === 'seek' && pendingSeekTarget !== null && window.dpInstance) {
+                    try { window.dpInstance.seek(pendingSeekTarget); } catch (se) {}
+                    pendingSeekTarget = null;
+                    suppressClickUntil = Date.now() + 300;
+                } else if (swipeMode === 'brightness') {
+                    suppressClickUntil = Date.now() + 250;
+                }
+                if (swipeMode) {
+                    swipeMode = null;
+                    gestureHud.style.opacity = '0';
+                }
                 if (isLongPressing) {
                     isLongPressing = false;
                     window._lyaSpeedBoostActive = false;
@@ -2971,6 +3100,8 @@
             window._lyaOnPlayerRebuilt = function() {
                 window._lyaSpeedBoostActive = false;
                 window._lyaLockedBoost = false;
+                swipeMode = null;
+                pendingSeekTarget = null;
                 if (typeof window._lyaCancelSpeedBoost === 'function') window._lyaCancelSpeedBoost();
             };
 
@@ -2984,11 +3115,18 @@
                 }
                 startTouchX = e.touches[0].clientX;
                 startTouchY = e.touches[0].clientY;
+                swipeMode = null;
+                pendingSeekTarget = null;
                 // 屏幕左右边缘 24px 是 iOS 系统返回/通知手势的冲突区，长按会与系统手势打架造成卡顿体感
                 if (startTouchX < 24 || startTouchX > (window.innerWidth - 24)) {
                     return;
                 }
                 window._lyaCancelSpeedBoost();
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeBrightness) {
+                    try { window.webkit.messageHandlers.nativeBrightness.postMessage({ action: 'get' }); } catch (err) {}
+                }
+                const v = (window.dpInstance && window.dpInstance.video) ? window.dpInstance.video : null;
+                if (v) baseSeekTime = v.currentTime || 0;
 
                 // 第一帧：只做 HUD 淡入（即时视觉反馈，纯合成器操作）
                 speedHud.style.opacity = '1';
@@ -2998,14 +3136,52 @@
             }, { passive: true });
 
             videoWrap.addEventListener('touchmove', function(e) {
-                if (longPressTimer && e.touches.length > 0) {
-                    const dx = Math.abs(e.touches[0].clientX - startTouchX);
-                    const dy = Math.abs(e.touches[0].clientY - startTouchY);
-                    if (dx > 12 || dy > 12) {
-                        window._lyaCancelSpeedBoost();
-                        speedHud.style.opacity = '0';
-                        speedHud.style.transform = 'translateX(-50%) scale(0.82)';
+                if (e.touches.length !== 1 || isLongPressing) return;
+                const rawDx = e.touches[0].clientX - startTouchX;
+                const rawDy = e.touches[0].clientY - startTouchY;
+                const absDx = Math.abs(rawDx);
+                const absDy = Math.abs(rawDy);
+
+                if (longPressTimer && (absDx > 12 || absDy > 12)) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                    speedHud.style.opacity = '0';
+                    speedHud.style.transform = 'translateX(-50%) scale(0.82)';
+                }
+
+                const rect = videoWrap.getBoundingClientRect();
+                if (!swipeMode) {
+                    if (absDx > 18 && absDx > absDy * 1.3) {
+                        swipeMode = 'seek';
+                    } else if (absDy > 18 && absDy > absDx * 1.3 && (startTouchX - rect.left) < rect.width * 0.42) {
+                        swipeMode = 'brightness';
                     }
+                }
+
+                if (swipeMode === 'brightness') {
+                    const delta = -rawDy / Math.max(rect.height * 0.75, 140);
+                    const nextB = Math.min(1.0, Math.max(0.05, baseBrightness + delta));
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeBrightness) {
+                        try { window.webkit.messageHandlers.nativeBrightness.postMessage({ action: 'set', value: nextB }); } catch (err) {}
+                    } else {
+                        webDimLayer.style.opacity = String(Math.max(0, (1 - nextB) * 0.75).toFixed(2));
+                    }
+                    gestureHud.textContent = '☀️ 亮度 ' + Math.round(nextB * 100) + '%';
+                    gestureHud.style.opacity = '1';
+                } else if (swipeMode === 'seek') {
+                    const v = (window.dpInstance && window.dpInstance.video) ? window.dpInstance.video : null;
+                    const dur = (v && isFinite(v.duration) && v.duration > 0) ? v.duration : 3600;
+                    const deltaSec = Math.round((rawDx / Math.max(rect.width, 280)) * 120);
+                    const targetSec = Math.max(0, Math.min(dur, baseSeekTime + deltaSec));
+                    pendingSeekTarget = targetSec;
+                    const sign = deltaSec >= 0 ? '⏩ +' : '⏪ ';
+                    const fmt = (sec) => {
+                        const m = String(Math.floor(sec / 60)).padStart(2, '0');
+                        const s = String(Math.floor(sec % 60)).padStart(2, '0');
+                        return m + ':' + s;
+                    };
+                    gestureHud.textContent = `${sign}${deltaSec}s (${fmt(targetSec)} / ${fmt(dur)})`;
+                    gestureHud.style.opacity = '1';
                 }
             }, { passive: true });
 

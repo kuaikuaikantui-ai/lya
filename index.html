@@ -5487,7 +5487,10 @@
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; flex-wrap:wrap;">
             <h4 style="font-size: 14px; margin: 0;">📑 完整章节目录 <span id="detailCatalogCountBadge" style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;"></span></h4>
-            <div style="display:flex; gap:6px; align-items:center;">
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <button class="btn" id="detailOfflineCacheBtn" style="padding:4px 10px; font-size:11.5px; color:#38bdf8;" onclick="startBatchOfflineCache(50)">
+                    <i class="fas fa-download"></i> <span id="detailOfflineCacheLabel">缓存后50章</span>
+                </button>
                 <button class="btn" id="detailCatalogSortBtn" style="padding:4px 10px; font-size:11.5px;" onclick="toggleDetailCatalogOrder()">
                     <i class="fas fa-sort-numeric-down"></i> <span id="detailCatalogSortLabel">正序 (1→最新)</span>
                 </button>
@@ -5513,6 +5516,7 @@
                     <span id="readProgressText" class="reader-progress-pill">进度更新中...</span>
                 </div>
                 <div class="reader-top-actions" style="display:flex; gap:6px; flex-shrink:0;">
+                    <button class="btn" id="readerTtsBtn" onclick="toggleNovelTTS()" title="免费离线语音听书（支持iOS锁屏后台连读）"><i class="fas fa-headphones" id="readerTtsIcon"></i> <span id="readerTtsLabel">听书</span></button>
                     <button class="btn reader-cloud-sync-btn" id="readerCloudSyncBtn" onclick="syncNovelReadingProgressNow(true)" title="双端云同步阅读进度"><i class="fas fa-cloud" id="readerCloudSyncIcon"></i> <span id="readerCloudSyncLabel">同步</span></button>
                     <button class="btn" onclick="readChapter(currentChapterIndex, true)" title="强制刷新当前章节"><i class="fas fa-sync-alt"></i></button>
                     <button class="btn" onclick="openReaderCatalogModal()" title="章节目录"><i class="fas fa-list-ul"></i> 目录</button>
@@ -10633,6 +10637,176 @@ window.clearNovelSearch = function() {
         };
     };
 
+    // ==================== 离线 IndexedDB 章节持久化库 & 本地免流量 TTS 听书引擎 ====================
+    const LyaOfflineBookDB = (() => {
+        let dbPromise = null;
+        function openDB() {
+            if (dbPromise) return dbPromise;
+            dbPromise = new Promise((resolve, reject) => {
+                if (!window.indexedDB) { resolve(null); return; }
+                try {
+                    const req = indexedDB.open('LyaOfflineDB', 1);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('chapters')) {
+                            db.createObjectStore('chapters', { keyPath: 'k' });
+                        }
+                    };
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => resolve(null);
+                } catch (e) { resolve(null); }
+            });
+            return dbPromise;
+        }
+        async function getChapter(k) {
+            const db = await openDB();
+            if (!db) return null;
+            return new Promise((resolve) => {
+                try {
+                    const tx = db.transaction('chapters', 'readonly');
+                    const r = tx.objectStore('chapters').get(k);
+                    r.onsuccess = () => resolve(r.result ? r.result.data : null);
+                    r.onerror = () => resolve(null);
+                } catch (e) { resolve(null); }
+            });
+        }
+        async function putChapter(k, data) {
+            const db = await openDB();
+            if (!db || !data) return;
+            try {
+                const tx = db.transaction('chapters', 'readwrite');
+                tx.objectStore('chapters').put({ k, data, at: Date.now() });
+            } catch (e) {}
+        }
+        return { getChapter, putChapter };
+    })();
+
+    let _isBatchCaching = false;
+    window.startBatchOfflineCache = async function(limitCount = 50) {
+        if (!currentBookInfo || !Array.isArray(currentCatalog) || currentCatalog.length === 0) return;
+        if (_isBatchCaching) return;
+        _isBatchCaching = true;
+        const btnLabel = document.getElementById('detailOfflineCacheLabel');
+        const startIdx = Math.max(0, currentChapterIndex || 0);
+        const endIdx = Math.min(currentCatalog.length, startIdx + limitCount);
+        const total = endIdx - startIdx;
+        let done = 0, successCount = 0;
+
+        if (btnLabel) btnLabel.textContent = `缓存中 0/${total}`;
+        try {
+            let cursor = startIdx;
+            const worker = async () => {
+                while (cursor < endIdx && currentBookInfo) {
+                    const i = cursor++;
+                    try {
+                        const res = await fetchChapterDataWithCache(i, false);
+                        if (res && ((res.content && res.content.length > 30) || (Array.isArray(res.images) && res.images.length > 0))) {
+                            successCount++;
+                        }
+                    } catch (e) {}
+                    done++;
+                    if (btnLabel) btnLabel.textContent = `缓存中 ${done}/${total}`;
+                }
+            };
+            await Promise.all([worker(), worker(), worker()]);
+            if (btnLabel) btnLabel.textContent = `已离线缓存 ${successCount} 章`;
+            if (typeof showCloudToast === 'function') {
+                showCloudToast(`离线缓存完成！已存入 ${successCount} 章，无网也可秒开阅读`, 'fa-check-circle', '#10b981');
+            }
+        } finally {
+            _isBatchCaching = false;
+        }
+    };
+
+    // 免费本地 TTS 听书引擎（iOS App 走 AVSpeechSynthesizer 锁屏后台续听；桌面走 Web Speech API）
+    let _isNovelTTSActive = false;
+    let _lastRenderedNovelTextForTTS = '';
+    function updateNovelTTSButtonUI(active) {
+        const btn = document.getElementById('readerTtsBtn');
+        const icon = document.getElementById('readerTtsIcon');
+        const lbl = document.getElementById('readerTtsLabel');
+        if (btn) {
+            btn.style.borderColor = active ? '#10b981' : '';
+            btn.style.color = active ? '#10b981' : '';
+        }
+        if (icon) icon.className = active ? 'fas fa-volume-high fa-beat-fade' : 'fas fa-headphones';
+        if (lbl) lbl.textContent = active ? '停止听书' : '听书';
+    }
+
+    function speakCurrentNovelChapter() {
+        const text = _lastRenderedNovelTextForTTS || '';
+        const title = (currentCatalog[currentChapterIndex] && currentCatalog[currentChapterIndex].title) || '';
+        const fullSpeak = (title ? (title + '。\n') : '') + text;
+        if (!fullSpeak.trim()) {
+            _isNovelTTSActive = false;
+            updateNovelTTSButtonUI(false);
+            return;
+        }
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeTTS) {
+            try {
+                window.webkit.messageHandlers.nativeTTS.postMessage({ action: 'speak', text: fullSpeak, rate: 1.05 });
+                if (window.webkit.messageHandlers.nativeNowPlaying) {
+                    window.webkit.messageHandlers.nativeNowPlaying.postMessage({
+                        title: (currentBookInfo && currentBookInfo.book_name) || 'Lya 听书',
+                        artist: title || '有声阅读中',
+                        duration: 0,
+                        elapsed: 0,
+                        rate: 1.0
+                    });
+                }
+            } catch (e) {}
+        } else if ('speechSynthesis' in window) {
+            try {
+                window.speechSynthesis.cancel();
+                const utter = new SpeechSynthesisUtterance(fullSpeak.slice(0, 8000));
+                utter.lang = 'zh-CN';
+                utter.rate = 1.08;
+                utter.onend = () => {
+                    if (_isNovelTTSActive && typeof window.__lyaOnNativeTTSEnd === 'function') {
+                        window.__lyaOnNativeTTSEnd();
+                    }
+                };
+                window.speechSynthesis.speak(utter);
+            } catch (e) {}
+        }
+    }
+
+    window.stopNovelTTS = function() {
+        _isNovelTTSActive = false;
+        updateNovelTTSButtonUI(false);
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeTTS) {
+            try { window.webkit.messageHandlers.nativeTTS.postMessage({ action: 'stop' }); } catch (e) {}
+        } else if ('speechSynthesis' in window) {
+            try { window.speechSynthesis.cancel(); } catch (e) {}
+        }
+    };
+
+    window.toggleNovelTTS = function() {
+        if (_isNovelTTSActive) {
+            window.stopNovelTTS();
+            if (typeof showCloudToast === 'function') showCloudToast('已停止语音听书', 'fa-stop', '#94a3b8');
+            return;
+        }
+        if (!_lastRenderedNovelTextForTTS || _lastRenderedNovelTextForTTS.length < 10) {
+            if (typeof showCloudToast === 'function') showCloudToast('请打开小说正文后再开启听书', 'fa-info-circle', '#f59e0b');
+            return;
+        }
+        _isNovelTTSActive = true;
+        updateNovelTTSButtonUI(true);
+        speakCurrentNovelChapter();
+        if (typeof showCloudToast === 'function') showCloudToast('已开启语音听书（支持自动连播下一章）', 'fa-headphones', '#10b981');
+    };
+
+    window.__lyaOnNativeTTSEnd = async function() {
+        if (!_isNovelTTSActive) return;
+        if (currentCatalog && currentChapterIndex < currentCatalog.length - 1) {
+            await readChapter(currentChapterIndex + 1, false, 'first');
+        } else {
+            window.stopNovelTTS();
+            if (typeof showCloudToast === 'function') showCloudToast('全书已听完', 'fa-check-circle', '#10b981');
+        }
+    };
+
     async function fetchChapterDataWithCache(idx, forceRefresh = false, externalSignal = null) {
         const chap = currentCatalog[idx];
         if (!chap || !currentBookInfo) return null;
@@ -10640,6 +10814,13 @@ window.clearNovelSearch = function() {
         const cacheKey = `${currentBookInfo.source}__${currentBookInfo.book_id}__${chap.item_id}`;
         if (!forceRefresh && _novelChapterCache.has(cacheKey)) {
             return _novelChapterCache.get(cacheKey);
+        }
+        if (!forceRefresh) {
+            const dbHit = await LyaOfflineBookDB.getChapter(cacheKey);
+            if (dbHit && ((dbHit.content && dbHit.content.length > 50) || (Array.isArray(dbHit.images) && dbHit.images.length > 0))) {
+                _novelChapterCache.set(cacheKey, dbHit);
+                return dbHit;
+            }
         }
         if (forceRefresh) {
             _novelChapterCache.delete(cacheKey);
@@ -10668,6 +10849,7 @@ window.clearNovelSearch = function() {
                         _novelChapterCache.delete(firstKey);
                     }
                     _novelChapterCache.set(cacheKey, data);
+                    LyaOfflineBookDB.putChapter(cacheKey, data);
                     return data;
                 }
                 lastErr = (data && data.msg) || '章节内容为空';
@@ -10910,8 +11092,12 @@ window.clearNovelSearch = function() {
                     const sourceTag = document.getElementById('detailSourceTag');
                     if (sourceTag) sourceTag.innerText = data.newSource + ' (已自动接力)';
                 }
+                _lastRenderedNovelTextForTTS = cleanedText;
                 const formatted = formatNovelContentToHtml(cleanedText, chap.title, currentBookInfo, data ? data.images : []);
                 renderNovelIntoContainer(formatted, chap.title, idx, initialPage);
+                if (_isNovelTTSActive) {
+                    speakCurrentNovelChapter();
+                }
                 prefetchNextChapter(idx + 1, false);
                 return;
             }
@@ -12732,12 +12918,51 @@ window.openVideoPlayer = function(encodedItem) {
                 });
             }
 
-            // ========== 提取正文实拍图片（严格剔除横幅广告、底部推广图标与网址引导图） ==========
+            // ========== 提取正文实拍图片及合集子帖视频链接（支持 <a href><img ...></a> 及合集图前紧邻的子帖跳转按钮） ==========
             const encryptedImages = [];
             const seenImgUrls = new Set();
+            const collectionLinks = [];
+            const seenCollectionUrls = new Set();
             const articleBody = doc.querySelector('.post-content[itemprop="articleBody"], article .post-content, .entry-content, article') || doc;
-            articleBody.querySelectorAll('img[z-image-loader-url], img[data-xkrkllgl], img[data-src], img[src]').forEach((img, i) => {
-                if (img.closest('a.tjtagmanager, .horizontal-banner, .article-bottom-apps, .article-ads-btn, .top_picks, .top_picks_wrapper, .widget, footer, header, nav')) return;
+
+            const isValidCollectionHref = (rawHref) => {
+                if (!rawHref) return '';
+                const h = rawHref.trim();
+                if (!h || h === '#' || h.startsWith('javascript:') || h.startsWith('mailto:') || h.includes('/app.html') || h.includes('/weixin.html') || h.includes('/back-home.html') || h.includes('#comments')) return '';
+                try {
+                    const resolved = new URL(h, targetArticleUrl).href;
+                    if (resolved === targetArticleUrl) return '';
+                    if (/\/archives\/\d+|\/post\/|\/article\/|\/video\//i.test(resolved)) return resolved;
+                    return '';
+                } catch (e) { return ''; }
+            };
+
+            let activeSectionLink = null;
+            const walkNodes = articleBody.querySelectorAll('a[href], img[z-image-loader-url], img[data-xkrkllgl], img[data-src], img[src], hr');
+            let imgOrderCounter = 0;
+            walkNodes.forEach((node) => {
+                if (node.tagName === 'HR') {
+                    activeSectionLink = null;
+                    return;
+                }
+                if (node.closest('a.tjtagmanager, .horizontal-banner, .article-bottom-apps, .article-ads-btn, .top_picks, .top_picks_wrapper, .widget, footer, header, nav')) return;
+
+                if (node.tagName === 'A') {
+                    const subHref = isValidCollectionHref(node.getAttribute('href'));
+                    if (subHref) {
+                        const rawTitle = (node.getAttribute('title') || node.textContent || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+                        const titleText = rawTitle || `合集片段 #${collectionLinks.length + 1}`;
+                        activeSectionLink = { url: subHref, title: titleText };
+                        if (!seenCollectionUrls.has(subHref)) {
+                            seenCollectionUrls.add(subHref);
+                            collectionLinks.push({ url: subHref, title: titleText });
+                        }
+                    }
+                    return;
+                }
+
+                // IMG 节点
+                const img = node;
                 const imgId = img.getAttribute('id') || '';
                 if (imgId.startsWith('article-top-banner') || imgId.startsWith('hot-article-')) return;
                 const altText = (img.getAttribute('alt') || '') + ' ' + (img.getAttribute('title') || '');
@@ -12749,15 +12974,104 @@ window.openVideoPlayer = function(encodedItem) {
                     try { encUrl = new URL(encUrl, item.article_url).href; } catch(e){}
                 }
                 seenImgUrls.add(encUrl);
-                const xuid = parseInt(img.getAttribute('data-xuid') || String(i + 1), 10);
-                encryptedImages.push({ url: encUrl, order: isNaN(xuid) ? (i + 1) : xuid });
+                imgOrderCounter++;
+                const xuid = parseInt(img.getAttribute('data-xuid') || String(imgOrderCounter), 10);
+
+                // 检查图片是否被 <a href> 包裹，或紧密承接本段上面的合集视频子链接
+                let linkedSub = null;
+                const parentAnchor = img.closest('a[href]');
+                if (parentAnchor) {
+                    const pHref = isValidCollectionHref(parentAnchor.getAttribute('href'));
+                    if (pHref) {
+                        const pTitle = (parentAnchor.getAttribute('title') || parentAnchor.textContent || altText || '').replace(/\s+/g, ' ').trim() || `播放合集片段 #${collectionLinks.length + 1}`;
+                        linkedSub = { url: pHref, title: pTitle };
+                        if (!seenCollectionUrls.has(pHref)) {
+                            seenCollectionUrls.add(pHref);
+                            collectionLinks.push(linkedSub);
+                        }
+                    }
+                } else if (activeSectionLink) {
+                    linkedSub = activeSectionLink;
+                }
+
+                encryptedImages.push({
+                    url: encUrl,
+                    order: isNaN(xuid) ? imgOrderCounter : xuid,
+                    linkUrl: linkedSub ? linkedSub.url : '',
+                    linkTitle: linkedSub ? linkedSub.title : ''
+                });
             });
             encryptedImages.sort((a, b) => a.order - b.order);
 
             // 隐藏加载状态
             document.getElementById('chiguaDetailLoading').style.display = 'none';
 
-            // ========== 渲染视频播放器 ==========
+            // 辅助函数：抓取合集内某个子帖子链接的真实视频并在当前页顶部播放器直接播放
+            window._chiguaCollectionList = collectionLinks;
+            window._playChiguaLinkedArticle = async function(subUrl, subTitle, tabBtnIdx = -1) {
+                if (!subUrl) return;
+                const videoBlock = document.getElementById('chiguaVideoBlock');
+                const dpEl = document.getElementById('chiguaDplayer');
+                if (videoBlock) videoBlock.style.display = 'block';
+                if (dpEl) {
+                    dpEl.innerHTML = `<div style="padding:48px 16px; text-align:center; color:#fb7185; font-size:13px;"><i class="fas fa-spinner fa-spin" style="font-size:20px; margin-bottom:8px; display:block;"></i>正在从原站深层提取合集视频：<br><strong>${(subTitle || '').replace(/</g, '&lt;')}</strong>...</div>`;
+                }
+                if (tabBtnIdx >= 0 && window._chiguaCollectionList) {
+                    window._chiguaCollectionList.forEach((_, idx) => {
+                        const btn = document.getElementById('cgVidTab_' + idx);
+                        if (btn) btn.className = (idx === tabBtnIdx) ? 'chap-btn read-active' : 'chap-btn';
+                    });
+                }
+                try {
+                    const subHtml = await fetchTextWithCorsFallback(subUrl);
+                    if (!subHtml) throw new Error('无法拉取该子视频页面');
+                    const subDoc = new DOMParser().parseFromString(subHtml, 'text/html');
+                    const subVideos = [];
+                    const subSeen = new Set();
+                    subDoc.querySelectorAll('.dplayer[data-config], .dplayer.defplay[data-config], [data-config*="m3u8"]').forEach((div) => {
+                        try {
+                            let cfgStr = (div.getAttribute('data-config') || '').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+                            const cfg = JSON.parse(cfgStr);
+                            if (cfg && cfg.video && cfg.video.url && !subSeen.has(cfg.video.url)) {
+                                subSeen.add(cfg.video.url);
+                                subVideos.push({ url: cfg.video.url, pic: cfg.video.pic || '', title: subTitle || '合集视频' });
+                            }
+                        } catch (e) {}
+                    });
+                    if (subVideos.length === 0) {
+                        const dMatches = [...subHtml.matchAll(/data-config=(['"])([\s\S]*?)\1/gi)];
+                        dMatches.forEach(m => {
+                            try {
+                                const cfg = JSON.parse(m[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+                                if (cfg && cfg.video && cfg.video.url && !subSeen.has(cfg.video.url)) {
+                                    subSeen.add(cfg.video.url);
+                                    subVideos.push({ url: cfg.video.url, pic: cfg.video.pic || '', title: subTitle || '合集视频' });
+                                }
+                            } catch (e) {}
+                        });
+                    }
+                    if (subVideos.length === 0) {
+                        const m3s = [...subHtml.matchAll(/https?:\/\/[^"'\s<>]+\.m3u8[^"'\s<>]*/gi)];
+                        m3s.forEach(m => {
+                            const u = m[0].replace(/\\/g, '');
+                            if (!u.includes('pre_ads') && !u.includes('post_ads') && !subSeen.has(u)) {
+                                subSeen.add(u);
+                                subVideos.push({ url: u, pic: '', title: subTitle || '合集视频' });
+                            }
+                        });
+                    }
+                    if (subVideos.length > 0) {
+                        window._chiguaVideoList = subVideos;
+                        window._playChiguaVideo(0);
+                    } else if (dpEl) {
+                        dpEl.innerHTML = `<div style="padding:36px 16px; text-align:center; color:var(--text-muted); font-size:13px;">该子帖暂无直连视频，点击下方按钮进入原帖详情查看：<br><br><button class="btn primary" onclick="window.openChiguaHtmlArticle('${encodeURIComponent(JSON.stringify({ vod_name: subTitle || '吃瓜详情', article_url: subUrl, vod_class: item.vod_class || '合集' }))}')"><i class="fas fa-external-link-alt"></i> 打开该合集子帖详情</button></div>`;
+                    }
+                } catch (err) {
+                    if (dpEl) dpEl.innerHTML = `<div style="padding:36px 16px; text-align:center; color:#f43f5e;">提取子视频失败: ${err.message}</div>`;
+                }
+            };
+
+            // ========== 渲染视频播放器（支持原帖视频 OR 合集图片关联子视频直连选集） ==========
             if (videoConfigs.length > 0) {
                 const videoBlock = document.getElementById('chiguaVideoBlock');
                 videoBlock.style.display = 'block';
@@ -12782,9 +13096,29 @@ window.openVideoPlayer = function(encodedItem) {
                         localStorage.setItem('chigua_video_index', JSON.stringify(vIdx));
                     } catch (ve) {}
                 window._playChiguaVideo(0);
+            } else if (collectionLinks.length > 0) {
+                const videoBlock = document.getElementById('chiguaVideoBlock');
+                const tabsWrap = document.getElementById('chiguaVideoTabsWrap');
+                const tabsEl = document.getElementById('chiguaVideoTabs');
+                videoBlock.style.display = 'block';
+                tabsWrap.style.display = 'block';
+                tabsEl.innerHTML = collectionLinks.map((cl, i) => {
+                    const cls = i === 0 ? 'chap-btn read-active' : 'chap-btn';
+                    const shortT = (cl.title || '').slice(0, 14) + ((cl.title || '').length > 14 ? '...' : '');
+                    const safeUrl = encodeURIComponent(cl.url);
+                    const safeTitle = encodeURIComponent(cl.title || '');
+                    return `<button class="${cls}" id="cgVidTab_${i}" title="${(cl.title || '').replace(/"/g, '')}" onclick="window._playChiguaLinkedArticle(decodeURIComponent('${safeUrl}'), decodeURIComponent('${safeTitle}'), ${i})">${i + 1}. ${shortT.replace(/</g, '&lt;')}</button>`;
+                }).join('');
+                try {
+                    const vIdx = JSON.parse(localStorage.getItem('chigua_video_index') || '{}');
+                    vIdx[targetArticleUrl] = collectionLinks.length;
+                    localStorage.setItem('chigua_video_index', JSON.stringify(vIdx));
+                } catch (ve) {}
+                // 自动翻出并预播合集第 1 个关联视频
+                window._playChiguaLinkedArticle(collectionLinks[0].url, collectionLinks[0].title, 0);
             }
 
-            // ========== 渲染解密图片流 ==========
+            // ========== 渲染解密图片流（若图片有关联视频链接，底部附加一键播放按钮） ==========
             if (encryptedImages.length > 0) {
                 const galleryBlock = document.getElementById('chiguaGalleryBlock');
                 galleryBlock.style.display = 'block';
@@ -12794,20 +13128,37 @@ window.openVideoPlayer = function(encodedItem) {
                 window._chiguaGalleryUrls = new Array(encryptedImages.length).fill('');
 
                 encryptedImages.forEach((imgInfo, idx) => {
+                    const cardWrap = document.createElement('div');
+                    cardWrap.style.cssText = 'width:100%; max-width:860px; margin: 0 auto 18px auto;';
                     const placeholder = document.createElement('div');
-                    placeholder.style.cssText = 'width:100%; max-width:860px; min-height:220px; background:rgba(244,63,94,0.06); border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:12px; border:1px solid rgba(244,63,94,0.15); margin: 0 auto 16px auto;';
+                    placeholder.style.cssText = 'width:100%; min-height:220px; background:rgba(244,63,94,0.06); border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:12px; border:1px solid rgba(244,63,94,0.15);';
                     placeholder.innerHTML = `<i class="fas fa-spinner fa-spin" style="color:#fb7185; margin-right:6px;"></i> 正在解密实拍图 (${idx + 1}/${encryptedImages.length})...`;
-                    stream.appendChild(placeholder);
+                    cardWrap.appendChild(placeholder);
+
+                    if (imgInfo.linkUrl) {
+                        const actionBar = document.createElement('div');
+                        actionBar.style.cssText = 'margin-top:8px; display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; background:rgba(244,63,94,0.12); border:1px solid rgba(244,63,94,0.3); cursor:pointer;';
+                        actionBar.innerHTML = `
+                            <span style="font-size:12px; color:#fda4af; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600;"><i class="fas fa-circle-play" style="color:#fb7185; margin-right:6px;"></i>原图直达视频：${(imgInfo.linkTitle || '点击播放片段').replace(/</g, '&lt;')}</span>
+                            <span style="font-size:11px; background:#fb7185; color:#fff; padding:3px 10px; border-radius:14px; font-weight:700; flex-shrink:0;">▶ 立即播放</span>
+                        `;
+                        actionBar.onclick = function() {
+                            const matchIdx = collectionLinks.findIndex(c => c.url === imgInfo.linkUrl);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                            window._playChiguaLinkedArticle(imgInfo.linkUrl, imgInfo.linkTitle, matchIdx);
+                        };
+                        cardWrap.appendChild(actionBar);
+                    }
+                    stream.appendChild(cardWrap);
 
                     _decryptChiguaImageUrl(imgInfo.url).then(objUrl => {
                         window._chiguaGalleryUrls[idx] = objUrl;
                         const img = document.createElement('img');
                         img.src = objUrl;
-                        img.alt = `实拍图 ${idx + 1}`;
-                        img.style.cssText = 'width:100%; max-width:860px; border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,0.5); border:1px solid rgba(244,63,94,0.2); cursor:zoom-in; display:block; margin: 0 auto 16px auto;';
+                        img.alt = imgInfo.linkTitle || `实拍图 ${idx + 1}`;
+                        img.style.cssText = 'width:100%; border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,0.5); border:1px solid rgba(244,63,94,0.2); cursor:zoom-in; display:block;';
                         img.loading = 'lazy';
                         img.onclick = function() {
-                            // 全屏图集查看器（feed.js）：左右滑浏览，点一下就能看
                             if (window.LyaGallery) {
                                 const urls = (window._chiguaGalleryUrls || []).filter(Boolean);
                                 const at = urls.indexOf(this.src);
@@ -12821,7 +13172,7 @@ window.openVideoPlayer = function(encodedItem) {
                 });
             }
 
-            if (videoConfigs.length === 0 && encryptedImages.length === 0) {
+            if (videoConfigs.length === 0 && collectionLinks.length === 0 && encryptedImages.length === 0) {
                 document.getElementById('chiguaDetailLoading').style.display = 'block';
                 document.getElementById('chiguaDetailLoading').innerHTML = '<div style="color:var(--text-muted); padding:20px;">该帖暂无可提取的视频或图片内容</div>';
             }
