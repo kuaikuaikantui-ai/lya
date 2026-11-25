@@ -10,7 +10,7 @@ const UPSTREAM_POOL = [
 ];
 const CONFIG_URL = 'https://v1.qingtian618.com/static/source_config/config.json';
 
-async function fetchUpstreamWithFailover(apiPath, isContentCheck = false) {
+async function fetchUpstreamWithFailover(apiPath, isContentCheck = false, fastMode = false) {
     let lastData = null;
     let lastErr = null;
 
@@ -20,7 +20,7 @@ async function fetchUpstreamWithFailover(apiPath, isContentCheck = false) {
         const racePromises = primaryHosts.map(async host => {
             const r = await fetch(host + apiPath, {
                 headers: getRandomHeaders(),
-                signal: AbortSignal.timeout(2500)
+                signal: AbortSignal.timeout(fastMode ? 1800 : 2500)
             });
             if (!r.ok) throw new Error('HTTP ' + r.status);
             const data = await r.json();
@@ -36,6 +36,10 @@ async function fetchUpstreamWithFailover(apiPath, isContentCheck = false) {
         return await Promise.any(racePromises);
     } catch(e) {
         lastErr = e;
+    }
+
+    if (fastMode) {
+        throw lastErr || new Error('快速并发检索未命中');
     }
 
     // 备用节点极速容灾
@@ -234,6 +238,304 @@ async function contentBanshanren(itemId) {
 }
 
 // =========================================================================
+// ⚡ 酷我小说 (appi.kuwo.cn) 极速纯 JSON 直连引擎 (源自 danbo 开源书源，150ms 级响应免VIP)
+// =========================================================================
+async function searchKuwo(keyword) {
+    try {
+        const cleanKw = (keyword || '').trim().replace(/[\s《》]/g, '');
+        if (!cleanKw) return [];
+        const url = 'https://appi.kuwo.cn/novels/api/book/search?keyword=' + encodeURIComponent(cleanKw) + '&pi=1&ps=20';
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            signal: AbortSignal.timeout(2500)
+        });
+        if (!res.ok) return [];
+        const json = await res.json();
+        const list = (json && Array.isArray(json.data)) ? json.data : [];
+        return list.map(b => ({
+            book_name: String(b.title || '').trim(),
+            book_id: 'kw_' + b.book_id,
+            author: b.author_name || '酷我正版库',
+            abstract: b.intro || (b.category_name ? b.category_name + ' · 正版全本直连' : ''),
+            cover: b.cover_url || '',
+            thumb_url: b.cover_url || '',
+            source: '酷我小说',
+            tab: '小说'
+        })).filter(b => b.book_name && b.book_id !== 'kw_undefined');
+    } catch (e) {
+        return [];
+    }
+}
+
+async function catalogKuwo(bookId) {
+    try {
+        const cleanId = String(bookId).replace(/^kw_/, '').trim();
+        if (!cleanId) return [];
+        const url = 'https://appi.kuwo.cn/novels/api/book/' + encodeURIComponent(cleanId) + '/chapters?paging=0';
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            signal: AbortSignal.timeout(3500)
+        });
+        if (!res.ok) return [];
+        const json = await res.json();
+        const list = (json && Array.isArray(json.data)) ? json.data : [];
+        return list.map((c, idx) => ({
+            title: String(c.chapter_title || ('第 ' + (idx + 1) + ' 章')).trim(),
+            item_id: 'kw_' + cleanId + '_' + c.chapter_id,
+            volume: c.volume_name || '',
+            order_num: idx
+        }));
+    } catch (e) {
+        return [];
+    }
+}
+
+async function contentKuwo(itemId) {
+    try {
+        const parts = String(itemId).replace(/^kw_/, '').split('_');
+        const bookId = parts[0];
+        const chapId = parts[1];
+        if (!bookId || !chapId) return { code: -1, msg: '无效的酷我章节 ID' };
+        const url = 'https://appi.kuwo.cn/novels/api/book/' + encodeURIComponent(bookId) + '/chapters/' + encodeURIComponent(chapId);
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            signal: AbortSignal.timeout(4000)
+        });
+        if (!res.ok) return { code: -1, msg: '获取酷我正文失败: ' + res.status };
+        const json = await res.json();
+        const content = json && json.data && json.data.content ? String(json.data.content) : '';
+        if (!content || content.length < 20) return { code: -1, msg: '章节正文为空' };
+        return {
+            code: 0,
+            msg: 'ok',
+            title: (json.data && json.data.chapter_title) || '章节阅读',
+            content: cleanNovelText(content),
+            source: '酷我小说'
+        };
+    } catch (e) {
+        return { code: -1, msg: e.message };
+    }
+}
+
+// =========================================================================
+// 📖 阅友小说 (m.suixkan.com) 极速直连引擎 (源自 danbo 开源书源，200ms 级响应)
+// =========================================================================
+async function searchSuixkan(keyword) {
+    try {
+        const cleanKw = (keyword || '').trim().replace(/[\s《》]/g, '');
+        if (!cleanKw) return [];
+        const url = 'http://m.suixkan.com/s/1.html?keyword=' + encodeURIComponent(cleanKw) + '&page=1';
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15' },
+            signal: AbortSignal.timeout(2500)
+        });
+        if (!res.ok) return [];
+        const html = await res.text();
+        const results = [];
+        const items = html.split('<div class="v-list-item').slice(1);
+        for (const item of items) {
+            const mId = item.match(/newWebView\(\s*['"]\/b\/(\d+)\.html['"]/i);
+            const mTitle = item.match(/class="v-title"[^>]*>([\s\S]*?)<\/div>/i);
+            const mAuthor = item.match(/class="v-author"[^>]*>([\s\S]*?)<\/div>/i);
+            const mImg = item.match(/<img[^>]+src=["']([^"']+)["']/i);
+            const mIntro = item.match(/class="v-intro"[^>]*>([\s\S]*?)<\/div>/i);
+            if (mId && mTitle) {
+                const name = mTitle[1].replace(/<[^>]+>/g, '').trim();
+                const author = mAuthor ? mAuthor[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim() : '阅友小说';
+                results.push({
+                    book_name: name,
+                    book_id: 'sx_' + mId[1],
+                    author: author,
+                    abstract: mIntro ? mIntro[1].replace(/<[^>]+>/g, '').trim() : '',
+                    cover: mImg ? mImg[1].trim() : '',
+                    thumb_url: mImg ? mImg[1].trim() : '',
+                    source: '阅友小说',
+                    tab: '小说'
+                });
+            }
+        }
+        return results;
+    } catch (e) {
+        return [];
+    }
+}
+
+async function catalogSuixkan(bookId) {
+    try {
+        const cleanId = String(bookId).replace(/^sx_/, '').replace(/[^\d]/g, '').trim();
+        if (!cleanId) return [];
+        const url = 'http://m.suixkan.com/c/' + cleanId + '.html';
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15' },
+            signal: AbortSignal.timeout(3500)
+        });
+        if (!res.ok) return [];
+        const html = await res.text();
+        const chapters = [];
+        const seen = new Set();
+        const re = new RegExp('<a[^>]+href=["\'](/r/' + cleanId + '/(\\d+)\\.html)["\'][^>]*>([\\s\\S]*?)</a>', 'gi');
+        let m;
+        while ((m = re.exec(html)) !== null) {
+            const chapId = m[2];
+            const title = m[3].replace(/<[^>]+>/g, '').trim();
+            if (chapId && !seen.has(chapId)) {
+                seen.add(chapId);
+                chapters.push({
+                    title: title || ('第 ' + (chapters.length + 1) + ' 章'),
+                    item_id: 'sx_' + cleanId + '_' + chapId,
+                    order_num: chapters.length
+                });
+            }
+        }
+        return chapters;
+    } catch (e) {
+        return [];
+    }
+}
+
+async function contentSuixkan(itemId) {
+    try {
+        const parts = String(itemId).replace(/^sx_/, '').split('_');
+        const bookId = parts[0];
+        const chapId = parts[1];
+        if (!bookId || !chapId) return { code: -1, msg: '无效的阅友章节 ID' };
+        const url = 'http://m.suixkan.com/r/' + encodeURIComponent(bookId) + '/' + encodeURIComponent(chapId) + '.html';
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15' },
+            signal: AbortSignal.timeout(4000)
+        });
+        if (!res.ok) return { code: -1, msg: '获取阅友正文失败: ' + res.status };
+        const html = await res.text();
+        const mTitle = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+        const mCon = html.match(/<div[^>]+class=["'][^"']*\bcon\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+        if (!mCon) return { code: -1, msg: '未定位到章节正文' };
+        const content = mCon[1]
+            .replace(/<\/p>/gi, '\n\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/[\(（]本章未完[\s\S]*?[\)）]/g, '')
+            .replace(/[\(（]本章完[\)）]/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+        if (!content || content.length < 20) return { code: -1, msg: '章节正文为空' };
+        return {
+            code: 0,
+            msg: 'ok',
+            title: mTitle ? mTitle[1].replace(/<[^>]+>/g, '').trim() : '章节阅读',
+            content: cleanNovelText(content),
+            source: '阅友小说'
+        };
+    } catch (e) {
+        return { code: -1, msg: e.message };
+    }
+}
+
+function pickMatchingChapter(catalog, chapIdx, chapTitle) {
+    if (!Array.isArray(catalog) || catalog.length === 0) return null;
+    let targetChap = (chapIdx >= 0 && catalog[chapIdx]) ? catalog[chapIdx] : null;
+    if (chapTitle) {
+        const cleanChap = String(chapTitle).replace(/[第话章\s]/g, '');
+        if (cleanChap) {
+            const found = catalog.find(c => {
+                const ct = String(c.title || '').replace(/[第话章\s]/g, '');
+                return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
+            });
+            if (found) targetChap = found;
+        }
+    }
+    return targetChap || catalog[0];
+}
+
+async function rescueNovelCatalogByTitle(title) {
+    const tasks = [
+        (async () => {
+            const list = await searchKuwo(title);
+            const match = findStrictBookMatch(list, title);
+            if (!match) throw new Error('kuwo miss');
+            const cat = await catalogKuwo(match.book_id);
+            if (!cat || cat.length === 0) throw new Error('kuwo empty');
+            return { code: 0, msg: '已自动为您极速接力至【酷我小说】正版直连目录', data: cat, autoSwitched: true, newSource: '酷我小说', newBookId: match.book_id };
+        })(),
+        (async () => {
+            const list = await searchSuixkan(title);
+            const match = findStrictBookMatch(list, title);
+            if (!match) throw new Error('suixkan miss');
+            const cat = await catalogSuixkan(match.book_id);
+            if (!cat || cat.length === 0) throw new Error('suixkan empty');
+            return { code: 0, msg: '已自动为您极速接力至【阅友小说】直连目录', data: cat, autoSwitched: true, newSource: '阅友小说', newBookId: match.book_id };
+        })(),
+        (async () => {
+            const ixList = await searchIxdzs(title);
+            const matchBook = findStrictBookMatch(ixList, title);
+            if (!matchBook) throw new Error('ix miss');
+            const ixCat = await catalogIxdzs(matchBook.book_id);
+            if (!ixCat || ixCat.length === 0) throw new Error('ix empty');
+            return { code: 0, msg: '已自动为您无缝接力至【爱下电子书】海量源目录', data: ixCat, autoSwitched: true, newSource: '爱下电子书', newBookId: matchBook.book_id };
+        })(),
+        (async () => {
+            const bList = await searchBanshanren(title);
+            const matchBook = findStrictBookMatch(bList, title);
+            if (!matchBook) throw new Error('bs miss');
+            const bCat = await catalogBanshanren(matchBook.book_id);
+            if (!bCat || bCat.length === 0) throw new Error('bs empty');
+            return { code: 0, msg: '已自动为您无缝接力至【搬山人】优质源目录', data: bCat, autoSwitched: true, newSource: '搬山人', newBookId: matchBook.book_id };
+        })()
+    ];
+    return await Promise.any(tasks);
+}
+
+async function rescueNovelContentByTitle(title, chapIdx, chapTitle) {
+    const tasks = [
+        (async () => {
+            const list = await searchKuwo(title);
+            const m = findStrictBookMatch(list, title);
+            if (!m) throw new Error('kuwo miss');
+            const cat = await catalogKuwo(m.book_id);
+            const chap = pickMatchingChapter(cat, chapIdx, chapTitle);
+            if (!chap) throw new Error('kuwo no chap');
+            const d = await contentKuwo(chap.item_id);
+            if (!d || d.code !== 0 || !d.content || d.content.length < 30) throw new Error('kuwo empty');
+            return { code: 0, msg: '已自动为您无缝接力至【酷我小说】直连畅读', autoSwitched: true, newSource: '酷我小说', title: chap.title, content: d.content };
+        })(),
+        (async () => {
+            const list = await searchSuixkan(title);
+            const m = findStrictBookMatch(list, title);
+            if (!m) throw new Error('suixkan miss');
+            const cat = await catalogSuixkan(m.book_id);
+            const chap = pickMatchingChapter(cat, chapIdx, chapTitle);
+            if (!chap) throw new Error('suixkan no chap');
+            const d = await contentSuixkan(chap.item_id);
+            if (!d || d.code !== 0 || !d.content || d.content.length < 30) throw new Error('suixkan empty');
+            return { code: 0, msg: '已自动为您无缝接力至【阅友小说】直连畅读', autoSwitched: true, newSource: '阅友小说', title: chap.title, content: d.content };
+        })(),
+        (async () => {
+            const ixList = await searchIxdzs(title);
+            const m = findStrictBookMatch(ixList, title);
+            if (!m) throw new Error('ix miss');
+            const cat = await catalogIxdzs(m.book_id);
+            const chap = pickMatchingChapter(cat, chapIdx, chapTitle);
+            if (!chap) throw new Error('ix no chap');
+            const d = await contentIxdzs(chap.item_id);
+            if (!d || d.code !== 0 || !d.content || d.content.length < 30) throw new Error('ix empty');
+            return { code: 0, msg: '已自动为您无缝接力至【爱下电子书】海量源畅读', autoSwitched: true, newSource: '爱下电子书', title: chap.title, content: d.content };
+        })(),
+        (async () => {
+            const bList = await searchBanshanren(title);
+            const m = findStrictBookMatch(bList, title);
+            if (!m) throw new Error('bs miss');
+            const cat = await catalogBanshanren(m.book_id);
+            const chap = pickMatchingChapter(cat, chapIdx, chapTitle);
+            if (!chap) throw new Error('bs no chap');
+            const d = await contentBanshanren(chap.item_id);
+            if (!d || d.code !== 0 || !d.content || d.content.length < 30) throw new Error('bs empty');
+            return { code: 0, msg: '已自动为您无缝接力至【搬山人】优质源畅读', autoSwitched: true, newSource: '搬山人', title: chap.title, content: d.content };
+        })()
+    ];
+    return await Promise.any(tasks);
+}
+
+// =========================================================================
 // 📚 爱下电子书 (ixdzs8) 原生直连海量大书库引擎 (完结超长大长篇、天启预报/诡秘/剑来等全网爆款无删减)
 // =========================================================================
 async function searchIxdzs(keyword) {
@@ -244,42 +546,9 @@ async function searchIxdzs(keyword) {
         const res = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
-                'x-ai-movie-client-name': 'dianyingtiantang-frontend',
-                'x-ai-movie-client-version': '1.0.0',
-                'x-ai-movie-build-version': 'dianyingtiantang-v2026.11.18.1-core-analytics-96ca156cfffe-web',
                 'Referer': 'https://www.ixdzs8.com/'
             },
-            signal: AbortSignal.timeout(5000)
+            signal: AbortSignal.timeout(3500)
         });
         if (!res.ok) return [];
         const html = await res.text();
@@ -852,7 +1121,7 @@ async function getLiveSourcesConfig() {
                 version: data.version || '最新',
                 categories: {
                     "漫画": ["看漫画", "极速韩漫", "新新漫画", "G社漫画", "全面漫画", "番茄"],
-                    "小说": ["爱下电子书", "搬山人", "轻小说文库", "七猫", "番茄", "伪69", "半夏小说", "52书库", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
+                    "小说": ["酷我小说", "阅友小说", "爱下电子书", "搬山人", "轻小说文库", "七猫", "番茄", "伪69", "笔趣阁39", "全免小说", "QQ阅读", "52书库", "百度", "全本小说", "笔趣阁78", "半夏小说", "书旗"]
                 }
             };
             lastConfigFetch = now;
@@ -864,7 +1133,7 @@ async function getLiveSourcesConfig() {
         version: '昂哥构建',
         categories: {
             "漫画": ["看漫画", "极速韩漫", "新新漫画", "G社漫画", "全面漫画", "番茄"],
-            "小说": ["爱下电子书", "搬山人", "轻小说文库", "七猫", "番茄", "伪69", "半夏小说", "52书库", "全本小说", "淘小说", "百度", "笔趣阁78", "知乎"]
+            "小说": ["酷我小说", "阅友小说", "爱下电子书", "搬山人", "轻小说文库", "七猫", "番茄", "伪69", "笔趣阁39", "全免小说", "QQ阅读", "52书库", "百度", "全本小说", "笔趣阁78", "半夏小说", "书旗"]
         }
     };
 }
@@ -1662,6 +1931,20 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 });
             }
 
+            if (source === '酷我小说' || source === 'Kuwo') {
+                const results = await searchKuwo(title);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
+            if (source === '阅友小说' || source === 'Suixkan') {
+                const results = await searchSuixkan(title);
+                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+            }
+
             if (source === '爱下电子书' || source === 'Ixdzs' || source === '全本小说') {
                 const results = await searchIxdzs(title);
                 return new Response(JSON.stringify({ code: 0, msg: 'ok', data: results }), {
@@ -1680,7 +1963,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             if (source === 'ALL') {
                 const candidates = (tab === '漫画')
                     ? ['看漫画', '极速韩漫', '新新漫画', 'G社漫画', '全面漫画', '番茄']
-                    : ['爱下电子书', '搬山人', '轻小说文库', '七猫', '番茄', '伪69', '半夏小说', '52书库', '全本小说', '淘小说', '百度', '笔趣阁78', '知乎'];
+                    : ['酷我小说', '阅友小说', '爱下电子书', '搬山人', '轻小说文库', '七猫', '番茄', '伪69', '笔趣阁39', '全免小说', 'QQ阅读', '52书库', '全本小说', '百度', '笔趣阁78', '半夏小说', '书旗'];
 
                 // 搜索结果边缘缓存（60s）：相同关键词重复搜索秒回
                 const sHit = await edgeCacheMatch(request, '/api/search/ALL');
@@ -1693,6 +1976,12 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     if (s === '看漫画') {
                         return await searchKanman(title);
                     }
+                    if (s === '酷我小说') {
+                        return await searchKuwo(title);
+                    }
+                    if (s === '阅友小说') {
+                        return await searchSuixkan(title);
+                    }
                     if (s === '爱下电子书') {
                         return await searchIxdzs(title);
                     }
@@ -1704,7 +1993,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     }
                     try {
                         const apiPath = '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(s) + '&page=' + page + '&disabled_sources=0';
-                        const json = await fetchUpstreamWithFailover(apiPath, false);
+                        const json = await fetchUpstreamWithFailover(apiPath, false, true);
                         const list = (json && Array.isArray(json.data) ? json.data : []).filter(item => {
                             const name = item.book_name || '';
                             return !name.includes('@vip') && !name.includes('@svip') && !name.includes('打赏后获取') && !name.includes('客服');
@@ -1715,8 +2004,8 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     }
                 });
 
-                // 软超时竞速：单源包 3.2s 上限（超时的源放弃本轮结果），整体不再被最慢源拖到 5-7 秒
-                const SOFT_TIMEOUT = 3200;
+                // 软超时竞速：单源包 2.2s 上限（超时的源放弃本轮结果），快源秒回，整体不再被慢源拖到 5-7 秒
+                const SOFT_TIMEOUT = 2200;
                 const withSoftTimeout = (p) => Promise.race([
                     Promise.resolve(p).catch(() => []),
                     new Promise(resolve => setTimeout(() => resolve([]), SOFT_TIMEOUT))
@@ -2415,7 +2704,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 { id: 'fb_4', user: '摸鱼小能手', time: '近期', up: 11, episode: '', content: `自动跳过片头和连播下一集真的很省心，一口气炫了好几集停不下来。` }
             ];
 
-            return new Response(JSON.stringify({ code: 0, results: fallbackResults }), {
+            return new Response(JSON.stringify({ code: 0, data: fallbackResults, results: fallbackResults }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
             });
         }
@@ -2732,7 +3021,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
         }
 
         if (url.pathname === '/api/catalog') {
-            // 目录边缘缓存（10 分钟）：开书必经链路，目录结构短期不变，二次开书秒开
+            // 目录边缘缓存（10 分钟）：所有源开书必经链路，二次开书边缘秒回
             const catHit = await edgeCacheMatch(request, '/api/catalog');
             if (catHit) return catHit;
             const book_id = url.searchParams.get('book_id') || '';
@@ -2740,6 +3029,40 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             const tab = url.searchParams.get('tab') || '漫画';
             const title = url.searchParams.get('title') || '';
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
+
+            const cacheAndSendCatalog = (obj) => {
+                const resp = new Response(JSON.stringify(obj), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+                if (obj && Array.isArray(obj.data) && obj.data.length > 0) {
+                    edgeCachePut(ctx, request, '/api/catalog', resp, 600);
+                }
+                return resp;
+            };
+
+            if (source === '酷我小说' || book_id.startsWith('kw_')) {
+                let chapters = await catalogKuwo(book_id);
+                if ((!chapters || chapters.length === 0) && title) {
+                    try {
+                        const kwList = await searchKuwo(title);
+                        const match = findStrictBookMatch(kwList, title);
+                        if (match) chapters = await catalogKuwo(match.book_id);
+                    } catch (e) {}
+                }
+                return cacheAndSendCatalog({ code: 0, msg: 'ok', data: chapters || [] });
+            }
+
+            if (source === '阅友小说' || book_id.startsWith('sx_')) {
+                let chapters = await catalogSuixkan(book_id);
+                if ((!chapters || chapters.length === 0) && title) {
+                    try {
+                        const sxList = await searchSuixkan(title);
+                        const match = findStrictBookMatch(sxList, title);
+                        if (match) chapters = await catalogSuixkan(match.book_id);
+                    } catch (e) {}
+                }
+                return cacheAndSendCatalog({ code: 0, msg: 'ok', data: chapters || [] });
+            }
 
             if (source === '极速韩漫' || book_id.startsWith('veryim_')) {
                 let chapters = await catalogVeryim(book_id);
@@ -2752,9 +3075,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                         }
                     } catch(e) {}
                 }
-                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters || [] }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                return cacheAndSendCatalog({ code: 0, msg: 'ok', data: chapters || [] });
             }
 
             if (source === '看漫画' || book_id.startsWith('kanman_')) {
@@ -2768,9 +3089,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                         }
                     } catch(e) {}
                 }
-                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters || [] }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                return cacheAndSendCatalog({ code: 0, msg: 'ok', data: chapters || [] });
             }
 
             if (source === '轻小说文库' || source === 'Wenku8' || book_id.startsWith('wenku8_') || book_id.startsWith('wk8_')) {
@@ -2784,9 +3103,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                         }
                     } catch(e) {}
                 }
-                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters || [] }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                return cacheAndSendCatalog({ code: 0, msg: 'ok', data: chapters || [] });
             }
 
             if (source === '爱下电子书' || source === 'Ixdzs' || book_id.startsWith('ix_')) {
@@ -2800,75 +3117,32 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                         }
                     } catch(e) {}
                 }
-                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters || [] }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                return cacheAndSendCatalog({ code: 0, msg: 'ok', data: chapters || [] });
             }
 
             if (source === '搬山人' || book_id.startsWith('/novel/')) {
                 const chapters = await catalogBanshanren(book_id);
-                return new Response(JSON.stringify({ code: 0, msg: 'ok', data: chapters }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                return cacheAndSendCatalog({ code: 0, msg: 'ok', data: chapters || [] });
             }
 
             try {
                 // 📚 小说目录高可用极速并发调度引擎：
-                // 第三方上游接口经常限流或报 illegal base64，若是小说且有书名，实行 1.5s 极速竞速 + 自研海量库（爱下电子书+搬山人）并发抢答
+                // 第三方上游接口经常限流或慢响应，1.2s 内不出结果则直接由酷我/阅友/爱下/搬山人并发抢答
                 if (tab === '小说' && title) {
                     const upstreamTask = (async () => {
                         const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
-                        const d = await fetchUpstreamWithFailover(apiPath, false);
+                        const d = await fetchUpstreamWithFailover(apiPath, false, true);
                         if (d && Array.isArray(d.data) && d.data.length > 0) return d;
                         throw new Error('Upstream novel catalog empty');
                     })();
 
-                    const ixTask = (async () => {
-                        const ixList = await searchIxdzs(title);
-                        const matchBook = findStrictBookMatch(ixList, title);
-                        if (matchBook) {
-                            const ixCat = await catalogIxdzs(matchBook.book_id);
-                            if (ixCat && ixCat.length > 0) {
-                                return {
-                                    code: 0,
-                                    msg: '已自动为您无缝接力至【爱下电子书】海量源目录',
-                                    data: ixCat,
-                                    autoSwitched: true,
-                                    newSource: '爱下电子书',
-                                    newBookId: matchBook.book_id
-                                };
-                            }
-                        }
-                        throw new Error('Ixdzs empty');
-                    })();
-
-                    const bsTask = (async () => {
-                        const bList = await searchBanshanren(title);
-                        const matchBook = findStrictBookMatch(bList, title);
-                        if (matchBook) {
-                            const bCat = await catalogBanshanren(matchBook.book_id);
-                            if (bCat && bCat.length > 0) {
-                                return {
-                                    code: 0,
-                                    msg: '已自动为您无缝接力至【搬山人】优质源目录',
-                                    data: bCat,
-                                    autoSwitched: true,
-                                    newSource: '搬山人',
-                                    newBookId: matchBook.book_id
-                                };
-                            }
-                        }
-                        throw new Error('Banshanren empty');
-                    })();
-
-                    const rescuePromise = Promise.any([ixTask, bsTask]);
+                    const rescuePromise = rescueNovelCatalogByTitle(title);
 
                     let finalRes = null;
                     try {
-                        // 1.5 秒内上游快速出结果则用上游；超时或报错则直接采用并发跑赢的自研库结果，彻底告别十几秒傻等
                         finalRes = await Promise.race([
                             upstreamTask,
-                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200))
                         ]);
                     } catch (e) {
                         try {
@@ -2879,58 +3153,18 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     }
 
                     if (finalRes && finalRes.data && finalRes.data.length > 0) {
-                        return new Response(JSON.stringify(finalRes), {
-                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                        });
+                        return cacheAndSendCatalog(finalRes);
                     }
                 }
 
                 const apiPath = '/catalog?book_id=' + encodeURIComponent(book_id) + '&source=' + encodeURIComponent(upstreamSource) + '&tab=' + encodeURIComponent(tab) + '&variable={}';
                 const data = await fetchUpstreamWithFailover(apiPath, false);
 
-                // 小说目录容灾兜底（爱下电子书 & 搬山人并发竞速）
+                // 小说目录容灾兜底
                 if (tab === '小说' && (!data || !data.data || data.data.length === 0) && title) {
-                    const ixTask = (async () => {
-                        const ixList = await searchIxdzs(title);
-                        const matchBook = findStrictBookMatch(ixList, title);
-                        if (matchBook) {
-                            const ixCat = await catalogIxdzs(matchBook.book_id);
-                            if (ixCat && ixCat.length > 0) {
-                                return {
-                                    code: 0,
-                                    msg: '已自动为您无缝接力至【爱下电子书】海量源目录',
-                                    data: ixCat,
-                                    autoSwitched: true,
-                                    newSource: '爱下电子书',
-                                    newBookId: matchBook.book_id
-                                };
-                            }
-                        }
-                        throw new Error('Ixdzs empty');
-                    })();
-                    const bsTask = (async () => {
-                        const bList = await searchBanshanren(title);
-                        const matchBook = findStrictBookMatch(bList, title);
-                        if (matchBook) {
-                            const bCat = await catalogBanshanren(matchBook.book_id);
-                            if (bCat && bCat.length > 0) {
-                                return {
-                                    code: 0,
-                                    msg: '已自动为您无缝接力至【搬山人】优质源目录',
-                                    data: bCat,
-                                    autoSwitched: true,
-                                    newSource: '搬山人',
-                                    newBookId: matchBook.book_id
-                                };
-                            }
-                        }
-                        throw new Error('Banshanren empty');
-                    })();
                     try {
-                        const r = await Promise.any([ixTask, bsTask]);
-                        return new Response(JSON.stringify(r), {
-                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                        });
+                        const r = await rescueNovelCatalogByTitle(title);
+                        return cacheAndSendCatalog(r);
                     } catch(e) {}
                 }
 
@@ -3081,6 +3315,11 @@ if (source === '轻小说文库' || source === 'Wenku8') {
         }
 
         if (url.pathname === '/api/content') {
+            const forceRefresh = url.searchParams.has('_t');
+            if (!forceRefresh) {
+                const cHit = await edgeCacheMatch(request, '/api/content');
+                if (cHit) return cHit;
+            }
             const item_id = url.searchParams.get('item_id') || '';
             const source = url.searchParams.get('source') || '新新漫画';
             const tab = url.searchParams.get('tab') || '漫画';
@@ -3089,14 +3328,39 @@ if (source === '轻小说文库' || source === 'Wenku8') {
             const chap_idx = parseInt(url.searchParams.get('chap_idx') || '-1', 10);
             const upstreamSource = (source === '极速韩漫') ? '新新漫画' : source;
 
+            const cacheAndSendContent = (obj) => {
+                const resp = new Response(JSON.stringify(obj), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+                });
+                const isValid = obj && obj.code === 0 && ((obj.content && obj.content.length > 30) || (Array.isArray(obj.images) && obj.images.length > 0));
+                if (isValid) {
+                    edgeCachePut(ctx, request, '/api/content', resp, 1800);
+                }
+                return resp;
+            };
+
+            if (source === '酷我小说' || item_id.startsWith('kw_')) {
+                const kwData = await contentKuwo(item_id);
+                if ((!kwData || kwData.code !== 0) && title) {
+                    try { return cacheAndSendContent(await rescueNovelContentByTitle(title, chap_idx, chap_title)); } catch (e) {}
+                }
+                return cacheAndSendContent(kwData);
+            }
+
+            if (source === '阅友小说' || item_id.startsWith('sx_')) {
+                const sxData = await contentSuixkan(item_id);
+                if ((!sxData || sxData.code !== 0) && title) {
+                    try { return cacheAndSendContent(await rescueNovelContentByTitle(title, chap_idx, chap_title)); } catch (e) {}
+                }
+                return cacheAndSendContent(sxData);
+            }
+
             if (source === '极速韩漫' || item_id.startsWith('veryim_')) {
                 const parts = item_id.replace(/^veryim_/, '').split('_');
                 const comicId = parts[0];
                 const chapterId = parts[1];
                 const vData = await contentVeryim(comicId, chapterId);
-                return new Response(JSON.stringify(vData), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                return cacheAndSendContent(vData);
             }
 
             if (source === '看漫画' || item_id.startsWith('kanman_')) {
@@ -3104,9 +3368,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 const comicId = parts[0];
                 const chapterId = parts[1];
                 const kmData = await contentKanman(comicId, chapterId);
-                return new Response(JSON.stringify(kmData), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                return cacheAndSendContent(kmData);
             }
 
 if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('wenku8_') || item_id.startsWith('wk8_')) {
@@ -3114,53 +3376,26 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 // 若遇版权限制或正文空缺且有书名，自动启动优质源接力
                 if ((!wData.content || wData.content.length < 20) && (!wData.images || wData.images.length === 0) && title) {
                     try {
-                        const bList = await searchBanshanren(title);
-                        const matchBook = bList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, ''));
-                        if (matchBook) {
-                            const bCat = await catalogBanshanren(matchBook.book_id);
-                            if (bCat && bCat.length > 0) {
-                                let targetChap = (chap_idx >= 0 && bCat[chap_idx]) ? bCat[chap_idx] : null;
-                                if (chap_title) {
-                                    const cleanChap = chap_title.replace(/[第章\s]/g, '');
-                                    const found = bCat.find(c => (c.title || '').replace(/[第章\s]/g, '').includes(cleanChap));
-                                    if (found) targetChap = found;
-                                }
-                                if (targetChap) {
-                                    const rescued = await contentBanshanren(targetChap.item_id);
-                                    if (rescued && rescued.code === 0 && rescued.content) {
-                                        return new Response(JSON.stringify({
-                                            code: 0,
-                                            msg: '已自动为您无缝接力至【搬山人】优质源畅读',
-                                            autoSwitched: true,
-                                            newSource: '搬山人',
-                                            title: targetChap.title,
-                                            content: rescued.content
-                                        }), {
-                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                        });
-                                    }
-                                }
-                            }
-                        }
+                        return cacheAndSendContent(await rescueNovelContentByTitle(title, chap_idx, chap_title));
                     } catch(e) {}
                 }
-                return new Response(JSON.stringify(wData), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                return cacheAndSendContent(wData);
             }
 
             if (source === '爱下电子书' || source === 'Ixdzs' || item_id.startsWith('ix_')) {
                 const ixData = await contentIxdzs(item_id);
-                return new Response(JSON.stringify(ixData), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                if ((!ixData || ixData.code !== 0) && title) {
+                    try { return cacheAndSendContent(await rescueNovelContentByTitle(title, chap_idx, chap_title)); } catch (e) {}
+                }
+                return cacheAndSendContent(ixData);
             }
 
             if (source === '搬山人' || item_id.startsWith('/novel/')) {
                 const bData = await contentBanshanren(item_id);
-                return new Response(JSON.stringify(bData), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                if ((!bData || bData.code !== 0) && title) {
+                    try { return cacheAndSendContent(await rescueNovelContentByTitle(title, chap_idx, chap_title)); } catch (e) {}
+                }
+                return cacheAndSendContent(bData);
             }
 
             let decodedItem = null;
@@ -3277,80 +3512,14 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                     } catch(rescueErr) {}
                 }
 
-                // 如果是小说且上游正文缺失、报错或受限，启动后端无缝自动跨源救援 (优先使用爱下电子书海量源与搬山人)
+                // 如果是小说且上游正文缺失、报错或受限，启动后端并发跨源极速救援 (酷我/阅友/爱下/搬山人)
                 if (tab === '小说' && title && (!data || !data.content || data.content.length < 50 || data.code !== 0)) {
                     try {
-                        const ixList = await searchIxdzs(title);
-                        const matchBook = findStrictBookMatch(ixList, title);
-                        if (matchBook) {
-                            const ixCat = await catalogIxdzs(matchBook.book_id);
-                            if (ixCat && ixCat.length > 0) {
-                                let targetChap = (chap_idx >= 0 && ixCat[chap_idx]) ? ixCat[chap_idx] : null;
-                                const cleanChap = chap_title.replace(/[第章\s]/g, '');
-                                if (cleanChap) {
-                                    const found = ixCat.find(c => {
-                                        const ct = (c.title || '').replace(/[第章\s]/g, '');
-                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
-                                    });
-                                    if (found) targetChap = found;
-                                }
-                                if (!targetChap && ixCat.length > 0) targetChap = ixCat[0];
-                                if (targetChap) {
-                                    const rescuedData = await contentIxdzs(targetChap.item_id);
-                                    if (rescuedData && rescuedData.code === 0 && rescuedData.content && rescuedData.content.length > 30) {
-                                        return new Response(JSON.stringify({
-                                            code: 0,
-                                            msg: '已自动为您无缝接力至【爱下电子书】海量源畅读',
-                                            autoSwitched: true,
-                                            newSource: '爱下电子书',
-                                            title: targetChap.title,
-                                            content: rescuedData.content
-                                        }), {
-                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    } catch(rescueErr) {}
-                    try {
-                        const bList = await searchBanshanren(title);
-                        const matchBook = bList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, ''));
-                        if (matchBook) {
-                            const bCat = await catalogBanshanren(matchBook.book_id);
-                            if (bCat && bCat.length > 0) {
-                                let targetChap = (chap_idx >= 0 && bCat[chap_idx]) ? bCat[chap_idx] : null;
-                                const cleanChap = chap_title.replace(/[第章\s]/g, '');
-                                if (cleanChap) {
-                                    const found = bCat.find(c => {
-                                        const ct = (c.title || '').replace(/[第章\s]/g, '');
-                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
-                                    });
-                                    if (found) targetChap = found;
-                                }
-                                if (targetChap) {
-                                    const rescuedData = await contentBanshanren(targetChap.item_id);
-                                    if (rescuedData && rescuedData.code === 0 && rescuedData.content && rescuedData.content.length > 50) {
-                                        return new Response(JSON.stringify({
-                                            code: 0,
-                                            msg: '已自动为您无缝接力至【搬山人】优质源畅读',
-                                            autoSwitched: true,
-                                            newSource: '搬山人',
-                                            title: targetChap.title,
-                                            content: rescuedData.content
-                                        }), {
-                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                        });
-                                    }
-                                }
-                            }
-                        }
+                        return cacheAndSendContent(await rescueNovelContentByTitle(title, chap_idx, chap_title));
                     } catch(rescueErr) {}
                 }
 
-                return new Response(JSON.stringify(data), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                });
+                return cacheAndSendContent(data);
             } catch(e) {
                 if (tab === '漫画' && title) {
                     try {
@@ -3359,29 +3528,18 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                         if (matchBook) {
                             const vCat = await catalogVeryim(matchBook.book_id);
                             if (vCat && vCat.length > 0) {
-                                let targetChap = (chap_idx >= 0 && vCat[chap_idx]) ? vCat[chap_idx] : null;
-                                const cleanChap = chap_title.replace(/[第话章\s]/g, '');
-                                if (cleanChap) {
-                                    const found = vCat.find(c => {
-                                        const ct = (c.title || '').replace(/[第话章\s]/g, '');
-                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
-                                    });
-                                    if (found) targetChap = found;
-                                }
-                                if (!targetChap && vCat.length > 0) targetChap = vCat[0];
+                                let targetChap = pickMatchingChapter(vCat, chap_idx, chap_title);
                                 if (targetChap) {
                                     const p = targetChap.item_id.replace(/^veryim_/, '').split('_');
                                     const rescuedData = await contentVeryim(p[0], p[1]);
                                     if (rescuedData && rescuedData.code === 0 && rescuedData.images && rescuedData.images.length > 0) {
-                                        return new Response(JSON.stringify({
+                                        return cacheAndSendContent({
                                             code: 0,
                                             msg: '已自动为您无缝接力至【极速韩漫】超清画卷',
                                             autoSwitched: true,
                                             newSource: '极速韩漫',
                                             title: targetChap.title,
                                             images: rescuedData.images
-                                        }), {
-                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                                         });
                                     }
                                 }
@@ -3394,29 +3552,18 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                         if (matchBook) {
                             const kmCat = await catalogKanman(matchBook.book_id);
                             if (kmCat && kmCat.length > 0) {
-                                let targetChap = (chap_idx >= 0 && kmCat[chap_idx]) ? kmCat[chap_idx] : null;
-                                const cleanChap = chap_title.replace(/[第话章\s]/g, '');
-                                if (cleanChap) {
-                                    const found = kmCat.find(c => {
-                                        const ct = (c.title || '').replace(/[第话章\s]/g, '');
-                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
-                                    });
-                                    if (found) targetChap = found;
-                                }
-                                if (!targetChap && kmCat.length > 0) targetChap = kmCat[0];
+                                let targetChap = pickMatchingChapter(kmCat, chap_idx, chap_title);
                                 if (targetChap) {
                                     const p = targetChap.item_id.replace(/^kanman_/, '').split('_');
                                     const rescuedData = await contentKanman(p[0], p[1]);
                                     if (rescuedData && rescuedData.code === 0 && rescuedData.images && rescuedData.images.length > 0) {
-                                        return new Response(JSON.stringify({
+                                        return cacheAndSendContent({
                                             code: 0,
                                             msg: '已自动为您无缝接力至【看漫画】超清画卷',
                                             autoSwitched: true,
                                             newSource: '看漫画',
                                             title: targetChap.title,
                                             images: rescuedData.images
-                                        }), {
-                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
                                         });
                                     }
                                 }
@@ -3426,71 +3573,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                 }
                 if (tab === '小说' && title) {
                     try {
-                        const ixList = await searchIxdzs(title);
-                        const matchBook = findStrictBookMatch(ixList, title);
-                        if (matchBook) {
-                            const ixCat = await catalogIxdzs(matchBook.book_id);
-                            if (ixCat && ixCat.length > 0) {
-                                let targetChap = (chap_idx >= 0 && ixCat[chap_idx]) ? ixCat[chap_idx] : null;
-                                const cleanChap = chap_title.replace(/[第章\s]/g, '');
-                                if (cleanChap) {
-                                    const found = ixCat.find(c => {
-                                        const ct = (c.title || '').replace(/[第章\s]/g, '');
-                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
-                                    });
-                                    if (found) targetChap = found;
-                                }
-                                if (!targetChap && ixCat.length > 0) targetChap = ixCat[0];
-                                if (targetChap) {
-                                    const rescuedData = await contentIxdzs(targetChap.item_id);
-                                    if (rescuedData && rescuedData.code === 0 && rescuedData.content && rescuedData.content.length > 30) {
-                                        return new Response(JSON.stringify({
-                                            code: 0,
-                                            msg: '已自动为您无缝接力至【爱下电子书】海量源畅读',
-                                            autoSwitched: true,
-                                            newSource: '爱下电子书',
-                                            title: targetChap.title,
-                                            content: rescuedData.content
-                                        }), {
-                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    } catch(rescueErr) {}
-                    try {
-                        const bList = await searchBanshanren(title);
-                        const matchBook = bList.find(b => b.book_name === title || b.book_name.replace(/\s+/g, '') === title.replace(/\s+/g, ''));
-                        if (matchBook) {
-                            const bCat = await catalogBanshanren(matchBook.book_id);
-                            if (bCat && bCat.length > 0) {
-                                let targetChap = (chap_idx >= 0 && bCat[chap_idx]) ? bCat[chap_idx] : null;
-                                const cleanChap = chap_title.replace(/[第章\s]/g, '');
-                                if (cleanChap) {
-                                    const found = bCat.find(c => {
-                                        const ct = (c.title || '').replace(/[第章\s]/g, '');
-                                        return ct && (ct.includes(cleanChap) || cleanChap.includes(ct));
-                                    });
-                                    if (found) targetChap = found;
-                                }
-                                if (targetChap) {
-                                    const rescuedData = await contentBanshanren(targetChap.item_id);
-                                    if (rescuedData && rescuedData.code === 0 && rescuedData.content && rescuedData.content.length > 50) {
-                                        return new Response(JSON.stringify({
-                                            code: 0,
-                                            msg: '已自动为您无缝接力至【搬山人】优质源畅读',
-                                            autoSwitched: true,
-                                            newSource: '搬山人',
-                                            title: targetChap.title,
-                                            content: rescuedData.content
-                                        }), {
-                                            headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
-                                        });
-                                    }
-                                }
-                            }
-                        }
+                        return cacheAndSendContent(await rescueNovelContentByTitle(title, chap_idx, chap_title));
                     } catch(rescueErr) {}
                 }
                 return new Response(JSON.stringify({ code: -1, msg: e.message }), {
@@ -3755,17 +3838,26 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                         const deletedMap = { ...(prevSnapshot.deletedMap || {}), ...(payload.deletedMap || {}) };
                         payload.deletedMap = deletedMap;
 
-                        // 2. 合并小说与漫画阅读历史 (严格区分 tab，章节单调向前)
+                        const getServerBookTab = (b) => {
+                            if (!b) return '小说';
+                            if (b.tab === '漫画' || b.tab === '小说') return b.tab;
+                            const s = String(b.source || '');
+                            const id = String(b.book_id || '');
+                            if (s === '看漫画' || s === '新新漫画' || s === '全面漫画' || s === 'G社漫画' || s === '极速韩漫' || id.startsWith('kanman_') || id.startsWith('veryim_')) return '漫画';
+                            return '小说';
+                        };
+
+                        // 2. 合并小说与漫画阅读历史 (严格区分 tab，章节单调向前，保留真实阅读时间戳排序)
                         const mergedHistory = Array.isArray(payload.history) ? [...payload.history] : [];
                         const prevHist = Array.isArray(prevSnapshot.history) ? prevSnapshot.history : [];
                         prevHist.forEach(prevItem => {
                             if (!prevItem || !prevItem.book_name) return;
                             const pName = prevItem.book_name.trim();
-                            const pTab = prevItem.tab || (prevItem.source === '看漫画' ? '漫画' : '小说');
+                            const pTab = getServerBookTab(prevItem);
                             const delKey = 'hist:' + pTab + ':' + pName;
                             if (deletedMap[delKey] && Number(deletedMap[delKey]) > Number(prevItem.readTime || prevItem.updatedAt || 0)) return;
 
-                            const targetIdx = mergedHistory.findIndex(b => b.book_name && b.book_name.trim() === pName && (b.tab || (b.source === '看漫画' ? '漫画' : '小说')) === pTab);
+                            const targetIdx = mergedHistory.findIndex(b => b.book_name && b.book_name.trim() === pName && getServerBookTab(b) === pTab);
                             if (targetIdx === -1) {
                                 mergedHistory.push(prevItem);
                             } else {
@@ -3773,7 +3865,8 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                                 const takeTarget = compareServerItem(target, prevItem);
                                 const winner = takeTarget ? target : prevItem;
                                 const loser = takeTarget ? prevItem : target;
-                                const maxTime = Math.max(Number(target.readTime || target.updatedAt || 0), Number(prevItem.readTime || prevItem.updatedAt || 0), Date.now());
+                                // 关键：只取两端真实最大时间戳，绝不混入 Date.now() 否则会把旧书全部刷成“刚刚”导致刚看的书排到底部
+                                const maxTime = Math.max(Number(target.readTime || target.updatedAt || 0), Number(prevItem.readTime || prevItem.updatedAt || 0)) || Date.now();
 
                                 mergedHistory[targetIdx] = {
                                     ...loser,
@@ -3792,19 +3885,21 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                                 };
                             }
                         });
-                        payload.history = mergedHistory.sort((a, b) => (Number(b.readTime) || 0) - (Number(a.readTime) || 0)).slice(0, 80);
+                        payload.history = mergedHistory
+                            .sort((a, b) => (Number(b.readTime || b.updatedAt) || 0) - (Number(a.readTime || a.updatedAt) || 0))
+                            .slice(0, 80);
 
-                        // 3. 合并我的书架 (严格区分 tab，章节单调向前)
+                        // 3. 合并我的书架 (严格区分 tab，章节单调向前，保留真实更新时间)
                         const mergedShelf = Array.isArray(payload.shelf) ? [...payload.shelf] : [];
                         const prevShelf = Array.isArray(prevSnapshot.shelf) ? prevSnapshot.shelf : [];
                         prevShelf.forEach(prevItem => {
                             if (!prevItem || !prevItem.book_name) return;
                             const pName = prevItem.book_name.trim();
-                            const pTab = prevItem.tab || (prevItem.source === '看漫画' ? '漫画' : '小说');
+                            const pTab = getServerBookTab(prevItem);
                             const delKey = 'shelf:' + (pTab === '漫画' ? 'manga:' : 'novel:') + pName;
                             if (deletedMap[delKey] && Number(deletedMap[delKey]) > Number(prevItem.updatedAt || prevItem.readTime || 0)) return;
 
-                            const targetIdx = mergedShelf.findIndex(b => b.book_name && b.book_name.trim() === pName && (b.tab || (b.source === '看漫画' ? '漫画' : '小说')) === pTab);
+                            const targetIdx = mergedShelf.findIndex(b => b.book_name && b.book_name.trim() === pName && getServerBookTab(b) === pTab);
                             if (targetIdx === -1) {
                                 mergedShelf.push(prevItem);
                             } else {
@@ -3812,7 +3907,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                                 const takeTarget = compareServerItem(target, prevItem);
                                 const winner = takeTarget ? target : prevItem;
                                 const loser = takeTarget ? prevItem : target;
-                                const maxTime = Math.max(Number(target.updatedAt || target.readTime || 0), Number(prevItem.updatedAt || prevItem.readTime || 0), Date.now());
+                                const maxTime = Math.max(Number(target.updatedAt || target.readTime || 0), Number(prevItem.updatedAt || prevItem.readTime || 0)) || Date.now();
 
                                 mergedShelf[targetIdx] = {
                                     ...loser,
@@ -3831,7 +3926,7 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                                 };
                             }
                         });
-                        payload.shelf = mergedShelf;
+                        payload.shelf = mergedShelf.sort((a, b) => (Number(b.updatedAt || b.readTime) || 0) - (Number(a.updatedAt || a.readTime) || 0));
 
                         // 4. 合并影视观看记录
                         const mergedVid = Array.isArray(payload.videoHistory) ? [...payload.videoHistory] : [];
@@ -3857,10 +3952,11 @@ if (source === '轻小说文库' || source === 'Wenku8' || item_id.startsWith('w
                                         target.ep_title = prevItem.ep_title || target.ep_title;
                                         target.play_seconds = prevItem.play_seconds || 0;
                                     }
+                                    target.time = pTime;
                                 }
                             }
                         });
-                        payload.videoHistory = mergedVid;
+                        payload.videoHistory = mergedVid.sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0)).slice(0, 50);
                     }
 
                     const payloadStr = JSON.stringify(payload);

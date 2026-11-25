@@ -5134,18 +5134,22 @@
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质小说源：</label>
                 <select id="novelSourceSelect" class="select-filter">
                     <option value="ALL" selected>⚡ 聚合搜 (默认·同时检索全部小说源)</option>
+                    <option value="酷我小说">酷我小说 (正版极速直连 · 毫秒响应)</option>
+                    <option value="阅友小说">阅友小说 (开源高速书库 · 清爽直出)</option>
                     <option value="爱下电子书">爱下电子书 (海量全本、天启预报/玄幻都市)</option>
                     <option value="搬山人">搬山人 (全本精校、长篇大作无删减)</option>
                     <option value="七猫">七猫 (官方正版、都市玄幻爆款)</option>
                     <option value="番茄">番茄 (原创百万好书、全本连载)</option>
                     <option value="伪69">伪69 (全网无删减、海量同人全集)</option>
-                    <option value="半夏小说">半夏小说 (纯爱言情、精品高分)</option>
+                    <option value="笔趣阁39">笔趣阁39 (经典老牌·高命中率)</option>
+                    <option value="全免小说">全免小说 (全网热门完本)</option>
+                    <option value="QQ阅读">QQ阅读 (正版热门畅销榜)</option>
                     <option value="52书库">52书库 (完结经典精选)</option>
                     <option value="全本小说">全本小说 (完本经典大作)</option>
-                    <option value="淘小说">淘小说 (冷门完本书库)</option>
                     <option value="百度">百度 (百度小说官方库)</option>
                     <option value="笔趣阁78">笔趣阁78 (传统经典长篇)</option>
-                    <option value="知乎">知乎 (知乎盐选热文)</option>
+                    <option value="半夏小说">半夏小说 (纯爱言情、精品高分)</option>
+                    <option value="书旗">书旗 (阿里文学全本)</option>
                 </select>
             </div>
         </div>
@@ -7239,7 +7243,8 @@
             lastScrollRatio: extraProgress.scrollRatio !== undefined ? extraProgress.scrollRatio : (existingHist.lastScrollRatio || 0),
             lastMangaImgIndex: extraProgress.imgIdx !== undefined ? extraProgress.imgIdx : (existingHist.lastMangaImgIndex || 0),
             lastProgressLabel: extraProgress.progressLabel || existingHist.lastProgressLabel || '',
-            readTime: now
+            readTime: now,
+            updatedAt: now
         });
         if (history.length > 80) history.pop();
         saveRecentHistory(history, skipCloudPush);
@@ -7342,7 +7347,8 @@
 
                 const winner = takeNew ? item : existing;
                 const loser = takeNew ? existing : item;
-                const maxTime = Math.max(exTs, itemTs, Date.now());
+                // 严禁把 Date.now() 放进 Math.max：否则每次同步都会把所有老书的时间戳刷成“现在”，导致刚看完的书排在最下面且双端排序错乱
+                const maxTime = Math.max(exTs, itemTs) || Date.now();
 
                 shelfMap.set(key, {
                     ...loser,
@@ -7363,9 +7369,10 @@
         };
         (localPayload.shelf || []).forEach(pushShelfItem);
         (cloudPayload.shelf || []).forEach(pushShelfItem);
-        const mergedShelf = Array.from(shelfMap.values());
+        const mergedShelf = Array.from(shelfMap.values())
+            .sort((a, b) => (Number(b.updatedAt || b.readTime) || 0) - (Number(a.updatedAt || a.readTime) || 0));
 
-        // 3. 合并【小说与漫画阅读记录】(按 tab + book_name 聚合，原子化完整保留最新真实章节，绝不错位错拆)
+        // 3. 合并【小说与漫画阅读记录】(按 tab + book_name 聚合，原子化完整保留最新真实章节，保留真实时间戳排序)
         const histMap = new Map();
         const pushHistItem = (item) => {
             if (!item || !item.book_name) return;
@@ -7384,7 +7391,7 @@
 
                 const winner = takeNew ? item : existing;
                 const loser = takeNew ? existing : item;
-                const maxTime = Math.max(exTs, itemTs, Date.now());
+                const maxTime = Math.max(exTs, itemTs) || Date.now();
 
                 histMap.set(key, {
                     ...loser,
@@ -7406,7 +7413,7 @@
         (localPayload.history || []).forEach(pushHistItem);
         (cloudPayload.history || []).forEach(pushHistItem);
         const mergedHistory = Array.from(histMap.values())
-            .sort((a, b) => (Number(b.readTime) || 0) - (Number(a.readTime) || 0))
+            .sort((a, b) => (Number(b.readTime || b.updatedAt) || 0) - (Number(a.readTime || a.updatedAt) || 0))
             .slice(0, 80);
 
         // 4. 合并【影视观看记录】(按 vod_id/vod_name 聚合，保留最新集数与秒数进度)
@@ -7491,6 +7498,8 @@
         if (typeof renderMangaHistory === 'function') renderMangaHistory();
         if (typeof renderVideoHistory === 'function') renderVideoHistory();
         if (typeof renderHistoryModule === 'function') renderHistoryModule();
+        if (typeof renderHomeContinueRead === 'function') renderHomeContinueRead();
+        if (typeof renderHomeContinueHero === 'function') renderHomeContinueHero();
         if (typeof window.renderRecentWatchBar === 'function') window.renderRecentWatchBar();
         updateCloudSyncUI();
     }
@@ -8356,7 +8365,10 @@
         if (!wrap) return;
         let all = [];
         try { all = getRecentHistory() || []; } catch (e) { all = []; }
-        const books = all.filter(b => b && b.book_name).slice(0, 8);
+        const books = all
+            .filter(b => b && b.book_name)
+            .sort((a, b) => (Number(b.readTime || b.updatedAt) || 0) - (Number(a.readTime || a.updatedAt) || 0))
+            .slice(0, 8);
         if (books.length === 0) {
             wrap.innerHTML = '';
             return;
@@ -8645,7 +8657,9 @@
         if (!grid || !empty) return;
 
         const all = getRecentHistory();
-        const list = all.filter(item => item.tab === '小说' || (!item.tab && item.source !== '看漫画' && item.source !== '新新漫画' && item.source !== '全面漫画' && item.source !== 'G社漫画' && item.source !== '极速韩漫' && !String(item.book_id || '').startsWith('kanman_')));
+        const list = all
+            .filter(item => item.tab === '小说' || (!item.tab && item.source !== '看漫画' && item.source !== '新新漫画' && item.source !== '全面漫画' && item.source !== 'G社漫画' && item.source !== '极速韩漫' && !String(item.book_id || '').startsWith('kanman_')))
+            .sort((a, b) => (Number(b.readTime || b.updatedAt) || 0) - (Number(a.readTime || a.updatedAt) || 0));
         if (badge) badge.textContent = `${list.length} 本`;
         if (tabBadge) tabBadge.textContent = `${list.length}`;
 
@@ -8682,7 +8696,9 @@
         if (!grid || !empty) return;
 
         const all = getRecentHistory();
-        const list = all.filter(item => item.tab === '漫画' || item.source === '看漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画' || item.source === '极速韩漫' || String(item.book_id || '').startsWith('kanman_'));
+        const list = all
+            .filter(item => item.tab === '漫画' || item.source === '看漫画' || item.source === '新新漫画' || item.source === '全面漫画' || item.source === 'G社漫画' || item.source === '极速韩漫' || String(item.book_id || '').startsWith('kanman_'))
+            .sort((a, b) => (Number(b.readTime || b.updatedAt) || 0) - (Number(a.readTime || a.updatedAt) || 0));
         if (badge) badge.textContent = `${list.length} 部`;
         if (tabBadge) tabBadge.textContent = `${list.length}`;
 
@@ -9933,35 +9949,76 @@ window.clearNovelSearch = function() {
         showView('detail');
 
         try {
-            // 云端通行证预检与目录拉取并发进行（毫秒级对齐云端进度，彻底解决跨端打开落后章节）
+            window._bookCatalogMemCache = window._bookCatalogMemCache || new Map();
+            const memKey = `${activeTab}:${cleanSource}:${book.book_id}`;
+            const cachedEntry = window._bookCatalogMemCache.get(memKey);
+            const hasFreshMemCache = cachedEntry && (Date.now() - cachedEntry.at < 300000);
+
+            // 云端通行证预检不阻塞开书目录渲染：最多等待 600ms，超时则由后台完成对齐并通过横幅/详情刷新响应
             const cloudUser = getCloudUser();
             const cloudFetchPromise = (cloudUser && cloudUser.uid) ? fetchCloudSnapshot(cloudUser.uid).catch(() => null) : Promise.resolve(null);
-
-            const [res, cloudPayload] = await Promise.all([
-                fetch(`/api/catalog?book_id=${encodeURIComponent(book.book_id)}&source=${encodeURIComponent(book.source)}&tab=${encodeURIComponent(activeTab)}&title=${encodeURIComponent(book.book_name || '')}`),
-                cloudFetchPromise
+            const cloudRacePromise = Promise.race([
+                cloudFetchPromise,
+                new Promise(resolve => setTimeout(() => resolve(null), 600))
             ]);
 
-            if (cloudPayload) {
-                const localPayload = buildLocalSyncPayload();
-                const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
-                applyMergedPayloadToLocal(merged);
+            const catalogPromise = hasFreshMemCache
+                ? Promise.resolve(cachedEntry.data)
+                : fetch(`/api/catalog?book_id=${encodeURIComponent(book.book_id)}&source=${encodeURIComponent(book.source)}&tab=${encodeURIComponent(activeTab)}&title=${encodeURIComponent(book.book_name || '')}`)
+                    .then(r => r.json())
+                    .catch(() => ({ code: -1, data: [] }));
+
+            const [data, fastCloudPayload] = await Promise.all([catalogPromise, cloudRacePromise]);
+
+            if (!hasFreshMemCache && data && Array.isArray(data.data) && data.data.length > 0) {
+                if (window._bookCatalogMemCache.size > 30) {
+                    const firstK = window._bookCatalogMemCache.keys().next().value;
+                    window._bookCatalogMemCache.delete(firstK);
+                }
+                window._bookCatalogMemCache.set(memKey, { data, at: Date.now() });
             }
 
-            let data = null;
-            try {
-                data = await res.json();
-            } catch(e) {
-                data = { code: -1, data: [] };
+            if (fastCloudPayload) {
+                const localPayload = buildLocalSyncPayload();
+                const { merged } = mergeCloudAndLocalData(localPayload, fastCloudPayload);
+                applyMergedPayloadToLocal(merged);
+            } else if (cloudUser && cloudUser.uid) {
+                cloudFetchPromise.then(lateCloud => {
+                    if (!lateCloud || !currentBookInfo || currentBookInfo.book_name !== book.book_name) return;
+                    const localPayload = buildLocalSyncPayload();
+                    const { merged } = mergeCloudAndLocalData(localPayload, lateCloud);
+                    applyMergedPayloadToLocal(merged);
+                    if (currentCatalog && currentCatalog.length > 0) {
+                        const bN = (book.book_name || '').trim();
+                        const mH = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bN && getBookTab(b) === activeTab);
+                        const mS = (merged.shelf || []).find(b => b.book_name && b.book_name.trim() === bN && getBookTab(b) === activeTab);
+                        const bestLate = (mH && compareReadingProgress(mH, mS)) ? mH : (mS || mH);
+                        if (bestLate) {
+                            const lateIdx = findBestMatchingChapterIndex(currentCatalog, bestLate);
+                            if (lateIdx !== currentChapterIndex) {
+                                currentChapterIndex = lateIdx;
+                                currentBookInfo.lastReadIndex = lateIdx;
+                                currentBookInfo.lastReadTitle = currentCatalog[lateIdx]?.title || bestLate.lastReadTitle;
+                                updateDetailHeroReadBtn();
+                                renderDetailCatalogList();
+                                const rView = document.getElementById('readerView');
+                                if (rView && rView.style.display !== 'none') {
+                                    showReaderSyncNotice(bestLate, lateIdx);
+                                }
+                            }
+                        }
+                    }
+                }).catch(() => {});
             }
+
             if (data && data.autoSwitched) {
-                const newSource = data.newSource || (activeTab === '漫画' ? '看漫画' : '搬山人');
+                const newSource = data.newSource || (activeTab === '漫画' ? '看漫画' : '酷我小说');
                 currentBookInfo.source = newSource;
                 if (data.newBookId) currentBookInfo.book_id = data.newBookId;
                 const sourceTag = document.getElementById('detailSourceTag');
                 if (sourceTag) sourceTag.innerText = newSource + ' (已自动接力)';
             }
-            const rawCatalog = data.data || [];
+            const rawCatalog = (data && data.data) ? data.data : [];
 
             const normalized = normalizeAndSortCatalog(rawCatalog, activeTab);
             currentCatalog = normalized.list;
@@ -11274,33 +11331,187 @@ window.clearNovelSearch = function() {
         switchNav(previousView);
     }
 
-    async function openSwitchSourceModal() {
+    window._switchSourceSearchCache = window._switchSourceSearchCache || new Map();
+    window._switchSourceMatches = [];
+
+    // 搜前换源：打开即全网聚合检索所有真实收录该作品的书源，点击直接对齐当前章节无缝切换阅读
+    async function openSwitchSourceModal(forceRefresh = false) {
         if (!currentBookInfo) return;
         const modal = document.getElementById('sourceModal');
         const list = document.getElementById('sourceSwitchList');
+        if (!modal || !list) return;
         modal.classList.add('open');
 
-        const tab = currentBookInfo.tab || '小说';
-        const candidateSources = (tab === '漫画') 
-            ? ['看漫画', '极速韩漫', '新新漫画', 'G社漫画', '全面漫画', '番茄'] 
-            : ['搬山人', '轻小说文库', '七猫', '番茄', '伪69', '半夏小说', '52书库', '爱下电子书', '百度', '淘小说', '笔趣阁78', '知乎'];
+        const tab = currentBookInfo.tab || getBookTab(currentBookInfo) || '小说';
+        const bookName = (currentBookInfo.book_name || '').trim();
+        const cacheKey = `${tab}:${bookName}`;
 
-        const otherSources = candidateSources.filter(s => s !== currentBookInfo.source);
+        list.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 4px 10px; border-bottom:1px solid rgba(255,255,255,0.08); margin-bottom:8px;">
+                <span style="font-size:12px; color:var(--text-muted);">当前书源：<strong style="color:var(--accent);">${escapeNovelHtml(currentBookInfo.source || '未知')}</strong></span>
+                <button class="btn" style="padding:3px 9px; font-size:11px;" onclick="openSwitchSourceModal(true)"><i class="fas fa-rotate"></i> 重新全网搜源</button>
+            </div>
+            <div id="switchSourceSearchArea" style="text-align:center; padding:26px 12px; color:var(--text-muted);">
+                <i class="fas fa-spinner fa-spin" style="color:var(--accent); font-size:18px; margin-bottom:8px; display:block;"></i>
+                <div style="font-size:13px;">正在并发检索哪些书源真实收录《${escapeNovelHtml(bookName)}》...</div>
+            </div>
+        `;
 
-        let html = '';
-        for (const s of otherSources) {
-            html += `
-                <div class="switch-item" onclick="switchToSource('${s}')">
-                    <div>
-                        <div style="font-weight:600; font-size:14px;">${s}</div>
-                        <div style="font-size:11px; color:var(--text-muted);">一键切至【${s}】重新搜索《${currentBookInfo.book_name}》</div>
-                    </div>
-                    <span class="card-tag">一键切换</span>
+        const area = document.getElementById('switchSourceSearchArea');
+        const renderMatches = (rawMatches) => {
+            if (!area) return;
+            const cleanTarget = bookName.replace(/[\s《》:：·・\-_]/g, '').toLowerCase();
+            const spamWords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助'];
+            const valid = (rawMatches || []).filter(item => {
+                if (!item || !item.book_name) return false;
+                if (spamWords.some(k => item.book_name.includes(k)) || item.book_id === 'vip' || item.book_id === 'svip') return false;
+                const cleanItem = item.book_name.replace(/[\s《》:：·・\-_]/g, '').toLowerCase();
+                return cleanItem === cleanTarget || cleanItem.includes(cleanTarget) || cleanTarget.includes(cleanItem);
+            });
+
+            // 排序：完全同名优先，非当前源优先，每个源保留最匹配的一本
+            const bestPerSource = new Map();
+            valid.forEach(item => {
+                const src = ((item.source || '') + '').replace(/^svip_/, '');
+                if (!src) return;
+                const cleanItem = item.book_name.replace(/[\s《》:：·・\-_]/g, '').toLowerCase();
+                const score = (cleanItem === cleanTarget ? 100 : 50) - Math.abs(cleanItem.length - cleanTarget.length);
+                const prev = bestPerSource.get(src);
+                if (!prev || score > prev._score) {
+                    bestPerSource.set(src, { ...item, source: src, tab, _score: score });
+                }
+            });
+
+            const sorted = Array.from(bestPerSource.values()).sort((a, b) => {
+                const aCur = (a.source === currentBookInfo.source) ? 1 : 0;
+                const bCur = (b.source === currentBookInfo.source) ? 1 : 0;
+                if (aCur !== bCur) return aCur - bCur; // 备选可用源排最前方便直接切换
+                return b._score - a._score;
+            });
+
+            window._switchSourceMatches = sorted;
+
+            if (sorted.length === 0) {
+                area.style.textAlign = 'left';
+                area.style.padding = '8px 0';
+                area.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:22px 10px;">暂未在公开源中找到《${escapeNovelHtml(bookName)}》的其他可用记录<br><span style="font-size:11px; opacity:0.75;">可点击右上角「重新全网搜源」再试</span></div>`;
+                return;
+            }
+
+            area.style.textAlign = 'left';
+            area.style.padding = '0';
+            area.innerHTML = `
+                <div style="font-size:11.5px; color:#10b981; padding:2px 4px 8px; font-weight:600;">
+                    <i class="fas fa-check-circle"></i> 已为你找到 ${sorted.length} 个确认收录该书的可用书源，点击即可对齐当前章节无缝切换：
                 </div>
+                ${sorted.map((m, idx) => {
+                    const isCur = (m.source === currentBookInfo.source);
+                    return `
+                        <div class="switch-item" style="${isCur ? 'border-color:var(--accent); background:rgba(45,212,192,0.08);' : ''}" onclick="${isCur ? 'closeSourceModal()' : `seamlessSwitchToBookSource(${idx}, this)`}">
+                            <div style="min-width:0; flex:1; padding-right:8px;">
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <span style="font-weight:700; font-size:14px; color:var(--text-main);">${escapeNovelHtml(m.source)}</span>
+                                    ${isCur ? '<span style="font-size:10px; background:var(--accent); color:#000; padding:1px 6px; border-radius:4px; font-weight:700;">当前在读</span>' : ''}
+                                    <span style="font-size:11.5px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">《${escapeNovelHtml(m.book_name)}》</span>
+                                </div>
+                                <div style="font-size:11px; color:var(--text-muted); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                    ${escapeNovelHtml(m.author ? '作者: ' + m.author : '全网精选')}${m.abstract ? ' · ' + escapeNovelHtml(cleanAdContent(m.abstract).slice(0, 32)) : ''}
+                                </div>
+                            </div>
+                            <span class="card-tag" style="flex-shrink:0;">${isCur ? '继续阅读' : '无缝切源'}</span>
+                        </div>
+                    `;
+                }).join('')}
             `;
+        };
+
+        const cached = !forceRefresh && window._switchSourceSearchCache.get(cacheKey);
+        if (cached && (Date.now() - cached.at < 180000)) {
+            renderMatches(cached.data);
+            return;
         }
-        list.innerHTML = html;
+
+        try {
+            const res = await fetch(`/api/search?title=${encodeURIComponent(bookName)}&tab=${encodeURIComponent(tab)}&source=ALL`);
+            const json = await res.json();
+            const listData = (json && Array.isArray(json.data)) ? json.data : [];
+            window._switchSourceSearchCache.set(cacheKey, { data: listData, at: Date.now() });
+            renderMatches(listData);
+        } catch (e) {
+            if (area) {
+                area.innerHTML = `<div style="color:#f87171; padding:20px; text-align:center;">全网检索书源失败: ${escapeNovelHtml(e.message)}</div>`;
+            }
+        }
     }
+
+    // 书源无缝切换核心：不跳回搜索页，直接拉新源目录 + 智能对齐当前章节 + 立即刷新阅读/详情
+    window.seamlessSwitchToBookSource = async function(matchIdx, el) {
+        const match = window._switchSourceMatches && window._switchSourceMatches[matchIdx];
+        if (!match) return;
+
+        const tagEl = el ? el.querySelector('.card-tag') : null;
+        if (tagEl) tagEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 切换中';
+
+        const tab = currentBookInfo.tab || getBookTab(currentBookInfo) || '小说';
+        const oldChapTitle = (currentCatalog && currentCatalog[currentChapterIndex]) ? currentCatalog[currentChapterIndex].title : (currentBookInfo.lastReadTitle || '');
+        const oldChapIdx = currentChapterIndex || 0;
+        const wasInReader = (document.getElementById('readerView')?.style.display !== 'none');
+
+        try {
+            const res = await fetch(`/api/catalog?book_id=${encodeURIComponent(match.book_id)}&source=${encodeURIComponent(match.source)}&tab=${encodeURIComponent(tab)}&title=${encodeURIComponent(match.book_name || '')}`);
+            const data = await res.json();
+            const rawCatalog = (data && Array.isArray(data.data)) ? data.data : [];
+            if (rawCatalog.length === 0) {
+                if (tagEl) tagEl.textContent = '暂无目录';
+                if (typeof showCloudToast === 'function') showCloudToast(`【${match.source}】暂无可用目录，请选其他可用源`, 'fa-triangle-exclamation', '#f59e0b');
+                return;
+            }
+
+            const normalized = normalizeAndSortCatalog(rawCatalog, tab);
+            const newSource = (data && data.autoSwitched && data.newSource) ? data.newSource : match.source;
+            const newBookId = (data && data.autoSwitched && data.newBookId) ? data.newBookId : match.book_id;
+
+            currentBookInfo = {
+                ...currentBookInfo,
+                ...match,
+                source: newSource,
+                book_id: newBookId,
+                tab: tab
+            };
+            currentCatalog = normalized.list;
+
+            // 智能对齐章节（按章节号或核心标题精确匹配，避免换源丢失阅读位置）
+            const alignedIdx = findBestMatchingChapterIndex(currentCatalog, {
+                lastReadTitle: oldChapTitle,
+                lastReadIndex: oldChapIdx
+            });
+            currentChapterIndex = alignedIdx;
+            currentBookInfo.lastReadIndex = alignedIdx;
+            currentBookInfo.lastReadTitle = currentCatalog[alignedIdx]?.title || oldChapTitle || '第一章';
+            currentBookInfo.lastReadItemId = currentCatalog[alignedIdx]?.item_id || '';
+
+            const sourceTag = document.getElementById('detailSourceTag');
+            if (sourceTag) sourceTag.innerText = newSource;
+            const countBadge = document.getElementById('detailCatalogCountBadge');
+            if (countBadge) countBadge.innerText = `(共 ${currentCatalog.length} 章)`;
+
+            updateRecentHistory(currentBookInfo, currentBookInfo.lastReadTitle, alignedIdx);
+            updateDetailHeroReadBtn();
+            renderDetailCatalogList();
+            closeSourceModal();
+
+            if (typeof showCloudToast === 'function') {
+                showCloudToast(`已无缝切换至【${newSource}】· ${currentBookInfo.lastReadTitle}`, 'fa-check-circle', '#10b981');
+            }
+
+            if (wasInReader) {
+                readChapter(alignedIdx, false, 'first');
+            }
+        } catch (err) {
+            if (tagEl) tagEl.textContent = '切换失败';
+            if (typeof showCloudToast === 'function') showCloudToast('切换书源失败: ' + err.message, 'fa-circle-exclamation', '#ef4444');
+        }
+    };
 
     function closeSourceModal() {
         document.getElementById('sourceModal').classList.remove('open');
