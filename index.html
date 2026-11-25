@@ -7649,10 +7649,12 @@
     async function pullAndMergeCloudSilently(incomingPayload = null) {
         const user = getCloudUser();
         if (!user || !user.uid || _isCloudSyncing || _cloudPushTimer) return false;
+        if (incomingPayload && incomingPayload.deviceId && incomingPayload.deviceId === _cloudDeviceId) return false;
         _isCloudSyncing = true;
         try {
             const cloudPayload = incomingPayload || await fetchCloudSnapshot(user.uid);
             if (cloudPayload) {
+                const isSelfEcho = Boolean(cloudPayload.deviceId && cloudPayload.deviceId === _cloudDeviceId);
                 const localPayload = buildLocalSyncPayload();
                 const { merged } = mergeCloudAndLocalData(localPayload, cloudPayload);
                 applyMergedPayloadToLocal(merged);
@@ -7665,15 +7667,15 @@
                 if (typeof renderNovelHistory === 'function') renderNovelHistory();
                 if (typeof renderMangaHistory === 'function') renderMangaHistory();
 
-                // 若当前处于书籍详情视图中，实时对齐最新跨端章节
+                // 若当前处于书籍详情视图中，实时对齐最新跨端章节（跳过本机回声）
                 const dView = document.getElementById('detailView');
-                if (dView && dView.style.display !== 'none' && currentBookInfo && currentBookInfo.book_name) {
+                if (!isSelfEcho && dView && dView.style.display !== 'none' && currentBookInfo && currentBookInfo.book_name) {
                     const bName = currentBookInfo.book_name.trim();
                     const curTab = getBookTab(currentBookInfo);
                     const mHist = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
                     const mShelf = (merged.shelf || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
                     const best = (mHist && compareReadingProgress(mHist, mShelf)) ? mHist : (mShelf || mHist);
-                    if (best && currentCatalog && currentCatalog.length > 0) {
+                    if (best && currentCatalog && currentCatalog.length > 0 && Number(best.readTime || best.updatedAt || 0) > Number(currentBookInfo.readTime || 0)) {
                         const targetIdx = findBestMatchingChapterIndex(currentCatalog, best);
                         currentChapterIndex = targetIdx;
                         currentBookInfo.lastReadIndex = targetIdx;
@@ -7683,14 +7685,16 @@
                     }
                 }
 
-                // 若当前正处于小说/漫画阅读视图中，检测同类型作品是否有更新的阅读进度
-                if (currentBookInfo && currentBookInfo.book_name) {
+                // 若当前正处于小说/漫画阅读视图中，仅当来自“另一台设备”且时间确实更新、且不是本机刚看过的回退章节时才提示
+                if (!isSelfEcho && currentBookInfo && currentBookInfo.book_name) {
                     const rView = document.getElementById('readerView');
                     if (rView && rView.style.display !== 'none') {
                         const bName = currentBookInfo.book_name.trim();
                         const curTab = getBookTab(currentBookInfo);
                         const matched = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bName && getBookTab(b) === curTab);
-                        if (matched) {
+                        const remoteTs = matched ? Number(matched.readTime || matched.updatedAt || 0) : 0;
+                        const localTs = Number(currentBookInfo.readTime || 0);
+                        if (matched && remoteTs > localTs) {
                             const isAhead = compareReadingProgress(matched, {
                                 lastReadTitle: currentCatalog[currentChapterIndex]?.title || currentBookInfo.lastReadTitle,
                                 lastReadIndex: currentChapterIndex,
@@ -7700,7 +7704,10 @@
                             });
                             if (isAhead) {
                                 const targetIdx = findBestMatchingChapterIndex(currentCatalog, matched);
-                                showReaderSyncNotice(matched, targetIdx);
+                                const visitedKey = curTab + ':' + bName + ':' + targetIdx;
+                                if (!window._sessionVisitedChapters || !window._sessionVisitedChapters.has(visitedKey)) {
+                                    showReaderSyncNotice(matched, targetIdx);
+                                }
                             }
                         }
                     }
@@ -7744,6 +7751,7 @@
                         const ar = await fetch(data.attachment.url, { signal: AbortSignal.timeout(4500) });
                         if (ar.ok) {
                             const remotePayload = await ar.json();
+                            if (remotePayload && remotePayload.deviceId && remotePayload.deviceId === _cloudDeviceId) return;
                             await pullAndMergeCloudSilently(remotePayload);
                             return;
                         }
@@ -9984,7 +9992,7 @@ window.clearNovelSearch = function() {
                 applyMergedPayloadToLocal(merged);
             } else if (cloudUser && cloudUser.uid) {
                 cloudFetchPromise.then(lateCloud => {
-                    if (!lateCloud || !currentBookInfo || currentBookInfo.book_name !== book.book_name) return;
+                    if (!lateCloud || (lateCloud.deviceId && lateCloud.deviceId === _cloudDeviceId) || !currentBookInfo || currentBookInfo.book_name !== book.book_name) return;
                     const localPayload = buildLocalSyncPayload();
                     const { merged } = mergeCloudAndLocalData(localPayload, lateCloud);
                     applyMergedPayloadToLocal(merged);
@@ -9993,9 +10001,12 @@ window.clearNovelSearch = function() {
                         const mH = (merged.history || []).find(b => b.book_name && b.book_name.trim() === bN && getBookTab(b) === activeTab);
                         const mS = (merged.shelf || []).find(b => b.book_name && b.book_name.trim() === bN && getBookTab(b) === activeTab);
                         const bestLate = (mH && compareReadingProgress(mH, mS)) ? mH : (mS || mH);
-                        if (bestLate) {
+                        const lateTs = bestLate ? Number(bestLate.readTime || bestLate.updatedAt || 0) : 0;
+                        const localTs = Number(currentBookInfo.readTime || 0);
+                        if (bestLate && lateTs > localTs) {
                             const lateIdx = findBestMatchingChapterIndex(currentCatalog, bestLate);
-                            if (lateIdx !== currentChapterIndex) {
+                            const visitedKey = activeTab + ':' + bN + ':' + lateIdx;
+                            if (lateIdx !== currentChapterIndex && (!window._sessionVisitedChapters || !window._sessionVisitedChapters.has(visitedKey))) {
                                 currentChapterIndex = lateIdx;
                                 currentBookInfo.lastReadIndex = lateIdx;
                                 currentBookInfo.lastReadTitle = currentCatalog[lateIdx]?.title || bestLate.lastReadTitle;
@@ -10771,6 +10782,10 @@ window.clearNovelSearch = function() {
         currentBookInfo.lastReadIndex = idx;
         currentBookInfo.lastReadTitle = chap.title;
         currentBookInfo.lastReadItemId = chap.item_id;
+        currentBookInfo.readTime = Date.now();
+        window._sessionVisitedChapters = window._sessionVisitedChapters || new Set();
+        window._sessionVisitedChapters.add((getBookTab(currentBookInfo) || '小说') + ':' + String(currentBookInfo.book_name || '').trim() + ':' + idx);
+        if (typeof window.dismissReaderSyncBanner === 'function') window.dismissReaderSyncBanner();
         _targetInitialPage = initialPage || 'first';
         const reqToken = ++_currentReadRequestToken;
 
