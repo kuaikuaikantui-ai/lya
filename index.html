@@ -5133,23 +5133,19 @@
             <div class="filter-row">
                 <label style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-filter"></i> 优质小说源：</label>
                 <select id="novelSourceSelect" class="select-filter">
-                    <option value="ALL" selected>⚡ 聚合搜 (默认·同时检索全部小说源)</option>
+                    <option value="ALL" selected>⚡ 聚合搜 (默认·同时检索全部优质免费源)</option>
+                    <option value="百度">百度 (官方精校全本 · 经典老书/历史完本首选)</option>
+                    <option value="七猫">七猫 (官方正版 · 都市玄幻爆款)</option>
+                    <option value="番茄">番茄 (原创百万好书 · 全本连载)</option>
+                    <option value="爱下电子书">爱下电子书 (海量全本 · 天启预报/玄幻都市)</option>
+                    <option value="搬山人">搬山人 (全本精校 · 长篇大作无删减)</option>
                     <option value="酷我小说">酷我小说 (正版极速直连 · 毫秒响应)</option>
                     <option value="阅友小说">阅友小说 (开源高速书库 · 清爽直出)</option>
-                    <option value="爱下电子书">爱下电子书 (海量全本、天启预报/玄幻都市)</option>
-                    <option value="搬山人">搬山人 (全本精校、长篇大作无删减)</option>
-                    <option value="七猫">七猫 (官方正版、都市玄幻爆款)</option>
-                    <option value="番茄">番茄 (原创百万好书、全本连载)</option>
-                    <option value="伪69">伪69 (全网无删减、海量同人全集)</option>
-                    <option value="笔趣阁39">笔趣阁39 (经典老牌·高命中率)</option>
-                    <option value="全免小说">全免小说 (全网热门完本)</option>
-                    <option value="QQ阅读">QQ阅读 (正版热门畅销榜)</option>
-                    <option value="52书库">52书库 (完结经典精选)</option>
                     <option value="全本小说">全本小说 (完本经典大作)</option>
-                    <option value="百度">百度 (百度小说官方库)</option>
+                    <option value="全免小说">全免小说 (全网热门完本)</option>
+                    <option value="半夏小说">半夏小说 (纯爱言情 · 精品高分)</option>
                     <option value="笔趣阁78">笔趣阁78 (传统经典长篇)</option>
-                    <option value="半夏小说">半夏小说 (纯爱言情、精品高分)</option>
-                    <option value="书旗">书旗 (阿里文学全本)</option>
+                    <option value="伪69">伪69 (兜底同人全集)</option>
                 </select>
             </div>
         </div>
@@ -6928,10 +6924,16 @@
     let currentHistoryTab = 'video';
     let currentFontSize = 17;
 
-    // 清洗正文中的催费垃圾与隐藏字符
+    // 清洗正文中的催费垃圾、隐藏字符及伪69/笔趣阁翻页水印
     function cleanAdContent(text) {
         if (!text || typeof text !== 'string') return '';
-        let clean = text.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '');
+        let clean = text
+            .replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '')
+            .replace(/^\s*最新网址[：:][^\r\n]*[\r\n]*/gim, '')
+            .replace(/^\s*请记住本书首发域名[^\r\n]*[\r\n]*/gim, '')
+            .replace(/\s*[（(]第\s*\d+\s*\/\s*\d+\s*页[)）]\s*/g, '\n')
+            .replace(/[^\r\n]*本章未完[，,]请点击下一页继续阅读[^\r\n]*/g, '')
+            .replace(/手机用户请浏览阅读[^\r\n]*/g, '');
         const adMarkers = [
             '您当前未登录',
             '您今日免登录访问次数',
@@ -6951,7 +6953,7 @@
                 clean = clean.substring(0, idx);
             }
         }
-        return clean.trim();
+        return clean.replace(/\n{3,}/g, '\n\n').trim();
     }
 
     function isPaywallOrAdText(text) {
@@ -9351,12 +9353,19 @@ window.clearNovelSearch = function() {
             try { data = await res.json(); } catch(je) { throw new Error('源站返回格式异常，请稍后重试'); }
             let rawList = (data && data.data) ? data.data : [];
 
-            const spamKeywords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助', '专属'];
+            const spamKeywords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助', '专属', '付费章节不可阅读', '没有找到包含'];
             let list = rawList.filter(item => {
                 if (!item || !item.book_name) return false;
                 const name = item.book_name;
                 return !spamKeywords.some(k => name.includes(k)) && item.book_id !== 'vip' && item.book_id !== 'svip';
             });
+
+            const SOURCE_QUALITY_WEIGHT = {
+                '百度': 95, '七猫': 92, '番茄': 90, '爱下电子书': 88, '搬山人': 86,
+                '酷我小说': 84, '阅友小说': 82, '轻小说文库': 80, '全本小说': 76,
+                '全免小说': 72, '半夏小说': 68, '笔趣阁78': 62, '伪69': 35
+            };
+            const sortBucket = (arr) => arr.sort((a, b) => (SOURCE_QUALITY_WEIGHT[b.source] || 50) - (SOURCE_QUALITY_WEIGHT[a.source] || 50));
 
             const exactMatches = [];
             const prefixMatches = [];
@@ -9380,7 +9389,7 @@ window.clearNovelSearch = function() {
                 }
             });
 
-            let finalList = [...exactMatches, ...prefixMatches, ...containsMatches];
+            let finalList = [...sortBucket(exactMatches), ...sortBucket(prefixMatches), ...sortBucket(containsMatches)];
             if (finalList.length === 0) finalList = list;
             if (countEl) countEl.textContent = `共 ${finalList.length} 本`;
 
@@ -11562,7 +11571,12 @@ window.clearNovelSearch = function() {
         const renderMatches = (rawMatches) => {
             if (!area) return;
             const cleanTarget = bookName.replace(/[\s《》:：·・\-_]/g, '').toLowerCase();
-            const spamWords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助'];
+            const spamWords = ['@vip', '@svip', '打赏', '更多搜索资源', '赞助', '付费章节不可阅读', '没有找到包含'];
+            const QUALITY_RANK = {
+                '百度': 25, '七猫': 22, '番茄': 20, '爱下电子书': 19, '搬山人': 18,
+                '酷我小说': 16, '阅友小说': 15, '轻小说文库': 14, '全本小说': 12,
+                '全免小说': 10, '半夏小说': 8, '笔趣阁78': 5, '伪69': 0
+            };
             const valid = (rawMatches || []).filter(item => {
                 if (!item || !item.book_name) return false;
                 if (spamWords.some(k => item.book_name.includes(k)) || item.book_id === 'vip' || item.book_id === 'svip') return false;
@@ -11570,13 +11584,14 @@ window.clearNovelSearch = function() {
                 return cleanItem === cleanTarget || cleanItem.includes(cleanTarget) || cleanTarget.includes(cleanItem);
             });
 
-            // 排序：完全同名优先，非当前源优先，每个源保留最匹配的一本
+            // 排序：完全同名 + 高品质精校源优先，非当前源优先，每个源保留最匹配的一本
             const bestPerSource = new Map();
             valid.forEach(item => {
                 const src = ((item.source || '') + '').replace(/^svip_/, '');
                 if (!src) return;
                 const cleanItem = item.book_name.replace(/[\s《》:：·・\-_]/g, '').toLowerCase();
-                const score = (cleanItem === cleanTarget ? 100 : 50) - Math.abs(cleanItem.length - cleanTarget.length);
+                const qBonus = QUALITY_RANK[src] !== undefined ? QUALITY_RANK[src] : 6;
+                const score = (cleanItem === cleanTarget ? 100 : 50) + qBonus - Math.abs(cleanItem.length - cleanTarget.length);
                 const prev = bestPerSource.get(src);
                 if (!prev || score > prev._score) {
                     bestPerSource.set(src, { ...item, source: src, tab, _score: score });

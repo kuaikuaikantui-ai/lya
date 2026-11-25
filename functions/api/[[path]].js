@@ -51,28 +51,35 @@ async function fetchUpstreamWithFailover(apiPath, isContentCheck = false, fastMo
             });
             if (!r.ok) continue;
             const data = await r.json();
-            lastData = data;
             if (!isContentCheck) {
+                lastData = data;
                 if (data && (data.code === 0 || Array.isArray(data.data))) return data;
             } else {
                 const hasImages = Array.isArray(data.images) && data.images.length > 0;
-                const hasText = typeof data.content === 'string' && data.content.length > 50 && !data.content.includes('免登录访问次数已达上限') && !data.content.includes('已转为内部会员') && !data.content.includes('SVIP');
+                const hasText = typeof data.content === 'string' && data.content.length > 50 && !data.content.includes('免登录访问次数已达上限') && !data.content.includes('已转为内部会员') && !data.content.includes('SVIP') && !data.content.includes('打赏解锁');
                 if (hasImages || hasText) return data;
             }
         } catch (e) {
             lastErr = e;
         }
     }
-    if (lastData) return lastData;
-    throw lastErr || new Error('上游节点暂不可用');
+    if (!isContentCheck && lastData) return lastData;
+    throw lastErr || new Error('上游节点暂不可用或为VIP受限源');
 }
 
-// 清洗小说文本中的广告、零宽字符与催费提示
+// 清洗小说文本中的广告、零宽字符、笔趣阁/伪69翻页水印与催费提示
 function cleanNovelText(text) {
     if (!text || typeof text !== 'string') return '';
     // 1. 去除隐藏的零宽字符（\u200B 到 \u200F，\uFEFF，\u202A-\u202E 等）
     let clean = text.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '');
-    // 2. 截断从广告/催费/售后提示开始的所有尾部文本
+    // 2. 清除伪69/笔趣阁等采集源常见的页码与网址水印
+    clean = clean
+        .replace(/^\s*最新网址[：:][^\r\n]*[\r\n]*/gim, '')
+        .replace(/^\s*请记住本书首发域名[^\r\n]*[\r\n]*/gim, '')
+        .replace(/\s*[（(]第\s*\d+\s*\/\s*\d+\s*页[)）]\s*/g, '\n')
+        .replace(/[^\r\n]*本章未完[，,]请点击下一页继续阅读[^\r\n]*/g, '')
+        .replace(/手机用户请浏览阅读[^\r\n]*/g, '');
+    // 3. 截断从广告/催费/售后提示开始的所有尾部文本
     const adMarkers = [
         '您当前未登录',
         '您今日免登录访问次数',
@@ -89,7 +96,7 @@ function cleanNovelText(text) {
             clean = clean.substring(0, idx);
         }
     }
-    return clean.trim();
+    return clean.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function getRandomHeaders() {
@@ -447,8 +454,27 @@ function pickMatchingChapter(catalog, chapIdx, chapTitle) {
     return targetChap || catalog[0];
 }
 
+async function searchBaiduUpstream(title) {
+    try {
+        const apiPath = '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent('小说') + '&source=' + encodeURIComponent('百度') + '&page=1&disabled_sources=0';
+        const json = await fetchUpstreamWithFailover(apiPath, false, true);
+        const list = (json && Array.isArray(json.data) ? json.data : []).filter(item => item && item.book_name && !String(item.book_name).includes('@vip'));
+        return list.map(item => ({ ...item, source: '百度', tab: '小说' }));
+    } catch (e) {
+        return [];
+    }
+}
+
 async function rescueNovelCatalogByTitle(title) {
     const tasks = [
+        (async () => {
+            const list = await searchBaiduUpstream(title);
+            const match = findStrictBookMatch(list, title);
+            if (!match) throw new Error('baidu miss');
+            const d = await fetchUpstreamWithFailover('/catalog?book_id=' + encodeURIComponent(match.book_id) + '&source=' + encodeURIComponent('百度') + '&tab=' + encodeURIComponent('小说') + '&variable={}', false, true);
+            if (!d || !Array.isArray(d.data) || d.data.length === 0) throw new Error('baidu empty');
+            return { code: 0, msg: '已自动为您无缝接力至【百度】精校官方库目录', data: d.data, autoSwitched: true, newSource: '百度', newBookId: match.book_id };
+        })(),
         (async () => {
             const list = await searchKuwo(title);
             const match = findStrictBookMatch(list, title);
@@ -487,6 +513,18 @@ async function rescueNovelCatalogByTitle(title) {
 
 async function rescueNovelContentByTitle(title, chapIdx, chapTitle) {
     const tasks = [
+        (async () => {
+            const list = await searchBaiduUpstream(title);
+            const m = findStrictBookMatch(list, title);
+            if (!m) throw new Error('baidu miss');
+            const c = await fetchUpstreamWithFailover('/catalog?book_id=' + encodeURIComponent(m.book_id) + '&source=' + encodeURIComponent('百度') + '&tab=' + encodeURIComponent('小说') + '&variable={}', false, true);
+            const chap = pickMatchingChapter(c && c.data, chapIdx, chapTitle);
+            if (!chap) throw new Error('baidu no chap');
+            const d = await fetchUpstreamWithFailover('/content?item_id=' + encodeURIComponent(chap.item_id) + '&source=' + encodeURIComponent('百度') + '&tab=' + encodeURIComponent('小说') + '&version=4.6.29', true, true);
+            const cleaned = cleanNovelText(d && d.content);
+            if (!cleaned || cleaned.length < 30) throw new Error('baidu empty');
+            return { code: 0, msg: '已自动为您无缝接力至【百度】精校官方库畅读', autoSwitched: true, newSource: '百度', title: chap.title, content: cleaned };
+        })(),
         (async () => {
             const list = await searchKuwo(title);
             const m = findStrictBookMatch(list, title);
@@ -1121,7 +1159,7 @@ async function getLiveSourcesConfig() {
                 version: data.version || '最新',
                 categories: {
                     "漫画": ["看漫画", "极速韩漫", "新新漫画", "G社漫画", "全面漫画", "番茄"],
-                    "小说": ["酷我小说", "阅友小说", "爱下电子书", "搬山人", "轻小说文库", "七猫", "番茄", "伪69", "笔趣阁39", "全免小说", "QQ阅读", "52书库", "百度", "全本小说", "笔趣阁78", "半夏小说", "书旗"]
+                    "小说": ["百度", "七猫", "番茄", "爱下电子书", "搬山人", "酷我小说", "阅友小说", "轻小说文库", "全本小说", "全免小说", "半夏小说", "笔趣阁78", "伪69"]
                 }
             };
             lastConfigFetch = now;
@@ -1133,7 +1171,7 @@ async function getLiveSourcesConfig() {
         version: '昂哥构建',
         categories: {
             "漫画": ["看漫画", "极速韩漫", "新新漫画", "G社漫画", "全面漫画", "番茄"],
-            "小说": ["酷我小说", "阅友小说", "爱下电子书", "搬山人", "轻小说文库", "七猫", "番茄", "伪69", "笔趣阁39", "全免小说", "QQ阅读", "52书库", "百度", "全本小说", "笔趣阁78", "半夏小说", "书旗"]
+            "小说": ["百度", "七猫", "番茄", "爱下电子书", "搬山人", "酷我小说", "阅友小说", "轻小说文库", "全本小说", "全免小说", "半夏小说", "笔趣阁78", "伪69"]
         }
     };
 }
@@ -1959,15 +1997,32 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                 });
             }
 
-            // ⚡ 聚合全网搜模式：对所有优质源进行高速并发请求并聚合呈现全部结果
+            // ⚡ 聚合全网搜模式：对所有优质免费实测可用源进行高速并发请求并按品质优先呈现
             if (source === 'ALL') {
                 const candidates = (tab === '漫画')
                     ? ['看漫画', '极速韩漫', '新新漫画', 'G社漫画', '全面漫画', '番茄']
-                    : ['酷我小说', '阅友小说', '爱下电子书', '搬山人', '轻小说文库', '七猫', '番茄', '伪69', '笔趣阁39', '全免小说', 'QQ阅读', '52书库', '全本小说', '百度', '笔趣阁78', '半夏小说', '书旗'];
+                    : ['百度', '七猫', '番茄', '爱下电子书', '搬山人', '酷我小说', '阅友小说', '轻小说文库', '全本小说', '全免小说', '半夏小说', '笔趣阁78', '伪69'];
 
                 // 搜索结果边缘缓存（60s）：相同关键词重复搜索秒回
                 const sHit = await edgeCacheMatch(request, '/api/search/ALL');
                 if (sHit) return sHit;
+
+                const isCleanSearchBook = (item) => {
+                    if (!item || !item.book_name) return false;
+                    const name = String(item.book_name);
+                    if (name.includes('@vip') || name.includes('@svip') || name.includes('打赏后获取') || name.includes('客服') || name.includes('付费章节不可阅读') || name.includes('没有找到包含')) return false;
+                    if (item.book_id === 'vip' || item.book_id === 'svip') return false;
+                    // 过滤掉明确标记 webView:true 的无法服务端解析的爬虫地址（防止点进去 0 章）
+                    if (item.book_id && String(item.book_id).startsWith('eyJ')) {
+                        try {
+                            let b64 = String(item.book_id).replace(/-/g, '+').replace(/_/g, '/');
+                            while (b64.length % 4) b64 += '=';
+                            const decoded = atob(b64);
+                            if (decoded.includes('"webView":true')) return false;
+                        } catch (e) {}
+                    }
+                    return true;
+                };
 
                 const fetchTasks = candidates.map(async s => {
                     if (s === '极速韩漫') {
@@ -1994,10 +2049,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                     try {
                         const apiPath = '/search?title=' + encodeURIComponent(title) + '&tab=' + encodeURIComponent(tab) + '&source=' + encodeURIComponent(s) + '&page=' + page + '&disabled_sources=0';
                         const json = await fetchUpstreamWithFailover(apiPath, false, true);
-                        const list = (json && Array.isArray(json.data) ? json.data : []).filter(item => {
-                            const name = item.book_name || '';
-                            return !name.includes('@vip') && !name.includes('@svip') && !name.includes('打赏后获取') && !name.includes('客服');
-                        });
+                        const list = (json && Array.isArray(json.data) ? json.data : []).filter(isCleanSearchBook);
                         return list.map(item => ({ ...item, source: s, tab }));
                     } catch(e) {
                         return [];
@@ -3136,7 +3188,7 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                         throw new Error('Upstream novel catalog empty');
                     })();
 
-                    const rescuePromise = rescueNovelCatalogByTitle(title);
+                    const rescuePromise = rescueNovelCatalogByTitle(title).catch(() => null);
 
                     let finalRes = null;
                     try {
@@ -3145,9 +3197,8 @@ if (source === '轻小说文库' || source === 'Wenku8') {
                             new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200))
                         ]);
                     } catch (e) {
-                        try {
-                            finalRes = await rescuePromise;
-                        } catch (rErr) {
+                        finalRes = await rescuePromise;
+                        if (!finalRes || !finalRes.data || finalRes.data.length === 0) {
                             try { finalRes = await upstreamTask; } catch(uErr) {}
                         }
                     }
